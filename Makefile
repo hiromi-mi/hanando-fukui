@@ -9,6 +9,7 @@ $(target):	$(objects)
 
 test:
 	sh test.sh 1 1
+	sh test.sh '1+9' 10
 
 clean:
 	$(RM) -f $(target) $(objects)
