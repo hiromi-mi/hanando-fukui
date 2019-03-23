@@ -6,8 +6,9 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
-int main(int argc, char** argv) {
+int main(int argc, char **argv) {
    if (argc < 2) {
       puts("Incorrect Arguments");
       exit(1);
@@ -18,16 +19,16 @@ int main(int argc, char** argv) {
    puts(".intel_syntax");
    puts(".global main");
    puts("main:");
-   printf("mov rax, %ld\n", strtol(p,&p, 10));
+   printf("mov rax, %ld\n", strtol(p, &p, 10));
    while (*p != '\0') {
-      switch(*p) {
+      switch (*p) {
          case '+':
             p++;
-            printf("add rax, %ld\n", strtol(p,&p, 10));
+            printf("add rax, %ld\n", strtol(p, &p, 10));
             break;
          case '-':
             p++;
-            printf("sub rax, %ld\n", strtol(p,&p, 10));
+            printf("sub rax, %ld\n", strtol(p, &p, 10));
             break;
          default:
             puts("Error: Incorrect Char.");
