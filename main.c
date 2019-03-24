@@ -25,6 +25,7 @@ Node *new_node(NodeType ty, Node *lhs, Node *rhs) {
 
 Node *new_num_node(long num_val) {
    Node *node = malloc(sizeof(Node));
+   node->ty = ND_NUM;
    node->num_val = num_val;
    return node;
 }
@@ -44,7 +45,7 @@ void tokenize(char *p) {
          p++;
          continue;
       }
-      if (*p == '+' || *p == '-') {
+      if (*p == '+' || *p == '-' || *p == '*' || *p == '/' || *p == '(' || *p == ')') {
          tokens[i].ty = *p;
          tokens[i].token_str = p;
          i++;
@@ -60,6 +61,7 @@ void tokenize(char *p) {
       }
 
       fprintf(stderr, "Cannot Tokenize: %s\n", p);
+      exit(1);
    }
 
    tokens[i].ty = TK_EOF;
@@ -113,6 +115,38 @@ Node *node_term() {
    exit(1);
 }
 
+void gen(Node* node) {
+   if (node->ty == ND_NUM) {
+      printf("push %ld\n", node->num_val);
+      return;
+   } else {
+      gen(node->lhs);
+      gen(node->rhs);
+
+      puts("pop rdi");
+      puts("pop rax");
+      switch (node->ty) {
+         case '+':
+            puts("add rax, rdi");
+            break;
+         case '-':
+            puts("sub rax, rdi");
+            break;
+         case '*':
+            puts("mul rdi");
+            break;
+         case '/':
+            puts("mov rdx, 0");
+            puts("div rax, rdi");
+            break;
+         default:
+            puts("Error");
+            exit(1);
+      }
+      puts("push rax");
+   }
+}
+
 int main(int argc, char **argv) {
    if (argc < 2) {
       puts("Incorrect Arguments");
@@ -120,43 +154,13 @@ int main(int argc, char **argv) {
    }
 
    tokenize(argv[1]);
+   Node *node = node_add();
    // char *p = argv[1];
 
    puts(".intel_syntax");
    puts(".global main");
    puts("main:");
-   if (tokens[0].ty != TK_NUM) {
-      puts("Error: Incorrect Char.");
-      exit(1);
-   }
-   printf("mov rax, %ld\n", tokens[0].num_val);
-
-   int i = 1;
-   while (tokens[i].ty != TK_EOF) {
-      switch (tokens[i].ty) {
-         case '+':
-            i++;
-            if (tokens[i].ty != TK_NUM) {
-               puts("Error: Incorrect Char.");
-               exit(1);
-            }
-            printf("add rax, %ld\n", tokens[i].num_val);
-            i++;
-            break;
-         case '-':
-            i++;
-            if (tokens[i].ty != TK_NUM) {
-               puts("Error: Incorrect Char.");
-               exit(1);
-            }
-            printf("sub rax, %ld\n", tokens[i].num_val);
-            i++;
-            break;
-         default:
-            puts("Error: Incorrect Char.");
-            exit(1);
-      }
-   }
-   puts("ret");
+   gen(node);
+   puts("pop rax\nret");
    return 0;
 }

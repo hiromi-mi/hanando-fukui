@@ -11,6 +11,8 @@ typedef enum {
 typedef enum {
    ND_ADD = '+',
    ND_SUB = '-',
+   ND_MUL = '*',
+   ND_DIV = '/',
    ND_LEFTPARENSIS = '(',
    ND_RIGHTPARENSIS = ')',
    ND_NUM = 256,
