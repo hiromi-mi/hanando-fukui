@@ -45,7 +45,8 @@ void tokenize(char *p) {
          p++;
          continue;
       }
-      if (*p == '+' || *p == '-' || *p == '*' || *p == '/' || *p == '(' || *p == ')') {
+      if (*p == '+' || *p == '-' || *p == '*' || *p == '/' || *p == '(' ||
+          *p == ')') {
          tokens[i].ty = *p;
          tokens[i].token_str = p;
          i++;
@@ -115,7 +116,7 @@ Node *node_term() {
    exit(1);
 }
 
-void gen(Node* node) {
+void gen(Node *node) {
    if (node->ty == ND_NUM) {
       printf("push %ld\n", node->num_val);
       return;

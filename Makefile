@@ -10,6 +10,10 @@ $(target):	$(objects)
 test:
 	sh test.sh 1 1
 	sh test.sh '1+9' 10
+	sh test.sh '1*9' 9
+	sh test.sh '18/9' 2
+	sh test.sh '13-9' 4
+	sh test.sh '(11-9)*34' 68
 
 clean:
 	$(RM) -f $(target) $(objects)

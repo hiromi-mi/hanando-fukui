@@ -21,7 +21,7 @@ typedef enum {
 typedef struct Node {
    NodeType ty;
    struct Node *lhs;
-   struct Node* rhs;
+   struct Node *rhs;
    long num_val;
 } Node;
 
