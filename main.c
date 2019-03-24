@@ -4,12 +4,12 @@
 
 */
 
+#include "main.h"
 #include <ctype.h>
+#include <malloc.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <malloc.h>
-#include "main.h"
 
 // to use vector instead of something
 Token tokens[100];
@@ -41,7 +41,8 @@ void tokenize(char *p) {
    int i = 0;
    while (*p != '\0') {
       if (isspace(*p)) {
-         p++; continue;
+         p++;
+         continue;
       }
       if (*p == '+' || *p == '-') {
          tokens[i].ty = *p;
@@ -65,13 +66,13 @@ void tokenize(char *p) {
    tokens[i].token_str = p;
 }
 
-Node* node_mul();
-Node* node_term();
-Node* node_add();
+Node *node_mul();
+Node *node_term();
+Node *node_add();
 
-Node* node_add() {
+Node *node_add() {
    Node *node = node_mul();
-   while(1) {
+   while (1) {
       if (consume_node('+')) {
          node = new_node('+', node, node_mul());
       } else if (consume_node('-')) {
@@ -82,9 +83,9 @@ Node* node_add() {
    }
 }
 
-Node* node_mul() {
+Node *node_mul() {
    Node *node = node_term();
-   while(1) {
+   while (1) {
       if (consume_node('*')) {
          node = new_node('*', node, node_mul());
       } else if (consume_node('/')) {
@@ -95,7 +96,7 @@ Node* node_mul() {
    }
 }
 
-Node* node_term() {
+Node *node_term() {
    if (tokens[pos].ty == TK_NUM) {
       Node *node = new_num_node(tokens[pos++].num_val);
       return node;
@@ -119,7 +120,7 @@ int main(int argc, char **argv) {
    }
 
    tokenize(argv[1]);
-   //char *p = argv[1];
+   // char *p = argv[1];
 
    puts(".intel_syntax");
    puts(".global main");
@@ -130,7 +131,7 @@ int main(int argc, char **argv) {
    }
    printf("mov rax, %ld\n", tokens[0].num_val);
 
-   int i=1;
+   int i = 1;
    while (tokens[i].ty != TK_EOF) {
       switch (tokens[i].ty) {
          case '+':
