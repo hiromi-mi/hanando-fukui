@@ -8,10 +8,34 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <malloc.h>
 #include "main.h"
 
 // to use vector instead of something
 Token tokens[100];
+int pos = 0;
+
+Node *new_node(NodeType ty, Node *lhs, Node *rhs) {
+   Node *node = malloc(sizeof(Node));
+   node->ty = ty;
+   node->lhs = lhs;
+   node->rhs = rhs;
+   return node;
+}
+
+Node *new_num_node(long num_val) {
+   Node *node = malloc(sizeof(Node));
+   node->num_val = num_val;
+   return node;
+}
+
+int consume_node(TokenConst ty) {
+   if (tokens[pos].ty != ty) {
+      return 0;
+   }
+   pos++;
+   return 1;
+}
 
 void tokenize(char *p) {
    int i = 0;
@@ -39,6 +63,53 @@ void tokenize(char *p) {
 
    tokens[i].ty = TK_EOF;
    tokens[i].token_str = p;
+}
+
+Node* node_mul();
+Node* node_term();
+Node* node_add();
+
+Node* node_add() {
+   Node *node = node_mul();
+   while(1) {
+      if (consume_node('+')) {
+         node = new_node('+', node, node_mul());
+      } else if (consume_node('-')) {
+         node = new_node('-', node, node_mul());
+      } else {
+         return node;
+      }
+   }
+}
+
+Node* node_mul() {
+   Node *node = node_term();
+   while(1) {
+      if (consume_node('*')) {
+         node = new_node('*', node, node_mul());
+      } else if (consume_node('/')) {
+         node = new_node('/', node, node_mul());
+      } else {
+         return node;
+      }
+   }
+}
+
+Node* node_term() {
+   if (tokens[pos].ty == TK_NUM) {
+      Node *node = new_num_node(tokens[pos++].num_val);
+      return node;
+   }
+   if (consume_node('(')) {
+      Node *node = node_add();
+      if (!consume_node(')')) {
+         puts("Error: Incorrect Parensis.");
+         exit(1);
+      }
+      return node;
+   }
+   puts("Error: Incorrect Parensis.");
+   exit(1);
 }
 
 int main(int argc, char **argv) {

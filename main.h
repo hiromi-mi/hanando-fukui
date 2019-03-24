@@ -8,6 +8,21 @@ typedef enum {
    TK_EOF,
 } TokenConst;
 
+typedef enum {
+   ND_ADD = '+',
+   ND_SUB = '-',
+   ND_LEFTPARENSIS = '(',
+   ND_RIGHTPARENSIS = ')',
+   ND_NUM = 256,
+} NodeType;
+
+typedef struct Node {
+   NodeType ty;
+   struct Node *lhs;
+   struct Node* rhs;
+   long num_val;
+} Node;
+
 typedef struct {
    TokenConst ty;
    long num_val;
