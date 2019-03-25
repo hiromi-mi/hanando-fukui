@@ -31,4 +31,10 @@ typedef struct {
    char *token_str;
 } Token;
 
+typedef struct {
+   Token** data;
+   int capacity;
+   int len;
+} Vector;
+
 #endif /* __HANANDO_FUKUI_MAIN__ */

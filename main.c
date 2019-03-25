@@ -6,13 +6,30 @@
 
 #include "main.h"
 #include <ctype.h>
-#include <malloc.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <assert.h>
+
+Vector *new_vector() {
+   Vector* vec = malloc(sizeof(Vector));
+   vec->capacity = 16;
+   vec->data = malloc(sizeof(Token*) * vec->capacity);
+   vec->len = 0;
+   return vec;
+}
+
+
+void vec_push(Vector *vec, Token* element) {
+   if (vec->capacity == vec->len) {
+      vec->capacity *= 2;
+      vec->data = realloc(vec->data, sizeof(Token*) * vec->capacity);
+   }
+   vec->data[vec->len++] = element;
+}
 
 // to use vector instead of something
-Token tokens[100];
+Vector* tokens;
 int pos = 0;
 
 Node *new_node(NodeType ty, Node *lhs, Node *rhs) {
@@ -31,7 +48,7 @@ Node *new_num_node(long num_val) {
 }
 
 int consume_node(TokenConst ty) {
-   if (tokens[pos].ty != ty) {
+   if (tokens->data[pos]->ty != ty) {
       return 0;
    }
    pos++;
@@ -39,6 +56,7 @@ int consume_node(TokenConst ty) {
 }
 
 void tokenize(char *p) {
+   tokens = new_vector();
    int i = 0;
    while (*p != '\0') {
       if (isspace(*p)) {
@@ -47,16 +65,20 @@ void tokenize(char *p) {
       }
       if (*p == '+' || *p == '-' || *p == '*' || *p == '/' || *p == '(' ||
           *p == ')') {
-         tokens[i].ty = *p;
-         tokens[i].token_str = p;
+         Token *token = malloc(sizeof(Token));
+         token->ty = *p;
+         token->token_str = p;
+         vec_push(tokens, token);
          i++;
          p++;
          continue;
       }
       if (isdigit(*p)) {
-         tokens[i].ty = TK_NUM;
-         tokens[i].token_str = p;
-         tokens[i].num_val = strtol(p, &p, 10);
+         Token *token = malloc(sizeof(Token));
+         token->ty = TK_NUM;
+         token->token_str = p;
+         token->num_val = strtol(p, &p, 10);
+         vec_push(tokens, token);
          i++;
          continue;
       }
@@ -65,8 +87,10 @@ void tokenize(char *p) {
       exit(1);
    }
 
-   tokens[i].ty = TK_EOF;
-   tokens[i].token_str = p;
+   Token *token = malloc(sizeof(Token));
+   token->ty = TK_EOF;
+   token->token_str = p;
+   vec_push(tokens, token);
 }
 
 Node *node_mul();
@@ -100,8 +124,8 @@ Node *node_mul() {
 }
 
 Node *node_term() {
-   if (tokens[pos].ty == TK_NUM) {
-      Node *node = new_num_node(tokens[pos++].num_val);
+   if (tokens->data[pos]->ty == TK_NUM) {
+      Node *node = new_num_node(tokens->data[pos++]->num_val);
       return node;
    }
    if (consume_node('(')) {
@@ -148,11 +172,24 @@ void gen(Node *node) {
    }
 }
 
+
+void expect(int line, int expected, int actual) {
+  if (expected == actual)
+    return;
+  fprintf(stderr, "%d: %d expected, but got %d\n",
+          line, expected, actual);
+  exit(1);
+}
+
 int main(int argc, char **argv) {
    if (argc < 2) {
       puts("Incorrect Arguments");
       exit(1);
    }
+
+   //Vector *vec = new_vector();
+   //vec_push(vec, 9);
+   // assert(1 == vec->len);
 
    tokenize(argv[1]);
    Node *node = node_add();
