@@ -57,7 +57,7 @@ int consume_node(TokenConst ty) {
 
 void tokenize(char *p) {
    tokens = new_vector();
-   int i = 0;
+   //int i = 0;
    while (*p != '\0') {
       if (isspace(*p)) {
          p++;
@@ -67,19 +67,28 @@ void tokenize(char *p) {
           *p == ')') {
          Token *token = malloc(sizeof(Token));
          token->ty = *p;
-         token->token_str = p;
+         token->input = p;
          vec_push(tokens, token);
-         i++;
+         // i++;
          p++;
          continue;
       }
       if (isdigit(*p)) {
          Token *token = malloc(sizeof(Token));
          token->ty = TK_NUM;
-         token->token_str = p;
+         token->input = p;
          token->num_val = strtol(p, &p, 10);
          vec_push(tokens, token);
-         i++;
+         // i++;
+         continue;
+      }
+
+      if ('a' <= *p && *p <= 'z') {
+         Token *token = malloc(sizeof(Token));
+         token->ty = TK_IDENT;
+         token->input = p;
+         vec_push(tokens, token);
+         // i++;
          continue;
       }
 
@@ -89,7 +98,7 @@ void tokenize(char *p) {
 
    Token *token = malloc(sizeof(Token));
    token->ty = TK_EOF;
-   token->token_str = p;
+   token->input = p;
    vec_push(tokens, token);
 }
 

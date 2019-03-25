@@ -5,6 +5,7 @@ typedef enum {
    TK_ADD = '+',
    TK_SUB = '-',
    TK_NUM = 256,
+   TK_IDENT,
    TK_EOF,
 } TokenConst;
 
@@ -28,7 +29,7 @@ typedef struct Node {
 typedef struct {
    TokenConst ty;
    long num_val;
-   char *token_str;
+   char *input;
 } Token;
 
 typedef struct {
