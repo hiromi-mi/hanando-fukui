@@ -85,6 +85,7 @@ Node *new_func_node(char* name) {
    Node *node = malloc(sizeof(Node));
    node->ty = ND_FUNC;
    node->name = name;
+   node->lhs = NULL;
    return node;
 }
 
@@ -105,7 +106,7 @@ void tokenize(char *p) {
          continue;
       }
       if (*p == '+' || *p == '-' || *p == '*' || *p == '/' || *p == '(' ||
-            *p == ')' || *p == ';') {
+            *p == ')' || *p == ';' || *p == ',') {
          Token *token = malloc(sizeof(Token));
          token->ty = *p;
          token->input = p;
@@ -213,8 +214,12 @@ Node *node_term() {
       Node *node;
       if (tokens->data[pos+1]->ty == '(') {
          node = new_func_node(tokens->data[pos]->input);
-         // skip func , (, and )
-         pos += 3;
+         // skip func , (
+         pos += 2;
+         while (!consume_node(')')) {
+            node->lhs = node_add();
+         }
+         // pos++ because of consume_node(')')
       } else {
          node = new_ident_node(tokens->data[pos++]->input);
       }
@@ -251,6 +256,11 @@ void gen(Node *node) {
    }
 
    if (node->ty == ND_FUNC) {
+      if (node->lhs != NULL) {
+         gen(node->lhs);
+         // SystemV
+         puts("pop rdi");
+      }
       printf("call %s\n", node->name);
       return;
    }
