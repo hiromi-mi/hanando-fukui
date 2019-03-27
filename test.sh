@@ -1,8 +1,10 @@
 # test.sh
 
-./hanando $1 > tmp.s
-clang tmp.s -o tmp
-./tmp
+tmps=$(mktemp).s
+# Not safe for exception trapping.
+./hanando $1 > $tmps
+clang $tmps -o $tmps.run
+$tmps.run
 actual="$?"
 if [ $actual -ne $2 ]; then
    echo "Error: $2 but $actual"

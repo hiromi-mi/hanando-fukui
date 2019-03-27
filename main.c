@@ -262,6 +262,7 @@ void gen(Node *node) {
          puts("pop rdi");
       }
       printf("call %s\n", node->name);
+      puts("push rax");
       return;
    }
 
