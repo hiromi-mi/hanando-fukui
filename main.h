@@ -30,6 +30,8 @@ typedef struct Node {
    NodeType ty;
    struct Node *lhs;
    struct Node *rhs;
+   struct Node *args[6];
+   int argc;
    long num_val;
    char* name;
 } Node;

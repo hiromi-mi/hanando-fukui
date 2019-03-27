@@ -10,3 +10,4 @@ if [ $actual -ne $2 ]; then
    echo "Error: $2 but $actual"
    exit 1
 fi
+rm -f $tmps $tmps.run

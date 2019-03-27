@@ -86,6 +86,8 @@ Node *new_func_node(char* name) {
    node->ty = ND_FUNC;
    node->name = name;
    node->lhs = NULL;
+   node->rhs = NULL;
+   node->argc = 0;
    return node;
 }
 
@@ -216,9 +218,13 @@ Node *node_term() {
          node = new_func_node(tokens->data[pos]->input);
          // skip func , (
          pos += 2;
-         while (!consume_node(')')) {
-            node->lhs = node_add();
+         while (1) {
+            if (!consume_node(',') && consume_node(')')) {
+               break;
+            }
+            node->args[node->argc++] = node_add();
          }
+         assert(node->argc <= 6);
          // pos++ because of consume_node(')')
       } else {
          node = new_ident_node(tokens->data[pos++]->input);
@@ -256,11 +262,12 @@ void gen(Node *node) {
    }
 
    if (node->ty == ND_FUNC) {
-      if (node->lhs != NULL) {
-         gen(node->lhs);
-         // SystemV
-         puts("pop rdi");
+      char registers[6][4] = {"rdi", "rsi", "rdx", "rcx", "r8", "r9"};
+      for (int i=0; i<node->argc;i++) {
+         gen(node->args[i]);
+         printf("pop %s\n", registers[i]);
       }
+      // FIXME: alignment should be 64-bit
       printf("call %s\n", node->name);
       puts("push rax");
       return;
@@ -387,7 +394,7 @@ int main(int argc, char **argv) {
    puts(".global main");
    puts("main:");
 
-   puts("push rbp");
+   puts("push rbp"); 
    puts("mov rbp, rsp");
    printf("sub rsp, %d\n", rsp_offset);
    for (int i=0;code[i];i++) {
