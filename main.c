@@ -98,7 +98,7 @@ void tokenize(char *p) {
          continue;
       }
       if (*p == '+' || *p == '-' || *p == '*' || *p == '/' || *p == '(' ||
-            *p == ')' || *p == '=' || *p == ';') {
+            *p == ')' || *p == ';') {
          Token *token = malloc(sizeof(Token));
          token->ty = *p;
          token->input = p;
@@ -214,7 +214,7 @@ Node *node_term() {
       }
       return node;
    }
-   puts("Error: Incorrect Parensis.");
+   printf("Error: Incorrect Parensis without .%c %d\n", tokens->data[pos]->ty, tokens->data[pos]->ty);
    exit(1);
 }
 
@@ -273,6 +273,16 @@ void gen(Node *node) {
          puts("mov rdx, 0");
          puts("div rax, rdi");
          break;
+      case ND_ISEQ:
+         puts("cmp rdi, rax");
+         puts("sete al");
+         puts("movzx rax, al");
+         break;
+      case ND_ISNOTEQ:
+         puts("cmp rdi, rax");
+         puts("setne al");
+         puts("movzx rax, al");
+         break;
       default:
          puts("Error");
          exit(1);
@@ -293,6 +303,10 @@ Node *assign() {
    Node *node = node_add();
    if (consume_node('=')) {
       node = new_node('=', node, assign());
+   } else if (consume_node(TK_ISEQ)) {
+      node = new_node(ND_ISEQ, node, assign());
+   } else if (consume_node(TK_ISNOTEQ)) {
+      node = new_node(ND_ISNOTEQ, node, assign());
    }
    return node;
 }
