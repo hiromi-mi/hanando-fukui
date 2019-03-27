@@ -107,6 +107,30 @@ void tokenize(char *p) {
          p++;
          continue;
       }
+      if (*p == '=') {
+         Token *token = malloc(sizeof(Token));
+         token->input = p;
+         if (*(p+1) == '=') {
+            token->ty = TK_ISEQ;
+            p += 2;
+         } else {
+            token->ty = '=';
+            p++;
+         }
+         vec_push(tokens, token);
+      }
+      if (*p == '!') {
+         Token *token = malloc(sizeof(Token));
+         token->input = p;
+         if (*(p+1) == '=') {
+            token->ty = TK_ISNOTEQ;
+            p += 2;
+         } else {
+            puts("error: not supported");
+            exit(1);
+         }
+         vec_push(tokens, token);
+      }
       if (isdigit(*p)) {
          Token *token = malloc(sizeof(Token));
          token->ty = TK_NUM;

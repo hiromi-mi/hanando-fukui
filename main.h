@@ -8,6 +8,8 @@ typedef enum {
    TK_NUM = 256,
    TK_IDENT,
    TK_EOF,
+   TK_ISEQ,
+   TK_ISNOTEQ,
 } TokenConst;
 
 typedef enum {
@@ -19,6 +21,8 @@ typedef enum {
    ND_RIGHTPARENSIS = ')',
    ND_NUM = 256,
    ND_IDENT,
+   ND_ISEQ,
+   ND_ISNOTEQ,
 } NodeType;
 
 typedef struct Node {
