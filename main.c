@@ -70,13 +70,13 @@ Node *new_num_node(long num_val) {
 }
 
 Map *idents;
+int rsp_offset = 0;
 
 Node *new_ident_node(char* name) {
-   static int offset = 0;
    Node *node = malloc(sizeof(Node));
    node->ty = ND_IDENT;
    node->name = name;
-   offset += 8;
+   rsp_offset += 8;
    map_put(idents, name, (void*)8);
    return node;
 }
@@ -389,7 +389,7 @@ int main(int argc, char **argv) {
 
    puts("push rbp");
    puts("mov rbp, rsp");
-   puts("sub rsp, 208");
+   printf("sub rsp, %d\n", rsp_offset);
    for (int i=0;code[i];i++) {
       gen(code[i]);
       puts("pop rax");
