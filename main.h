@@ -41,4 +41,11 @@ typedef struct {
    int len;
 } Vector;
 
+typedef struct {
+   Vector* keys;
+   Vector *vals;
+} Map;
+Vector *new_vector();
+void vec_push(Vector *vec, Token* element);
+
 #endif /* __HANANDO_FUKUI_MAIN__ */
