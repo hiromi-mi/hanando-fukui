@@ -4,6 +4,7 @@
 typedef enum {
    TK_ADD = '+',
    TK_SUB = '-',
+   TK_EQUAL = '=',
    TK_NUM = 256,
    TK_IDENT,
    TK_EOF,
@@ -17,6 +18,7 @@ typedef enum {
    ND_LEFTPARENSIS = '(',
    ND_RIGHTPARENSIS = ')',
    ND_NUM = 256,
+   ND_IDENT,
 } NodeType;
 
 typedef struct Node {
@@ -24,6 +26,7 @@ typedef struct Node {
    struct Node *lhs;
    struct Node *rhs;
    long num_val;
+   char name;
 } Node;
 
 typedef struct {
