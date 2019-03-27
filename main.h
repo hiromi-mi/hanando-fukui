@@ -23,6 +23,7 @@ typedef enum {
    ND_IDENT,
    ND_ISEQ,
    ND_ISNOTEQ,
+   ND_FUNC,
 } NodeType;
 
 typedef struct Node {

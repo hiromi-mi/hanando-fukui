@@ -81,6 +81,13 @@ Node *new_ident_node(char* name) {
    return node;
 }
 
+Node *new_func_node(char* name) {
+   Node *node = malloc(sizeof(Node));
+   node->ty = ND_FUNC;
+   node->name = name;
+   return node;
+}
+
 int consume_node(TokenConst ty) {
    if (tokens->data[pos]->ty != ty) {
       return 0;
@@ -203,7 +210,14 @@ Node *node_term() {
       return node;
    }
    if (tokens->data[pos]->ty == TK_IDENT) {
-      Node *node = new_ident_node(tokens->data[pos++]->input);
+      Node *node;
+      if (tokens->data[pos+1]->ty == '(') {
+         node = new_func_node(tokens->data[pos]->input);
+         // skip func , (, and )
+         pos += 3;
+      } else {
+         node = new_ident_node(tokens->data[pos++]->input);
+      }
       return node;
    }
    if (consume_node('(')) {
@@ -233,6 +247,11 @@ void gen_lval(Node *node) {
 void gen(Node *node) {
    if (node->ty == ND_NUM) {
       printf("push %ld\n", node->num_val);
+      return;
+   }
+
+   if (node->ty == ND_FUNC) {
+      printf("call %s\n", node->name);
       return;
    }
 
