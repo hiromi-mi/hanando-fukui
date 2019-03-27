@@ -69,10 +69,15 @@ Node *new_num_node(long num_val) {
    return node;
 }
 
-Node *new_ident_node(char name) {
+Map *idents;
+
+Node *new_ident_node(char* name) {
+   static int offset = 0;
    Node *node = malloc(sizeof(Node));
    node->ty = ND_IDENT;
    node->name = name;
+   offset += 8;
+   map_put(idents, name, (void*)8);
    return node;
 }
 
@@ -115,9 +120,15 @@ void tokenize(char *p) {
       if ('a' <= *p && *p <= 'z') {
          Token *token = malloc(sizeof(Token));
          token->ty = TK_IDENT;
-         token->input = p;
+         token->input = malloc(sizeof(char)*256);
          vec_push(tokens, token);
-         p++;
+         int j=0;
+         do {
+            token->input[j] = *p;
+            p++;
+            j++;
+         } while('a' <= *p && *p <= 'z');
+         token->input[j] = '\0';
          // i++;
          continue;
       }
@@ -168,7 +179,7 @@ Node *node_term() {
       return node;
    }
    if (tokens->data[pos]->ty == TK_IDENT) {
-      Node *node = new_ident_node(*tokens->data[pos++]->input);
+      Node *node = new_ident_node(tokens->data[pos++]->input);
       return node;
    }
    if (consume_node('(')) {
@@ -185,11 +196,11 @@ Node *node_term() {
 
 void gen_lval(Node *node) {
    if (node->ty != ND_IDENT) {
-      puts("eeror: Incorrect Variable of lvalue");
+      puts("error: Incorrect Variable of lvalue");
       exit(1);
    }
 
-   int offset = ('z' - node->name + 1) * 8;
+   int offset = (int)map_get(idents, node->name);
    puts("mov rax, rbp");
    printf("sub rax, %d\n", offset);
    puts("push rax");
@@ -272,6 +283,7 @@ Node *stmt() {
 }
 
 void program() {
+   idents = new_map();
    int i = 0;
    while(tokens->data[pos]->ty != TK_EOF) {
       code[i++] = stmt();

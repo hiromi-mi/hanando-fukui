@@ -15,6 +15,7 @@ test:
 	sh test.sh '13-9;' 4
 	sh test.sh '(11-9)*34;' 68
 	sh test.sh 'a=3;a;' 3
+	sh test.sh 'ce=3;ce;' 3
 
 clean:
 	$(RM) -f $(target) $(objects)

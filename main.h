@@ -26,7 +26,7 @@ typedef struct Node {
    struct Node *lhs;
    struct Node *rhs;
    long num_val;
-   char name;
+   char* name;
 } Node;
 
 typedef struct {
