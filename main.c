@@ -108,7 +108,7 @@ void tokenize(char *p) {
          continue;
       }
       if (*p == '+' || *p == '-' || *p == '*' || *p == '/' || *p == '(' ||
-            *p == ')' || *p == ';' || *p == ',') {
+            *p == ')' || *p == ';' || *p == ',' || *p == '{' || *p == '}') {
          Token *token = malloc(sizeof(Token));
          token->ty = *p;
          token->input = p;
@@ -360,6 +360,15 @@ Node *stmt() {
 void program() {
    idents = new_map();
    int i = 0;
+   // funcname: tokens->data[0]->input
+   // consume_node('(')
+   // : tokens->data[0]->input
+   // consume_node(',')
+   // ...
+   // consume_node('{')
+   // idents = new_map...
+   // stmt....
+   // consume_node('}')
    while(tokens->data[pos]->ty != TK_EOF) {
       code[i++] = stmt();
    }

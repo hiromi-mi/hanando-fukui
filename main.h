@@ -5,6 +5,8 @@ typedef enum {
    TK_ADD = '+',
    TK_SUB = '-',
    TK_EQUAL = '=',
+   TK_BLOCKBEGIN = '{',
+   TK_BLOCKEND = '}',
    TK_NUM = 256,
    TK_IDENT,
    TK_EOF,
