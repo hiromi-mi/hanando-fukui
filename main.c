@@ -359,7 +359,7 @@ Node *stmt() {
 
 void program() {
    idents = new_map();
-   int i = 0;
+   static int i = 0;
    // funcname: tokens->data[0]->input
    // consume_node('(')
    // : tokens->data[0]->input
@@ -370,6 +370,12 @@ void program() {
    // stmt....
    // consume_node('}')
    while(tokens->data[pos]->ty != TK_EOF) {
+      if (consume_node('}')) {
+         return;
+      }
+      if (consume_node('{')) {
+         program();
+      }
       code[i++] = stmt();
    }
    code[i] = NULL;
