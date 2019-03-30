@@ -169,6 +169,12 @@ void tokenize(char *p) {
 
       fprintf(stderr, "Cannot Tokenize: %s\n", p);
       exit(1);
+      // DEBUG
+      /*
+      for (int j=0;j<=tokens->len-1;j++) {
+         fprintf(stderr, "%c %d %s\n", tokens->data[j]->ty, tokens->data[j]->ty, tokens->data[j]->input);
+      }
+      */
    }
 
    Token *token = malloc(sizeof(Token));
@@ -239,7 +245,9 @@ Node *node_term() {
       }
       return node;
    }
-   printf("Error: Incorrect Parensis without .%c %d\n", tokens->data[pos]->ty, tokens->data[pos]->ty);
+   printf("Error: Incorrect Parensis without %c %d -> %c %d\n", 
+         tokens->data[pos-1]->ty, tokens->data[pos-1]->ty,
+         tokens->data[pos]->ty, tokens->data[pos]->ty);
    exit(1);
 }
 
@@ -356,10 +364,19 @@ Node *stmt() {
    }
    return node;
 }
+int i = 0;
 
 void program() {
-   idents = new_map();
-   static int i = 0;
+   while (!consume_node('}')) {
+      if (consume_node('{')) {
+         program();
+         continue;
+      }
+      code[i++] = stmt();
+   }
+}
+
+void toplevel() {
    // funcname: tokens->data[0]->input
    // consume_node('(')
    // : tokens->data[0]->input
@@ -369,12 +386,16 @@ void program() {
    // idents = new_map...
    // stmt....
    // consume_node('}')
+   idents = new_map();
    while(tokens->data[pos]->ty != TK_EOF) {
+      /*
       if (consume_node('}')) {
-         return;
+         continue;
       }
+      */
       if (consume_node('{')) {
          program();
+         continue;
       }
       code[i++] = stmt();
    }
@@ -401,7 +422,7 @@ int main(int argc, char **argv) {
    // assert(1 == vec->len);
 
    tokenize(argv[1]);
-   program();
+   toplevel();
    //Node *node = node_add();
    // char *p = argv[1];
 
