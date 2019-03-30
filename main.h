@@ -12,6 +12,8 @@ typedef enum {
    TK_EOF,
    TK_ISEQ,
    TK_ISNOTEQ,
+   TK_IF,
+   TK_ELSE,
 } TokenConst;
 
 typedef enum {
@@ -26,6 +28,7 @@ typedef enum {
    ND_ISEQ,
    ND_ISNOTEQ,
    ND_FUNC,
+   ND_FDEF,
 } NodeType;
 
 typedef struct Node {

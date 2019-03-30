@@ -91,6 +91,16 @@ Node *new_func_node(char* name) {
    return node;
 }
 
+Node *new_fdef_node(char* name) {
+   Node *node = malloc(sizeof(Node));
+   node->ty = ND_FDEF;
+   node->name = name;
+   node->lhs = NULL;
+   node->rhs = NULL;
+   node->argc = 0;
+   return node;
+}
+
 int consume_node(TokenConst ty) {
    if (tokens->data[pos]->ty != ty) {
       return 0;
@@ -161,8 +171,15 @@ void tokenize(char *p) {
             token->input[j] = *p;
             p++;
             j++;
-         } while('a' <= *p && *p <= 'z');
+         } while(('a' <= *p && *p <= 'z') || ('0' <= *p && *p <= '9'));
          token->input[j] = '\0';
+
+         if (strcmp(token->input, "if") == 0) {
+            token->ty = TK_IF;
+         }
+         if (strcmp(token->input, "else") == 0) {
+            token->ty = TK_ELSE;
+         }
          // i++;
          continue;
       }
@@ -267,6 +284,29 @@ void gen(Node *node) {
    if (node->ty == ND_NUM) {
       printf("push %ld\n", node->num_val);
       return;
+   }
+
+   if (node->ty == ND_FDEF) {
+      printf("%s:\n", node->name);
+      for (int i=0; i<node->argc;i++) {
+         // read inside functions.
+         gen(node->args[i]);
+      }
+      puts("pop rbp");
+      puts("ret");
+         // FIXME
+         return;
+
+   /*
+   puts("push rbp"); 
+   puts("mov rbp, rsp");
+   printf("sub rsp, %d\n", rsp_offset);
+   for (int i=0;code[i];i++) {
+      gen(code[i]);
+      puts("pop rax");
+   }
+   puts("mov rsp, rbp");
+   */
    }
 
    if (node->ty == ND_FUNC) {
@@ -393,6 +433,15 @@ void toplevel() {
          continue;
       }
       */
+      // FIXME because toplevel func call
+      if (tokens->data[pos]->ty == TK_IDENT && tokens->data[pos+1]->ty == TK_IDENT && tokens->data[pos+2]->ty == '(') {
+         // expected int func() {
+         // skip ')', '{'
+         code[i++] = new_fdef_node(tokens->data[pos]->input);
+         pos += 5;
+         program();
+         continue;
+      }
       if (consume_node('{')) {
          program();
          continue;
