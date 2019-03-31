@@ -11,44 +11,6 @@
 #include <string.h>
 #include <assert.h>
 
-Map *new_map() {
-   Map *map = malloc(sizeof(Map));
-   map->keys = new_vector();
-   map->vals = new_vector();
-   return map;
-}
-
-void map_put(Map *map, char* key, void* val) {
-   vec_push(map->keys, key);
-   vec_push(map->vals, val);
-}
-
-void *map_get(Map *map, char* key) {
-   for (int i=map->keys->len-1;i>=0;i--) {
-      if (strcmp(map->keys->data[i], key) == 0) {
-         return map->vals->data[i];
-      }
-   }
-   return NULL;
-}
-
-Vector *new_vector() {
-   Vector* vec = malloc(sizeof(Vector));
-   vec->capacity = 16;
-   vec->data = malloc(sizeof(Token*) * vec->capacity);
-   vec->len = 0;
-   return vec;
-}
-
-
-void vec_push(Vector *vec, Token* element) {
-   if (vec->capacity == vec->len) {
-      vec->capacity *= 2;
-      vec->data = realloc(vec->data, sizeof(Token*) * vec->capacity);
-   }
-   vec->data[vec->len++] = element;
-}
-
 // to use vector instead of something
 Vector* tokens;
 int pos = 0;
@@ -406,13 +368,13 @@ Node *stmt() {
 }
 int i = 0;
 
-void program() {
+void program(Node** args) {
    while (!consume_node('}')) {
       if (consume_node('{')) {
-         program();
+         program(args++);
          continue;
       }
-      code[i++] = stmt();
+      args[i++] = stmt();
    }
 }
 
@@ -439,11 +401,11 @@ void toplevel() {
          // skip ')', '{'
          code[i++] = new_fdef_node(tokens->data[pos]->input);
          pos += 5;
-         program();
+         program(code[i++]->args);
          continue;
       }
       if (consume_node('{')) {
-         program();
+         program(&code[i]);
          continue;
       }
       code[i++] = stmt();

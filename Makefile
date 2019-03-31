@@ -1,11 +1,11 @@
 CC = clang
 CFLAGS = -Wall -Wextra -Wpedantic -g
 
-objects = main.o
+objects = main.o util.o
 target = hanando
 
 $(target):	$(objects)
-	$(CC) $< -o $@ $(LDFLAGS)
+	$(CC) $? -o $@ $(LDFLAGS)
 
 test:	test1 test2 test3 test4
 
