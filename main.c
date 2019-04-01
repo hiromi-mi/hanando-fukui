@@ -81,7 +81,7 @@ void tokenize(char *p) {
       if (
             *p == '+' || *p == '-' || *p == '*' || *p == '/' || *p == '(' ||
             *p == ')' || *p == ';' || *p == ',' || *p == '{' || *p == '}' ||
-            *p == '%' || *p == '~' || *p == '^'
+            *p == '%' || *p == '^' || *p == '|' || *p == '&'
             ) {
          Token *token = malloc(sizeof(Token));
          token->ty = *p;
@@ -164,13 +164,40 @@ void tokenize(char *p) {
 Node *node_mul();
 Node *node_term();
 Node *node_mathexpr();
+Node *node_or();
+Node *node_and();
+Node *node_xor();
 Node *node_add();
 
 Node *node_mathexpr() {
+   return node_or();
+}
+
+Node *node_or() {
+   Node *node = node_xor();
+   while (1) {
+      if (consume_node('|')) {
+         node = new_node('|', node, node_xor());
+      } else {
+         return node;
+      }
+   }
+}
+Node *node_and() {
    Node *node = node_add();
    while (1) {
+      if (consume_node('&')) {
+         node = new_node('&', node, node_add());
+      } else {
+         return node;
+      }
+   }
+}
+Node *node_xor() {
+   Node *node = node_and();
+   while (1) {
       if (consume_node('^')) {
-         node = new_node('^', node, node_add());
+         node = new_node('^', node, node_and());
       } else {
          return node;
       }
@@ -340,6 +367,12 @@ void gen(Node *node) {
          break;
       case '^':
          puts("xor rax, rdi");
+         break;
+      case '&':
+         puts("and rax, rdi");
+         break;
+      case '|':
+         puts("or rax, rdi");
          break;
       case ND_ISEQ:
          puts("cmp rdi, rax");

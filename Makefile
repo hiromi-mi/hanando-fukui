@@ -7,7 +7,7 @@ target = hanando
 $(target):	$(objects)
 	$(CC) $? -o $@ $(LDFLAGS)
 
-test:	test1 test2 test3 test4 test5
+test:	test1 test2 test3 test4 test5 test6
 
 test1:
 	sh test.sh '1;' 1
@@ -37,6 +37,11 @@ test5:
 	sh test.sh '1^0;' 1
 	sh test.sh '1^1;' 0
 	sh test.sh '3^2;' 1
+
+test6:
+	sh test.sh '6|3;' 7
+	sh test.sh '1|0;' 1
+	sh test.sh '1&0;' 0
 
 clean:
 	$(RM) -f $(target) $(objects)

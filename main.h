@@ -23,6 +23,8 @@ typedef enum {
    ND_DIV = '/',
    TK_MOD = '%',
    TK_XOR = '^',
+   TK_OR = '|',
+   TK_AND = '&',
    ND_LEFTPARENSIS = '(',
    ND_RIGHTPARENSIS = ')',
    ND_NUM = 256,
