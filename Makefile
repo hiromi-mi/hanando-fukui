@@ -1,12 +1,13 @@
 CC = clang
 CFLAGS = -Wall -Wextra -Wpedantic -g
 
-objects = main.o util.o
-target = hanando
+srcs = $(wildcard *.c)
+objects = $(srcs:.c=.o)
+target=hanando
 
-$(target):	$(objects)
-	$(CC) $? -o $@ $(LDFLAGS)
-
+$(target): $(objects)
+	$(CC) $(objects) -o $(target) $(LDFLAGS)
+$(objects): main.h
 test:	test1 test2 test3 test4 test5 test6
 
 test1:
