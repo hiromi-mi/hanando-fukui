@@ -21,6 +21,7 @@ typedef enum {
    ND_SUB = '-',
    ND_MUL = '*',
    ND_DIV = '/',
+   TK_MOD = '%',
    ND_LEFTPARENSIS = '(',
    ND_RIGHTPARENSIS = ')',
    ND_NUM = 256,
@@ -57,6 +58,10 @@ typedef struct {
    Vector* keys;
    Vector *vals;
 } Map;
+
+Map *new_map();
+void map_put(Map *map, char* key, void* val);
+void *map_get(Map *map, char* key);
 Vector *new_vector();
 void vec_push(Vector *vec, Token* element);
 

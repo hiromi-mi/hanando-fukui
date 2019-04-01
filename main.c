@@ -325,6 +325,12 @@ void gen(Node *node) {
          puts("mov rdx, 0");
          puts("div rax, rdi");
          break;
+      case '%':
+         puts("mov rdx, 0");
+         puts("div rax, rdi");
+         // modulo are stored in rdx.
+         puts("mov rax, rdx");
+         break;
       case ND_ISEQ:
          puts("cmp rdi, rax");
          puts("sete al");
