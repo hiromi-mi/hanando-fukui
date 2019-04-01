@@ -79,8 +79,11 @@ void tokenize(char *p) {
          p++;
          continue;
       }
-      if (*p == '+' || *p == '-' || *p == '*' || *p == '/' || *p == '(' ||
-            *p == ')' || *p == ';' || *p == ',' || *p == '{' || *p == '}') {
+      if (
+            *p == '+' || *p == '-' || *p == '*' || *p == '/' || *p == '(' ||
+            *p == ')' || *p == ';' || *p == ',' || *p == '{' || *p == '}' ||
+            *p == '%' || *p == '~' || *p == '^'
+            ) {
          Token *token = malloc(sizeof(Token));
          token->ty = *p;
          token->input = p;
@@ -186,6 +189,8 @@ Node *node_mul() {
          node = new_node('*', node, node_mul());
       } else if (consume_node('/')) {
          node = new_node('/', node, node_mul());
+      } else if (consume_node('%')) {
+         node = new_node('%', node, node_mul());
       } else {
          return node;
       }
