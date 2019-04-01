@@ -14,6 +14,8 @@ typedef enum {
    TK_ISNOTEQ,
    TK_IF,
    TK_ELSE,
+   TK_RSHIFT,
+   TK_LSHIFT,
 } TokenConst;
 
 typedef enum {
@@ -21,10 +23,10 @@ typedef enum {
    ND_SUB = '-',
    ND_MUL = '*',
    ND_DIV = '/',
-   TK_MOD = '%',
-   TK_XOR = '^',
-   TK_OR = '|',
-   TK_AND = '&',
+   ND_MOD = '%',
+   ND_XOR = '^',
+   ND_OR = '|',
+   ND_AND = '&',
    ND_LEFTPARENSIS = '(',
    ND_RIGHTPARENSIS = ')',
    ND_NUM = 256,
@@ -33,6 +35,8 @@ typedef enum {
    ND_ISNOTEQ,
    ND_FUNC,
    ND_FDEF,
+   ND_RSHIFT,
+   ND_LSHIFT,
 } NodeType;
 
 typedef struct Env {

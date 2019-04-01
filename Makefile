@@ -42,6 +42,8 @@ test6:
 	sh test.sh '6|3;' 7
 	sh test.sh '1|0;' 1
 	sh test.sh '1&0;' 0
+	sh test.sh '1<<1;' 2
+	sh test.sh '1>>1;' 0
 
 clean:
 	$(RM) -f $(target) $(objects)

@@ -101,6 +101,7 @@ void tokenize(char *p) {
             p++;
          }
          vec_push(tokens, token);
+         continue;
       }
       if (*p == '!') {
          Token *token = malloc(sizeof(Token));
@@ -113,6 +114,33 @@ void tokenize(char *p) {
             exit(1);
          }
          vec_push(tokens, token);
+         continue;
+      }
+      if (*p == '<') {
+         Token *token = malloc(sizeof(Token));
+         token->input = p;
+         if (*(p+1) == '<') {
+            token->ty = TK_LSHIFT;
+            p += 2;
+         } else {
+            puts("error: not supported");
+            exit(1);
+         }
+         vec_push(tokens, token);
+         continue;
+      }
+      if (*p == '>') {
+         Token *token = malloc(sizeof(Token));
+         token->input = p;
+         if (*(p+1) == '>') {
+            token->ty = TK_RSHIFT;
+            p += 2;
+         } else {
+            puts("error: not supported");
+            exit(1);
+         }
+         vec_push(tokens, token);
+         continue;
       }
       if (isdigit(*p)) {
          Token *token = malloc(sizeof(Token));
@@ -167,12 +195,25 @@ Node *node_mathexpr();
 Node *node_or();
 Node *node_and();
 Node *node_xor();
+Node *node_shift();
 Node *node_add();
 
 Node *node_mathexpr() {
    return node_or();
 }
 
+Node *node_shift() {
+   Node *node = node_add();
+   while (1) {
+      if (consume_node(TK_LSHIFT)) {
+         node = new_node(ND_LSHIFT, node, node_add());
+      } else if (consume_node(TK_RSHIFT)) {
+         node = new_node(ND_RSHIFT, node, node_add());
+      } else {
+         return node;
+      }
+   }
+}
 Node *node_or() {
    Node *node = node_xor();
    while (1) {
@@ -184,10 +225,10 @@ Node *node_or() {
    }
 }
 Node *node_and() {
-   Node *node = node_add();
+   Node *node = node_shift();
    while (1) {
       if (consume_node('&')) {
-         node = new_node('&', node, node_add());
+         node = new_node('&', node, node_shift());
       } else {
          return node;
       }
@@ -374,6 +415,14 @@ void gen(Node *node) {
       case '|':
          puts("or rax, rdi");
          break;
+      case ND_RSHIFT:
+         // FIXME: for signed int (Arthmetric)
+         // mov rdi[8] -> rax
+         puts("mov cl, dil");
+         puts("sar rax, cl"); break;
+      case ND_LSHIFT:
+         puts("mov cl, dil");
+         puts("sal rax, cl"); break;
       case ND_ISEQ:
          puts("cmp rdi, rax");
          puts("sete al");
