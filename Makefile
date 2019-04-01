@@ -34,6 +34,9 @@ test4:
 test5:
 	sh test.sh '6%3;' 0
 	sh test.sh '5%4;' 1
+	sh test.sh '1^0;' 1
+	sh test.sh '1^1;' 0
+	sh test.sh '3^2;' 1
 
 clean:
 	$(RM) -f $(target) $(objects)

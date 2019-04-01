@@ -163,8 +163,19 @@ void tokenize(char *p) {
 
 Node *node_mul();
 Node *node_term();
+Node *node_mathexpr();
 Node *node_add();
 
+Node *node_mathexpr() {
+   Node *node = node_add();
+   while (1) {
+      if (consume_node('^')) {
+         node = new_node('^', node, node_add());
+      } else {
+         return node;
+      }
+   }
+}
 Node *node_add() {
    Node *node = node_mul();
    while (1) {
@@ -208,7 +219,7 @@ Node *node_term() {
             if (!consume_node(',') && consume_node(')')) {
                break;
             }
-            node->args[node->argc++] = node_add();
+            node->args[node->argc++] = node_mathexpr();
          }
          assert(node->argc <= 6);
          // pos++ because of consume_node(')')
@@ -218,7 +229,7 @@ Node *node_term() {
       return node;
    }
    if (consume_node('(')) {
-      Node *node = node_add();
+      Node *node = node_mathexpr();
       if (!consume_node(')')) {
          puts("Error: Incorrect Parensis.");
          exit(1);
@@ -327,6 +338,9 @@ void gen(Node *node) {
          // modulo are stored in rdx.
          puts("mov rax, rdx");
          break;
+      case '^':
+         puts("xor rax, rdi");
+         break;
       case ND_ISEQ:
          puts("cmp rdi, rax");
          puts("sete al");
@@ -354,7 +368,7 @@ void expect(int line, int expected, int actual) {
 }
 
 Node *assign() {
-   Node *node = node_add();
+   Node *node = node_mathexpr();
    if (consume_node('=')) {
       node = new_node('=', node, assign());
    } else if (consume_node(TK_ISEQ)) {
@@ -441,7 +455,7 @@ int main(int argc, char **argv) {
 
    tokenize(argv[1]);
    toplevel();
-   //Node *node = node_add();
+   //Node *node = node_mathexpr();
    // char *p = argv[1];
 
    puts(".intel_syntax");
