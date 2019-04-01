@@ -32,6 +32,11 @@ typedef enum {
    ND_FDEF,
 } NodeType;
 
+typedef struct Env {
+   struct Env *env;
+   struct Map *idents;
+} Env;
+
 typedef struct Node {
    NodeType ty;
    struct Node *lhs;
@@ -40,6 +45,7 @@ typedef struct Node {
    int argc;
    long num_val;
    char* name;
+   struct Env *env;
 } Node;
 
 typedef struct {

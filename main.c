@@ -73,7 +73,6 @@ int consume_node(TokenConst ty) {
 
 void tokenize(char *p) {
    tokens = new_vector();
-   //int i = 0;
    while (*p != '\0') {
       if (isspace(*p)) {
          p++;
@@ -88,7 +87,6 @@ void tokenize(char *p) {
          token->ty = *p;
          token->input = p;
          vec_push(tokens, token);
-         // i++;
          p++;
          continue;
       }
@@ -122,7 +120,6 @@ void tokenize(char *p) {
          token->input = p;
          token->num_val = strtol(p, &p, 10);
          vec_push(tokens, token);
-         // i++;
          continue;
       }
 
@@ -145,7 +142,6 @@ void tokenize(char *p) {
          if (strcmp(token->input, "else") == 0) {
             token->ty = TK_ELSE;
          }
-         // i++;
          continue;
       }
 
@@ -255,9 +251,9 @@ void gen(Node *node) {
 
    if (node->ty == ND_FDEF) {
       printf("%s:\n", node->name);
-      for (int i=0; i<node->argc;i++) {
+      for (int j=0; j<node->argc;j++) {
          // read inside functions.
-         gen(node->args[i]);
+         gen(node->args[j]);
       }
       puts("pop rbp");
       puts("ret");
@@ -278,9 +274,9 @@ void gen(Node *node) {
 
    if (node->ty == ND_FUNC) {
       char registers[6][4] = {"rdi", "rsi", "rdx", "rcx", "r8", "r9"};
-      for (int i=0; i<node->argc;i++) {
-         gen(node->args[i]);
-         printf("pop %s\n", registers[i]);
+      for (int j=0; j<node->argc;j++) {
+         gen(node->args[j]);
+         printf("pop %s\n", registers[j]);
       }
       // FIXME: alignment should be 64-bit
       printf("call %s\n", node->name);
@@ -455,8 +451,8 @@ int main(int argc, char **argv) {
    puts("push rbp"); 
    puts("mov rbp, rsp");
    printf("sub rsp, %d\n", rsp_offset);
-   for (int i=0;code[i];i++) {
-      gen(code[i]);
+   for (int j=0;code[j];j++) {
+      gen(code[j]);
       puts("pop rax");
    }
    puts("mov rsp, rbp");
