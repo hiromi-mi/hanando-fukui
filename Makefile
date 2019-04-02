@@ -46,6 +46,10 @@ test6:
 	sh test.sh '1<<1;' 2
 	sh test.sh '1>>1;' 0
 
+test7:
+	sh test.sh 'a=1;a-=1;a;' 0
+	sh test.sh 'a=1;a+=1;a;' 2
+
 clean:
 	$(RM) -f $(target) $(objects)
 

@@ -63,6 +63,13 @@ Node *new_fdef_node(char* name) {
    return node;
 }
 
+int confirm_node(TokenConst ty) {
+   if (tokens->data[pos]->ty != ty) {
+      return 0;
+   }
+   return 1;
+}
+
 int consume_node(TokenConst ty) {
    if (tokens->data[pos]->ty != ty) {
       return 0;
@@ -78,6 +85,27 @@ void tokenize(char *p) {
          p++;
          continue;
       }
+      if ((
+            *p == '+' || *p == '-' || *p == '*' || *p == '/' ||
+            *p == '%' || *p == '^' || *p == '|' || *p == '&'
+         ) && (*(p+1) == '=')) {
+         {
+            Token *token = malloc(sizeof(Token));
+            token->ty = '=';
+            token->input = p+1;
+            vec_push(tokens, token);
+         }
+         {
+            Token *token = malloc(sizeof(Token));
+            token->ty = TK_OPAS;
+            token->input = p;
+            vec_push(tokens, token);
+         }
+         p+=2;
+         continue;
+      }
+
+
       if (
             *p == '+' || *p == '-' || *p == '*' || *p == '/' || *p == '(' ||
             *p == ')' || *p == ';' || *p == ',' || *p == '{' || *p == '}' ||
@@ -452,7 +480,12 @@ void expect(int line, int expected, int actual) {
 Node *assign() {
    Node *node = node_mathexpr();
    if (consume_node('=')) {
-      node = new_node('=', node, assign());
+      if (confirm_node(TK_OPAS)) {
+         // FIXME: shift
+         node = new_node('=', node, new_node(tokens->data[pos++]->input[0], node, assign()));
+      } else {
+         node = new_node('=', node, assign());
+      }
    } else if (consume_node(TK_ISEQ)) {
       node = new_node(ND_ISEQ, node, assign());
    } else if (consume_node(TK_ISNOTEQ)) {
@@ -502,7 +535,7 @@ void toplevel() {
       if (tokens->data[pos]->ty == TK_IDENT && tokens->data[pos+1]->ty == TK_IDENT && tokens->data[pos+2]->ty == '(') {
          // expected int func() {
          // skip ')', '{'
-         code[i++] = new_fdef_node(tokens->data[pos]->input);
+         code[i++] = new_fdef_node(tokens->data[pos+1]->input);
          pos += 5;
          program(code[i++]->args);
          continue;

@@ -16,6 +16,7 @@ typedef enum {
    TK_ELSE,
    TK_RSHIFT,
    TK_LSHIFT,
+   TK_OPAS,
 } TokenConst;
 
 typedef enum {
