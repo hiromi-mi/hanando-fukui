@@ -105,6 +105,15 @@ void tokenize(char *p) {
          continue;
       }
 
+      if (( *p == '+' && *(p+1) == '+') || ( *p == '-' && *(p+1) == '-')) {
+         Token *token = malloc(sizeof(Token));
+         // TK_PLUSPLUS and TK_SUBSUB
+         token->ty = *p + *(p+1);
+         token->input = p;
+         vec_push(tokens, token);
+         p+=2;
+         continue;
+      }
 
       if (
             *p == '+' || *p == '-' || *p == '*' || *p == '/' || *p == '(' ||
@@ -225,6 +234,7 @@ Node *node_and();
 Node *node_xor();
 Node *node_shift();
 Node *node_add();
+Node *node_cast();
 
 Node *node_mathexpr() {
    return node_or();
@@ -285,15 +295,27 @@ Node *node_add() {
    }
 }
 
+Node *node_cast() {
+   if (consume_node(TK_PLUSPLUS)) {
+      Node *node = new_ident_node(tokens->data[pos++]->input);
+      return new_node(ND_INC, node, NULL);
+   } else if (consume_node(TK_SUBSUB)) {
+      Node *node = new_ident_node(tokens->data[pos++]->input);
+      return new_node(ND_DEC, node, NULL);
+   } else {
+      return node_term();
+   }
+}
+
 Node *node_mul() {
-   Node *node = node_term();
+   Node *node = node_cast();
    while (1) {
       if (consume_node('*')) {
-         node = new_node('*', node, node_mul());
+         node = new_node('*', node, node_cast());
       } else if (consume_node('/')) {
-         node = new_node('/', node, node_mul());
+         node = new_node('/', node, node_cast());
       } else if (consume_node('%')) {
-         node = new_node('%', node, node_mul());
+         node = new_node('%', node, node_cast());
       } else {
          return node;
       }
@@ -307,6 +329,7 @@ Node *node_term() {
    }
    if (tokens->data[pos]->ty == TK_IDENT) {
       Node *node;
+      // Function Call
       if (tokens->data[pos+1]->ty == '(') {
          node = new_func_node(tokens->data[pos]->input);
          // skip func , (
@@ -324,6 +347,7 @@ Node *node_term() {
       }
       return node;
    }
+   // Parensis
    if (consume_node('(')) {
       Node *node = node_mathexpr();
       if (!consume_node(')')) {
@@ -406,6 +430,25 @@ void gen(Node *node) {
       puts("pop rax");
       puts("mov [rax], rdi");
       puts("push rdi");
+      return;
+   }
+
+   if (node->ty == ND_INC) {
+      gen_lval(node->lhs);
+      puts("pop rax");
+      puts("mov rdi, [rax]");
+      puts("add rdi, 1");
+      puts("mov [rax], rdi");
+      puts("push rax");
+      return;
+   }
+   if (node->ty == ND_DEC) {
+      gen_lval(node->lhs);
+      puts("pop rax");
+      puts("mov rdi, [rax]");
+      puts("sub rdi, 1");
+      puts("mov [rax], rdi");
+      puts("push rax");
       return;
    }
 

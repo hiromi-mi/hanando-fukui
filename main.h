@@ -17,6 +17,8 @@ typedef enum {
    TK_RSHIFT,
    TK_LSHIFT,
    TK_OPAS,
+   TK_PLUSPLUS = '+'+'+',
+   TK_SUBSUB = '-'+'-',
 } TokenConst;
 
 typedef enum {
@@ -38,6 +40,8 @@ typedef enum {
    ND_FDEF,
    ND_RSHIFT,
    ND_LSHIFT,
+   ND_INC,
+   ND_DEC,
 } NodeType;
 
 typedef struct Env {
