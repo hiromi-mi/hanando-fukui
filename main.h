@@ -42,6 +42,7 @@ typedef enum {
    ND_LSHIFT,
    ND_INC,
    ND_DEC,
+   ND_BLOCK,
 } NodeType;
 
 typedef struct Env {

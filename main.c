@@ -72,6 +72,17 @@ Node *new_fdef_node(char* name, Env* prev_env) {
    return node;
 }
 
+Node* new_block_node(Env* prev_env) {
+   Node *node = malloc(sizeof(Node));
+   node->ty = ND_BLOCK;
+   //node->name = name;
+   node->lhs = NULL;
+   node->rhs = NULL;
+   node->argc = 0;
+   node->env = prev_env;
+   return node;
+}
+
 int confirm_node(TokenConst ty) {
    if (tokens->data[pos]->ty != ty) {
       return 0;
@@ -401,6 +412,15 @@ void gen(Node *node) {
       return;
    }
 
+   if (node->ty == ND_BLOCK) {
+      //printf("%s:\n", node->name);
+      for (int j=0; node->args[j] != NULL;j++) {
+         // read inside functions.
+         gen(node->args[j]);
+      }
+         return;
+   }
+
    if (node->ty == ND_FDEF) {
       printf("%s:\n", node->name);
       for (int j=0; j<node->argc;j++) {
@@ -569,13 +589,20 @@ Node *stmt() {
 int i = 0;
 
 void program(Node** args) {
+   env = new_env(env);
    while (!consume_node('}')) {
       if (consume_node('{')) {
          program(args++);
          continue;
       }
-      args[i++] = stmt();
+      args[0] = stmt();
+      args++;
+      //args[i++] = stmt();
    }
+   args[0] = NULL;
+
+   // 'consumed }'
+   env = env->env;
 }
 
 void toplevel() {
@@ -600,13 +627,14 @@ void toplevel() {
       if (tokens->data[pos]->ty == TK_IDENT && tokens->data[pos+1]->ty == TK_IDENT && tokens->data[pos+2]->ty == '(') {
          // expected int func() {
          // skip ')', '{'
-         code[i++] = new_fdef_node(tokens->data[pos+1]->input, NULL);
+         code[i] = new_fdef_node(tokens->data[pos+1]->input, NULL);
          pos += 5;
          program(code[i++]->args);
          continue;
       }
       if (consume_node('{')) {
-         program(&code[i]);
+         code[i] = new_block_node(NULL);
+         program(code[i++]->args);
          continue;
       }
       code[i++] = stmt();
