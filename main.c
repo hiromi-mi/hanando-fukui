@@ -33,6 +33,7 @@ Node *new_num_node(long num_val) {
 
 //Map *idents;
 static Env *env;
+static int if_cnt = 0;
 int rsp_offset = 0;
 
 Node *new_ident_node(char* name) {
@@ -227,6 +228,9 @@ void tokenize(char *p) {
          }
          if (strcmp(token->input, "else") == 0) {
             token->ty = TK_ELSE;
+         }
+         if (strcmp(token->input, "while") == 0) {
+            token->ty = TK_WHILE;
          }
          continue;
       }
@@ -463,12 +467,24 @@ void gen(Node *node) {
    }
 
    if (node->ty == ND_IF) {
-      static int if_cnt = 0;
       gen(node->lhs);
       puts("pop rax");
       puts("cmp rax, 0");
       printf("je .Lend%d\n", if_cnt);
       gen(node->rhs);
+      printf(".Lend%d:\n", if_cnt);
+      if_cnt++;
+      return;
+   }  
+
+   if (node->ty == ND_WHILE) {
+      printf(".Lbegin%d:\n", if_cnt);
+      gen(node->lhs);
+      puts("pop rax");
+      puts("cmp rax, 0");
+      printf("je .Lend%d\n", if_cnt);
+      gen(node->rhs);
+      printf("jmp .Lbegin%d\n", if_cnt);
       printf(".Lend%d:\n", if_cnt);
       if_cnt++;
       return;
@@ -620,6 +636,14 @@ void program(Node** args) {
          args[0] = new_node(ND_IF, node_mathexpr(), NULL);
          consume_node('{');
          // Suppress COndition
+         args[0]->rhs = new_block_node(env);
+         program(args[0]->rhs->code);
+         args++;
+         continue;
+      }
+      if (consume_node(TK_WHILE))  {
+         args[0] = new_node(ND_WHILE, node_mathexpr(), NULL);
+         consume_node('{');
          args[0]->rhs = new_block_node(env);
          program(args[0]->rhs->code);
          args++;

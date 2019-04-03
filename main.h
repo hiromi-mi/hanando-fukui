@@ -13,6 +13,7 @@ typedef enum {
    TK_ISEQ,
    TK_ISNOTEQ,
    TK_IF,
+   TK_WHILE,
    TK_ELSE,
    TK_RSHIFT,
    TK_LSHIFT,
@@ -44,6 +45,7 @@ typedef enum {
    ND_DEC,
    ND_BLOCK,
    ND_IF,
+   ND_WHILE,
 } NodeType;
 
 typedef struct {
