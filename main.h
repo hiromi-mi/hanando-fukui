@@ -45,23 +45,6 @@ typedef enum {
    ND_BLOCK,
 } NodeType;
 
-typedef struct Env {
-   struct Env *env;
-   struct Map *idents;
-} Env;
-
-typedef struct Node {
-   NodeType ty;
-   struct Node *lhs;
-   struct Node *rhs;
-   struct Node *args[6];
-   struct Node *code[100];
-   int argc;
-   long num_val;
-   char* name;
-   Env *env;
-} Node;
-
 typedef struct {
    TokenConst ty;
    long num_val;
@@ -78,6 +61,23 @@ typedef struct {
    Vector* keys;
    Vector *vals;
 } Map;
+
+typedef struct Env {
+   struct Env *env;
+   Map *idents;
+} Env;
+
+typedef struct Node {
+   NodeType ty;
+   struct Node *lhs;
+   struct Node *rhs;
+   struct Node *args[6];
+   struct Node *code[100];
+   int argc;
+   long num_val;
+   char* name;
+   Env *env;
+} Node;
 
 Map *new_map();
 void map_put(Map *map, char* key, void* val);

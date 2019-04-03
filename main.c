@@ -8,8 +8,8 @@
 #include <ctype.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
 #include <assert.h>
+#include <string.h>
 
 // to use vector instead of something
 Vector* tokens;
@@ -384,9 +384,9 @@ Node *node_term() {
 }
 
 int get_lval_offset(Node *node) {
-   int offset = NULL;
+   int offset = (int)NULL;
    Env *local_env = env;
-   while (offset == NULL && local_env != NULL) {
+   while (offset == (int)NULL && local_env != NULL) {
       offset = (int)map_get(local_env->idents, node->name);
       local_env = local_env->env;
    }
@@ -413,7 +413,7 @@ void gen(Node *node) {
    }
 
    if (node->ty == ND_BLOCK) {
-      Node *prev_env = env;
+      Env *prev_env = env;
       env = node->env;
       //printf("%s:\n", node->name);
       for (int j=0; node->code[j] != NULL;j++) {
@@ -425,10 +425,10 @@ void gen(Node *node) {
    }
 
    if (node->ty == ND_FDEF) {
-      Node *prev_env = env;
+      Env *prev_env = env;
       env = node->env;
       printf("%s:\n", node->name);
-      for (int j=0; j<node->code[j] != NULL;j++) {
+      for (int j=0; node->code[j] != NULL;j++) {
          // read inside functions.
          gen(node->code[j]);
       }
@@ -624,17 +624,18 @@ void toplevel() {
    env = new_env(NULL);
    //idents = new_map();
    while(tokens->data[pos]->ty != TK_EOF) {
-      /*
-      if (consume_node('}')) {
-         continue;
-      }
-      */
       // FIXME because toplevel func call
       if (tokens->data[pos]->ty == TK_IDENT && tokens->data[pos+1]->ty == TK_IDENT && tokens->data[pos+2]->ty == '(') {
          // expected int func() {
          // skip ')', '{'
          code[i] = new_fdef_node(tokens->data[pos+1]->input, NULL);
-         pos += 5;
+         pos += 2;
+         // look up arguments
+         for (code[i]->argc=0; code[i]->argc < 6 && !consume_node(')'); ) {
+            code[i]->args[code[i]->argc++] = node_mathexpr();
+         }
+         consume_node('{');
+         pos += 1;
          program(code[i++]->code);
          continue;
       }

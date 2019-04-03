@@ -2,6 +2,7 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 Map *new_map() {
    Map *map = malloc(sizeof(Map));
@@ -11,13 +12,13 @@ Map *new_map() {
 }
 
 void map_put(Map *map, char* key, void* val) {
-   vec_push(map->keys, key);
-   vec_push(map->vals, val);
+   vec_push(map->keys, (void*)key);
+   vec_push(map->vals, (void*)val);
 }
 
 void *map_get(Map *map, char* key) {
    for (int i=map->keys->len-1;i>=0;i--) {
-      if (strcmp(map->keys->data[i], key) == 0) {
+      if (strcmp((char*)map->keys->data[i], key) == 0) {
          return map->vals->data[i];
       }
    }
