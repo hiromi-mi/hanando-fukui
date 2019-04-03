@@ -53,6 +53,13 @@ Node *new_func_node(char* name) {
    return node;
 }
 
+Env *new_env(Env* prev_env) {
+   Env *env = malloc(sizeof(Env));
+   env->env = prev_env;
+   env->idents = new_map();
+   return env;
+}
+
 Node *new_fdef_node(char* name) {
    Node *node = malloc(sizeof(Node));
    node->ty = ND_FDEF;
@@ -60,6 +67,7 @@ Node *new_fdef_node(char* name) {
    node->lhs = NULL;
    node->rhs = NULL;
    node->argc = 0;
+   node->env = new_env(NULL);
    return node;
 }
 

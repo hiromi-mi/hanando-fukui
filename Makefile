@@ -51,6 +51,7 @@ test7:
 	sh test.sh 'a=1;a+=1;a;' 2
 	sh test.sh 'a=3;a*=2;a;' 6
 	sh test.sh 'a=6;a/=2;a;' 3
+	sh test.sh 'a=3;a%=2;a;' 1
 
 test8:
 	sh test.sh 'a=1;++a;a;' 2
