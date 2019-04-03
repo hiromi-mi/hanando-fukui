@@ -57,7 +57,7 @@ typedef struct Node {
    int argc;
    long num_val;
    char* name;
-   struct Env *env;
+   Env *env;
 } Node;
 
 typedef struct {

@@ -372,13 +372,24 @@ Node *node_term() {
    exit(1);
 }
 
+int get_lval_offset(Node *node) {
+   int offset = NULL;
+   Env *local_env = env;
+   while (offset == NULL && local_env != NULL) {
+      offset = (int)map_get(local_env->idents, node->name);
+      local_env = local_env->env;
+   }
+   return offset;
+}
+
 void gen_lval(Node *node) {
    if (node->ty != ND_IDENT) {
       puts("error: Incorrect Variable of lvalue");
       exit(1);
    }
 
-   int offset = (int)map_get(env->idents, node->name);
+   //int offset = (int)map_get(env->idents, node->name);
+   int offset = get_lval_offset(node);
    puts("mov rax, rbp");
    printf("sub rax, %d\n", offset);
    puts("push rax");
