@@ -31,7 +31,8 @@ Node *new_num_node(long num_val) {
    return node;
 }
 
-Map *idents;
+//Map *idents;
+static Env *env;
 int rsp_offset = 0;
 
 Node *new_ident_node(char* name) {
@@ -39,7 +40,7 @@ Node *new_ident_node(char* name) {
    node->ty = ND_IDENT;
    node->name = name;
    rsp_offset += 8;
-   map_put(idents, name, (void*)8);
+   map_put(env->idents, name, (void*)8);
    return node;
 }
 
@@ -60,14 +61,14 @@ Env *new_env(Env* prev_env) {
    return env;
 }
 
-Node *new_fdef_node(char* name) {
+Node *new_fdef_node(char* name, Env* prev_env) {
    Node *node = malloc(sizeof(Node));
    node->ty = ND_FDEF;
    node->name = name;
    node->lhs = NULL;
    node->rhs = NULL;
    node->argc = 0;
-   node->env = new_env(NULL);
+   node->env = prev_env;
    return node;
 }
 
@@ -377,7 +378,7 @@ void gen_lval(Node *node) {
       exit(1);
    }
 
-   int offset = (int)map_get(idents, node->name);
+   int offset = (int)map_get(env->idents, node->name);
    puts("mov rax, rbp");
    printf("sub rax, %d\n", offset);
    puts("push rax");
@@ -576,7 +577,8 @@ void toplevel() {
    // idents = new_map...
    // stmt....
    // consume_node('}')
-   idents = new_map();
+   env = new_env(NULL);
+   //idents = new_map();
    while(tokens->data[pos]->ty != TK_EOF) {
       /*
       if (consume_node('}')) {
@@ -587,7 +589,7 @@ void toplevel() {
       if (tokens->data[pos]->ty == TK_IDENT && tokens->data[pos+1]->ty == TK_IDENT && tokens->data[pos+2]->ty == '(') {
          // expected int func() {
          // skip ')', '{'
-         code[i++] = new_fdef_node(tokens->data[pos+1]->input);
+         code[i++] = new_fdef_node(tokens->data[pos+1]->input, NULL);
          pos += 5;
          program(code[i++]->args);
          continue;
