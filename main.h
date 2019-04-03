@@ -54,7 +54,8 @@ typedef struct Node {
    NodeType ty;
    struct Node *lhs;
    struct Node *rhs;
-   struct Node *args[100];
+   struct Node *args[6];
+   struct Node *code[100];
    int argc;
    long num_val;
    char* name;

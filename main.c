@@ -413,23 +413,29 @@ void gen(Node *node) {
    }
 
    if (node->ty == ND_BLOCK) {
+      Node *prev_env = env;
+      env = node->env;
       //printf("%s:\n", node->name);
-      for (int j=0; node->args[j] != NULL;j++) {
+      for (int j=0; node->code[j] != NULL;j++) {
          // read inside functions.
-         gen(node->args[j]);
+         gen(node->code[j]);
       }
-         return;
+      env = prev_env;
+      return;
    }
 
    if (node->ty == ND_FDEF) {
+      Node *prev_env = env;
+      env = node->env;
       printf("%s:\n", node->name);
-      for (int j=0; j<node->argc;j++) {
+      for (int j=0; j<node->code[j] != NULL;j++) {
          // read inside functions.
-         gen(node->args[j]);
+         gen(node->code[j]);
       }
       puts("pop rbp");
       puts("ret");
          // FIXME
+      env = prev_env;
          return;
 
    /*
@@ -629,12 +635,12 @@ void toplevel() {
          // skip ')', '{'
          code[i] = new_fdef_node(tokens->data[pos+1]->input, NULL);
          pos += 5;
-         program(code[i++]->args);
+         program(code[i++]->code);
          continue;
       }
       if (consume_node('{')) {
          code[i] = new_block_node(NULL);
-         program(code[i++]->args);
+         program(code[i++]->code);
          continue;
       }
       code[i++] = stmt();
