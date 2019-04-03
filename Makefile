@@ -27,6 +27,7 @@ test3:
 	sh test.sh '3==4;' 0
 	sh test.sh '3!=3+8;' 1
 	sh test.sh "{3;}" 3
+	sh test.sh "{if(1){3;}}" 3
 
 test4:
 	sh testfunccall.sh 'func(4);' OK4 4

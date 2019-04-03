@@ -43,6 +43,7 @@ typedef enum {
    ND_INC,
    ND_DEC,
    ND_BLOCK,
+   ND_IF,
 } NodeType;
 
 typedef struct {

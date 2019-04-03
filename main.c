@@ -462,6 +462,18 @@ void gen(Node *node) {
       return;
    }
 
+   if (node->ty == ND_IF) {
+      static int if_cnt = 0;
+      gen(node->lhs);
+      puts("pop rax");
+      puts("cmp rax, 0");
+      printf("je .Lend%d\n", if_cnt);
+      gen(node->rhs);
+      printf(".Lend%d:\n", if_cnt);
+      if_cnt++;
+      return;
+   }  
+
    if (node->ty == ND_IDENT) {
       gen_lval(node);
       puts("pop rax");
@@ -598,7 +610,19 @@ void program(Node** args) {
    env = new_env(env);
    while (!consume_node('}')) {
       if (consume_node('{')) {
-         program(args++);
+         args[0] = new_block_node(env);
+         program(args[0]->code);
+         args++;
+         continue;
+      }
+
+      if (consume_node(TK_IF))  {
+         args[0] = new_node(ND_IF, node_mathexpr(), NULL);
+         consume_node('{');
+         // Suppress COndition
+         args[0]->rhs = new_block_node(env);
+         program(args[0]->rhs->code);
+         args++;
          continue;
       }
       args[0] = stmt();
