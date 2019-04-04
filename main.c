@@ -258,6 +258,13 @@ void tokenize(char *p) {
          }
          if (strcmp(token->input, "int") == 0) {
             token->ty = TK_TYPE;
+            int k=0;
+            token->num_val = 0;
+            while(isspace(*(p+k)) || (*(p+k) == '*')) {
+               token->num_val += (*(p+k) == '*');
+               k++;
+               p++;
+            }
          }
          if (strcmp(token->input, "return") == 0) {
             token->ty = TK_RETURN;
@@ -436,7 +443,7 @@ int get_lval_offset(Node *node) {
    Env *local_env = env;
    while (offset == (int)NULL && local_env != NULL) {
       Type *type = map_get(local_env->idents, node->name);
-      if (type != (int)NULL) {
+      if (type != NULL) {
          offset = local_env->rsp_offset_all + type->offset;
       }
       local_env = local_env->env;
@@ -690,9 +697,18 @@ Node *stmt() {
    Node *node;
    if (confirm_node(TK_TYPE)) {
       // Variable Definition.
-      if (strcmp(tokens->data[pos++]->input, "int") == 0) {
+      if (strcmp(tokens->data[pos]->input, "int") == 0) {
          Type *type = malloc(sizeof(Type));
          type->ty = TY_INT;
+         type->ptrof = NULL;
+         Type *rec_type = type->ptrof;
+         for (int j=0;j<tokens->data[pos]->num_val;j++) {
+            type->ty = TY_PTR;
+            rec_type = malloc(sizeof(Type));
+            rec_type->ty = TY_PTR;
+            type->ptrof = rec_type;
+         }
+         pos++;
          type->ptrof = NULL;
          node =
              new_ident_node_with_new_variable(tokens->data[pos++]->input, type);
