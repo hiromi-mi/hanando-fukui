@@ -274,6 +274,7 @@ Node *node_xor();
 Node *node_shift();
 Node *node_add();
 Node *node_cast();
+Node *assign();
 
 Node *node_mathexpr() { return node_or(); }
 
@@ -399,14 +400,14 @@ Node *node_term() {
    }
    // Parensis
    if (consume_node('(')) {
-      Node *node = node_mathexpr();
+      Node *node = assign();
       if (!consume_node(')')) {
-         puts("Error: Incorrect Parensis.");
+         fprintf(stderr, "Error: Incorrect Parensis.\n");
          exit(1);
       }
       return node;
    }
-   printf("Error: Incorrect Parensis without %c %d -> %c %d\n",
+   fprintf(stderr, "Error: Incorrect Parensis without %c %d -> %c %d\n",
           tokens->data[pos - 1]->ty, tokens->data[pos - 1]->ty,
           tokens->data[pos]->ty, tokens->data[pos]->ty);
    exit(1);
@@ -708,7 +709,7 @@ void program(Node *block_node) {
       if (consume_node(TK_IF)) {
          args[0] = new_node(ND_IF, NULL, NULL);
          args[0]->argc = 1;
-         args[0]->args[0] = node_mathexpr();
+         args[0]->args[0] = assign();
          args[0]->args[1] = NULL;
          consume_node('{');
          // Suppress COndition
