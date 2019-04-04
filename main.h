@@ -20,6 +20,7 @@ typedef enum {
    TK_OPAS,
    TK_PLUSPLUS = '+'+'+',
    TK_SUBSUB = '-'+'-',
+   TK_TYPE,
 } TokenConst;
 
 typedef enum {
@@ -50,6 +51,11 @@ typedef enum {
    ND_WHILE,
 } NodeType;
 
+struct Type {
+   enum {TY_INT, TY_PTR} ty;
+   struct Type *ptrof;
+};
+
 typedef struct {
    TokenConst ty;
    long num_val;
@@ -70,6 +76,7 @@ typedef struct {
 typedef struct Env {
    struct Env *env;
    Map *idents;
+   int rsp_offset;
 } Env;
 
 typedef struct Node {

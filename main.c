@@ -15,6 +15,7 @@
 Vector *tokens;
 int pos = 0;
 Node *code[100];
+int get_lval_offset(Node *node);
 
 Node *new_node(NodeType ty, Node *lhs, Node *rhs) {
    Node *node = malloc(sizeof(Node));
@@ -40,8 +41,10 @@ Node *new_ident_node(char *name) {
    Node *node = malloc(sizeof(Node));
    node->ty = ND_IDENT;
    node->name = name;
-   rsp_offset += 8;
-   map_put(env->idents, name, (void *)8);
+   if (get_lval_offset(node) != (int)NULL) {
+      rsp_offset += 8;
+      map_put(env->idents, name, (void *)8);
+   }
    return node;
 }
 
@@ -59,6 +62,7 @@ Env *new_env(Env *prev_env) {
    Env *env = malloc(sizeof(Env));
    env->env = prev_env;
    env->idents = new_map();
+   env->rsp_offset = 0;
    return env;
 }
 
@@ -211,7 +215,6 @@ void tokenize(char *p) {
          Token *token = malloc(sizeof(Token));
          token->ty = TK_IDENT;
          token->input = malloc(sizeof(char) * 256);
-         vec_push(tokens, token);
          int j = 0;
          do {
             token->input[j] = *p;
@@ -229,6 +232,11 @@ void tokenize(char *p) {
          if (strcmp(token->input, "while") == 0) {
             token->ty = TK_WHILE;
          }
+         if (strcmp(token->input, "int") == 0) {
+            token->ty = TK_TYPE;
+            // FIXME
+         }
+         vec_push(tokens, token);
          continue;
       }
 
@@ -641,7 +649,18 @@ Node *assign() {
 }
 
 Node *stmt() {
-   Node *node = assign();
+   Node *node;
+   if (consume_node(TK_TYPE)) {
+      // FIXME: ignore current type
+      if (strcmp(tokens->data[pos++]->input, "int") == 0) {
+         node = new_ident_node(tokens->data[pos++]->input);
+      } else {
+         puts("Error: invalid type");
+         exit(1);
+      }
+   } else {
+      node = assign();
+   }
    if (!consume_node(';')) {
       puts("Error: Not token ;");
       exit(1);
@@ -712,7 +731,7 @@ void toplevel() {
    // idents = new_map();
    while (tokens->data[pos]->ty != TK_EOF) {
       // FIXME because toplevel func call
-      if (tokens->data[pos]->ty == TK_IDENT &&
+      if (tokens->data[pos]->ty == TK_TYPE &&
           tokens->data[pos + 1]->ty == TK_IDENT &&
           tokens->data[pos + 2]->ty == '(') {
          // expected int func() {
@@ -767,11 +786,7 @@ int main(int argc, char **argv) {
 
    for (int j = 0; code[j]; j++) {
       gen(code[j]);
-      //puts("pop rax");
    }
-   //puts("mov rsp, rbp");
-   //puts("pop rbp");
-   //puts("ret");
    
    return 0;
 }

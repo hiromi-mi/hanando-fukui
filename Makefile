@@ -8,7 +8,7 @@ target=hanando
 $(target): $(objects)
 	$(CC) $(objects) -o $(target) $(LDFLAGS)
 $(objects): main.h
-test:	test1 test2 test3 test4 test5 test6 test7 test8 test9 test10
+test:	test1 test2 test3 test4 test5 test6 test7 test8 test9 test10 test11
 
 test1:
 	sh test.sh '1;' 1
@@ -67,7 +67,10 @@ test10:
 	sh test.sh "{if(1){3;}}" 3
 	sh test.sh "{if(1){3;}else{4;}}" 3
 	sh test.sh "{if(0){3;}else{4;}}" 4
-	#sh test.sh "{while(a|1){a+=1;}}" 3
+	#sh test.sh "a;while(a<3){a+=1;}" 3
+
+test11:
+	sh testfdef.sh "int main(){func()+2;} int func(){4;}" 6
 
 
 clean:
