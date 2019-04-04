@@ -130,7 +130,7 @@ int consume_node(TokenConst ty) {
 void tokenize(char *p) {
    tokens = new_vector();
    while (*p != '\0') {
-      if (isspace(*p)) {
+      if (isspace(*p) || *p == '\n') {
          p++;
          continue;
       }
