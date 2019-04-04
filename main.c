@@ -258,10 +258,10 @@ void tokenize(char *p) {
          }
          if (strcmp(token->input, "int") == 0) {
             token->ty = TK_TYPE;
-            int k=0;
+            int k = 0;
             token->num_val = 0;
-            while(isspace(*(p+k)) || (*(p+k) == '*')) {
-               token->num_val += (*(p+k) == '*');
+            while (isspace(*(p + k)) || (*(p + k) == '*')) {
+               token->num_val += (*(p + k) == '*');
                k++;
                p++;
             }
@@ -452,16 +452,16 @@ int get_lval_offset(Node *node) {
 }
 
 void gen_lval(Node *node) {
-   if (node->ty != ND_IDENT) {
-      puts("error: Incorrect Variable of lvalue");
-      exit(1);
+   if (node->ty == ND_IDENT) {
+      // int offset = (int)map_get(env->idents, node->name);
+      int offset = get_lval_offset(node);
+      puts("mov rax, rbp");
+      printf("sub rax, %d\n", offset);
+      puts("push rax");
+      return;
    }
-
-   // int offset = (int)map_get(env->idents, node->name);
-   int offset = get_lval_offset(node);
-   puts("mov rax, rbp");
-   printf("sub rax, %d\n", offset);
-   puts("push rax");
+   fprintf(stderr, "error: Incorrect Variable of lvalue");
+   exit(1);
 }
 
 void gen(Node *node) {
@@ -661,7 +661,7 @@ void gen(Node *node) {
          puts("movzx rax, al");
          break;
       default:
-         puts("Error");
+         fprintf(stderr, "Error");
          exit(1);
    }
    puts("push rax");
@@ -702,7 +702,7 @@ Node *stmt() {
          type->ty = TY_INT;
          type->ptrof = NULL;
          Type *rec_type = type->ptrof;
-         for (int j=0;j<tokens->data[pos]->num_val;j++) {
+         for (int j = 0; j < tokens->data[pos]->num_val; j++) {
             type->ty = TY_PTR;
             rec_type = malloc(sizeof(Type));
             rec_type->ty = TY_PTR;
@@ -713,7 +713,7 @@ Node *stmt() {
          node =
              new_ident_node_with_new_variable(tokens->data[pos++]->input, type);
       } else {
-         puts("Error: invalid type");
+         fprintf(stderr, "Error: invalid type");
          exit(1);
       }
    } else if (consume_node(TK_RETURN)) {
@@ -722,7 +722,7 @@ Node *stmt() {
       node = assign();
    }
    if (!consume_node(';')) {
-      puts("Error: Not token ;");
+      fprintf(stderr, "Error: Not token ;");
       exit(1);
    }
    return node;
@@ -807,8 +807,8 @@ void toplevel() {
             Type *type = malloc(sizeof(Type));
             type->ty = TY_INT;
             type->ptrof = NULL;
-            code[i]->args[code[i]->argc++] =
-                new_ident_node_with_new_variable(tokens->data[pos++]->input, type);
+            code[i]->args[code[i]->argc++] = new_ident_node_with_new_variable(
+                tokens->data[pos++]->input, type);
             consume_node(',');
          }
          consume_node('{');
