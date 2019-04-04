@@ -59,6 +59,11 @@ struct Type {
 };
 
 typedef struct {
+   struct Type kind;
+   int offset;
+} Type;
+
+typedef struct {
    TokenConst ty;
    long num_val;
    char *input;

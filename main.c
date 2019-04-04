@@ -35,7 +35,6 @@ Node *new_num_node(long num_val) {
 // Map *idents;
 Env *env;
 static int if_cnt = 0;
-int rsp_offset = 0;
 
 Node *new_ident_node(char *name) {
    Node *node = malloc(sizeof(Node));
@@ -44,7 +43,7 @@ Node *new_ident_node(char *name) {
    if (get_lval_offset(node) == (int)NULL) {
       env->rsp_offset += 8;
       printf("#define: %s on %d\n", name, env->rsp_offset);
-      map_put(env->idents, name, (void *)8);
+      map_put(env->idents, name, (void *)env->rsp_offset);
    }
    return node;
 }
@@ -466,11 +465,8 @@ void gen(Node *node) {
       printf("sub rsp, %d\n", env->rsp_offset);
       char registers[6][4] = {"rdi", "rsi", "rdx", "rcx", "r8", "r9"};
       for (int j = 0; j<node->argc; j++) {
-         //get_lval_offset(node->args[j]);
          gen_lval(node->args[j]);
          puts("pop rax");
-         //puts("mov rdi, [rax]");
-         //puts("add rdi, 1");
          printf("mov [rax], %s\n", registers[j]);
          puts("push rax");
       }
@@ -674,6 +670,7 @@ Node *assign() {
 Node *stmt() {
    Node *node;
    if (consume_node(TK_TYPE)) {
+      // Variable Definition.
       if (strcmp(tokens->data[pos++]->input, "int") == 0) {
          node = new_ident_node(tokens->data[pos++]->input);
       } else {
