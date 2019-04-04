@@ -5,16 +5,16 @@
 */
 
 #include "main.h"
+#include <assert.h>
 #include <ctype.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <assert.h>
 #include <string.h>
 
 // to use vector instead of something
-Vector* tokens;
+Vector *tokens;
 int pos = 0;
-Node* code[100];
+Node *code[100];
 
 Node *new_node(NodeType ty, Node *lhs, Node *rhs) {
    Node *node = malloc(sizeof(Node));
@@ -31,21 +31,21 @@ Node *new_num_node(long num_val) {
    return node;
 }
 
-//Map *idents;
+// Map *idents;
 static Env *env;
 static int if_cnt = 0;
 int rsp_offset = 0;
 
-Node *new_ident_node(char* name) {
+Node *new_ident_node(char *name) {
    Node *node = malloc(sizeof(Node));
    node->ty = ND_IDENT;
    node->name = name;
    rsp_offset += 8;
-   map_put(env->idents, name, (void*)8);
+   map_put(env->idents, name, (void *)8);
    return node;
 }
 
-Node *new_func_node(char* name) {
+Node *new_func_node(char *name) {
    Node *node = malloc(sizeof(Node));
    node->ty = ND_FUNC;
    node->name = name;
@@ -55,14 +55,14 @@ Node *new_func_node(char* name) {
    return node;
 }
 
-Env *new_env(Env* prev_env) {
+Env *new_env(Env *prev_env) {
    Env *env = malloc(sizeof(Env));
    env->env = prev_env;
    env->idents = new_map();
    return env;
 }
 
-Node *new_fdef_node(char* name, Env* prev_env) {
+Node *new_fdef_node(char *name, Env *prev_env) {
    Node *node = malloc(sizeof(Node));
    node->ty = ND_FDEF;
    node->name = name;
@@ -73,10 +73,10 @@ Node *new_fdef_node(char* name, Env* prev_env) {
    return node;
 }
 
-Node* new_block_node(Env* prev_env) {
+Node *new_block_node(Env *prev_env) {
    Node *node = malloc(sizeof(Node));
    node->ty = ND_BLOCK;
-   //node->name = name;
+   // node->name = name;
    node->lhs = NULL;
    node->rhs = NULL;
    node->argc = 0;
@@ -106,14 +106,13 @@ void tokenize(char *p) {
          p++;
          continue;
       }
-      if ((
-            *p == '+' || *p == '-' || *p == '*' || *p == '/' ||
-            *p == '%' || *p == '^' || *p == '|' || *p == '&'
-         ) && (*(p+1) == '=')) {
+      if ((*p == '+' || *p == '-' || *p == '*' || *p == '/' || *p == '%' ||
+           *p == '^' || *p == '|' || *p == '&') &&
+          (*(p + 1) == '=')) {
          {
             Token *token = malloc(sizeof(Token));
             token->ty = '=';
-            token->input = p+1;
+            token->input = p + 1;
             vec_push(tokens, token);
          }
          {
@@ -122,26 +121,24 @@ void tokenize(char *p) {
             token->input = p;
             vec_push(tokens, token);
          }
-         p+=2;
+         p += 2;
          continue;
       }
 
-      if (( *p == '+' && *(p+1) == '+') || ( *p == '-' && *(p+1) == '-')) {
+      if ((*p == '+' && *(p + 1) == '+') || (*p == '-' && *(p + 1) == '-')) {
          Token *token = malloc(sizeof(Token));
          // TK_PLUSPLUS and TK_SUBSUB
-         token->ty = *p + *(p+1);
+         token->ty = *p + *(p + 1);
          token->input = p;
          vec_push(tokens, token);
-         p+=2;
+         p += 2;
          continue;
       }
 
-      if (
-            *p == '+' || *p == '-' || *p == '*' || *p == '/' || *p == '(' ||
-            *p == ')' || *p == ';' || *p == ',' || *p == '{' || *p == '}' ||
-            *p == '%' || *p == '^' || *p == '|' || *p == '&' || *p == '?' ||
-            *p == ':'
-            ) {
+      if (*p == '+' || *p == '-' || *p == '*' || *p == '/' || *p == '(' ||
+          *p == ')' || *p == ';' || *p == ',' || *p == '{' || *p == '}' ||
+          *p == '%' || *p == '^' || *p == '|' || *p == '&' || *p == '?' ||
+          *p == ':') {
          Token *token = malloc(sizeof(Token));
          token->ty = *p;
          token->input = p;
@@ -152,7 +149,7 @@ void tokenize(char *p) {
       if (*p == '=') {
          Token *token = malloc(sizeof(Token));
          token->input = p;
-         if (*(p+1) == '=') {
+         if (*(p + 1) == '=') {
             token->ty = TK_ISEQ;
             p += 2;
          } else {
@@ -165,7 +162,7 @@ void tokenize(char *p) {
       if (*p == '!') {
          Token *token = malloc(sizeof(Token));
          token->input = p;
-         if (*(p+1) == '=') {
+         if (*(p + 1) == '=') {
             token->ty = TK_ISNOTEQ;
             p += 2;
          } else {
@@ -178,7 +175,7 @@ void tokenize(char *p) {
       if (*p == '<') {
          Token *token = malloc(sizeof(Token));
          token->input = p;
-         if (*(p+1) == '<') {
+         if (*(p + 1) == '<') {
             token->ty = TK_LSHIFT;
             p += 2;
          } else {
@@ -191,7 +188,7 @@ void tokenize(char *p) {
       if (*p == '>') {
          Token *token = malloc(sizeof(Token));
          token->input = p;
-         if (*(p+1) == '>') {
+         if (*(p + 1) == '>') {
             token->ty = TK_RSHIFT;
             p += 2;
          } else {
@@ -213,14 +210,14 @@ void tokenize(char *p) {
       if ('a' <= *p && *p <= 'z') {
          Token *token = malloc(sizeof(Token));
          token->ty = TK_IDENT;
-         token->input = malloc(sizeof(char)*256);
+         token->input = malloc(sizeof(char) * 256);
          vec_push(tokens, token);
-         int j=0;
+         int j = 0;
          do {
             token->input[j] = *p;
             p++;
             j++;
-         } while(('a' <= *p && *p <= 'z') || ('0' <= *p && *p <= '9'));
+         } while (('a' <= *p && *p <= 'z') || ('0' <= *p && *p <= '9'));
          token->input[j] = '\0';
 
          if (strcmp(token->input, "if") == 0) {
@@ -240,7 +237,8 @@ void tokenize(char *p) {
       // DEBUG
       /*
       for (int j=0;j<=tokens->len-1;j++) {
-         fprintf(stderr, "%c %d %s\n", tokens->data[j]->ty, tokens->data[j]->ty, tokens->data[j]->input);
+         fprintf(stderr, "%c %d %s\n", tokens->data[j]->ty, tokens->data[j]->ty,
+      tokens->data[j]->input);
       }
       */
    }
@@ -261,9 +259,7 @@ Node *node_shift();
 Node *node_add();
 Node *node_cast();
 
-Node *node_mathexpr() {
-   return node_or();
-}
+Node *node_mathexpr() { return node_or(); }
 
 Node *node_shift() {
    Node *node = node_add();
@@ -368,7 +364,7 @@ Node *node_term() {
    if (tokens->data[pos]->ty == TK_IDENT) {
       Node *node;
       // Function Call
-      if (tokens->data[pos+1]->ty == '(') {
+      if (tokens->data[pos + 1]->ty == '(') {
          node = new_func_node(tokens->data[pos]->input);
          // skip func , (
          pos += 2;
@@ -394,9 +390,9 @@ Node *node_term() {
       }
       return node;
    }
-   printf("Error: Incorrect Parensis without %c %d -> %c %d\n", 
-         tokens->data[pos-1]->ty, tokens->data[pos-1]->ty,
-         tokens->data[pos]->ty, tokens->data[pos]->ty);
+   printf("Error: Incorrect Parensis without %c %d -> %c %d\n",
+          tokens->data[pos - 1]->ty, tokens->data[pos - 1]->ty,
+          tokens->data[pos]->ty, tokens->data[pos]->ty);
    exit(1);
 }
 
@@ -416,7 +412,7 @@ void gen_lval(Node *node) {
       exit(1);
    }
 
-   //int offset = (int)map_get(env->idents, node->name);
+   // int offset = (int)map_get(env->idents, node->name);
    int offset = get_lval_offset(node);
    puts("mov rax, rbp");
    printf("sub rax, %d\n", offset);
@@ -432,8 +428,8 @@ void gen(Node *node) {
    if (node->ty == ND_BLOCK) {
       Env *prev_env = env;
       env = node->env;
-      //printf("%s:\n", node->name);
-      for (int j=0; node->code[j] != NULL;j++) {
+      // printf("%s:\n", node->name);
+      for (int j = 0; node->code[j] != NULL; j++) {
          // read inside functions.
          gen(node->code[j]);
       }
@@ -445,31 +441,31 @@ void gen(Node *node) {
       Env *prev_env = env;
       env = node->env;
       printf("%s:\n", node->name);
-      for (int j=0; node->code[j] != NULL;j++) {
+      for (int j = 0; node->code[j] != NULL; j++) {
          // read inside functions.
          gen(node->code[j]);
       }
       puts("pop rbp");
       puts("ret");
-         // FIXME
+      // FIXME
       env = prev_env;
-         return;
+      return;
 
-   /*
-   puts("push rbp"); 
-   puts("mov rbp, rsp");
-   printf("sub rsp, %d\n", rsp_offset);
-   for (int i=0;code[i];i++) {
-      gen(code[i]);
-      puts("pop rax");
-   }
-   puts("mov rsp, rbp");
-   */
+      /*
+      puts("push rbp");
+      puts("mov rbp, rsp");
+      printf("sub rsp, %d\n", rsp_offset);
+      for (int i=0;code[i];i++) {
+         gen(code[i]);
+         puts("pop rax");
+      }
+      puts("mov rsp, rbp");
+      */
    }
 
    if (node->ty == ND_FUNC) {
       char registers[6][4] = {"rdi", "rsi", "rdx", "rcx", "r8", "r9"};
-      for (int j=0; j<node->argc;j++) {
+      for (int j = 0; j < node->argc; j++) {
          gen(node->args[j]);
          printf("pop %s\n", registers[j]);
       }
@@ -480,15 +476,23 @@ void gen(Node *node) {
    }
 
    if (node->ty == ND_IF) {
-      gen(node->lhs);
+      gen(node->args[0]);
       puts("pop rax");
       puts("cmp rax, 0");
       printf("je .Lend%d\n", if_cnt);
-      gen(node->rhs);
+      gen(node->lhs);
+      if (node->rhs) {
+         printf("jmp .Lelseend%d\n", if_cnt);
+      }
       printf(".Lend%d:\n", if_cnt);
+      if (node->rhs) {
+         // There are else
+         gen(node->rhs);
+         printf(".Lelseend%d:\n", if_cnt);
+      }
       if_cnt++;
       return;
-   }  
+   }
 
    if (node->ty == ND_WHILE) {
       printf(".Lbegin%d:\n", if_cnt);
@@ -501,7 +505,7 @@ void gen(Node *node) {
       printf(".Lend%d:\n", if_cnt);
       if_cnt++;
       return;
-   }  
+   }
 
    if (node->ty == ND_IDENT) {
       gen_lval(node);
@@ -578,10 +582,12 @@ void gen(Node *node) {
          // FIXME: for signed int (Arthmetric)
          // mov rdi[8] -> rax
          puts("mov cl, dil");
-         puts("sar rax, cl"); break;
+         puts("sar rax, cl");
+         break;
       case ND_LSHIFT:
          puts("mov cl, dil");
-         puts("sal rax, cl"); break;
+         puts("sal rax, cl");
+         break;
       case ND_ISEQ:
          puts("cmp rdi, rax");
          puts("sete al");
@@ -611,12 +617,10 @@ void gen(Node *node) {
    puts("push rax");
 }
 
-
 void expect(int line, int expected, int actual) {
    if (expected == actual)
       return;
-   fprintf(stderr, "%d: %d expected, but got %d\n",
-         line, expected, actual);
+   fprintf(stderr, "%d: %d expected, but got %d\n", line, expected, actual);
    exit(1);
 }
 
@@ -625,7 +629,9 @@ Node *assign() {
    if (consume_node('=')) {
       if (confirm_node(TK_OPAS)) {
          // FIXME: shift
-         node = new_node('=', node, new_node(tokens->data[pos++]->input[0], node, assign()));
+         node =
+             new_node('=', node,
+                      new_node(tokens->data[pos++]->input[0], node, assign()));
       } else {
          node = new_node('=', node, assign());
       }
@@ -647,7 +653,7 @@ Node *stmt() {
 }
 int i = 0;
 
-void program(Node** args) {
+void program(Node **args) {
    env = new_env(env);
    while (!consume_node('}')) {
       if (consume_node('{')) {
@@ -657,16 +663,27 @@ void program(Node** args) {
          continue;
       }
 
-      if (consume_node(TK_IF))  {
-         args[0] = new_node(ND_IF, node_mathexpr(), NULL);
+      if (consume_node(TK_IF)) {
+         args[0] = new_node(ND_IF, NULL, NULL);
+         args[0]->argc = 1;
+         args[0]->args[0] = node_mathexpr();
+         args[0]->args[1] = NULL;
          consume_node('{');
          // Suppress COndition
-         args[0]->rhs = new_block_node(env);
-         program(args[0]->rhs->code);
+
+         args[0]->lhs = new_block_node(env);
+         program(args[0]->lhs->code);
+         if (consume_node(TK_ELSE)) {
+            consume_node('{'); // if "else {"
+            args[0]->rhs = new_block_node(env);
+            program(args[0]->rhs->code);
+         } else {
+            args[0]->rhs = NULL;
+         }
          args++;
          continue;
       }
-      if (consume_node(TK_WHILE))  {
+      if (consume_node(TK_WHILE)) {
          args[0] = new_node(ND_WHILE, node_mathexpr(), NULL);
          consume_node('{');
          args[0]->rhs = new_block_node(env);
@@ -676,7 +693,7 @@ void program(Node** args) {
       }
       args[0] = stmt();
       args++;
-      //args[i++] = stmt();
+      // args[i++] = stmt();
    }
    args[0] = NULL;
 
@@ -695,16 +712,18 @@ void toplevel() {
    // stmt....
    // consume_node('}')
    env = new_env(NULL);
-   //idents = new_map();
-   while(tokens->data[pos]->ty != TK_EOF) {
+   // idents = new_map();
+   while (tokens->data[pos]->ty != TK_EOF) {
       // FIXME because toplevel func call
-      if (tokens->data[pos]->ty == TK_IDENT && tokens->data[pos+1]->ty == TK_IDENT && tokens->data[pos+2]->ty == '(') {
+      if (tokens->data[pos]->ty == TK_IDENT &&
+          tokens->data[pos + 1]->ty == TK_IDENT &&
+          tokens->data[pos + 2]->ty == '(') {
          // expected int func() {
          // skip ')', '{'
-         code[i] = new_fdef_node(tokens->data[pos+1]->input, NULL);
+         code[i] = new_fdef_node(tokens->data[pos + 1]->input, NULL);
          pos += 2;
          // look up arguments
-         for (code[i]->argc=0; code[i]->argc < 6 && !consume_node(')'); ) {
+         for (code[i]->argc = 0; code[i]->argc < 6 && !consume_node(')');) {
             code[i]->args[code[i]->argc++] = node_mathexpr();
          }
          consume_node('{');
@@ -725,7 +744,7 @@ void toplevel() {
 void test_map() {
    Map *map = new_map();
    expect(__LINE__, 0, (int)map_get(map, "foo"));
-   map_put(map, "foo", (void*)2);
+   map_put(map, "foo", (void *)2);
    expect(__LINE__, 2, (int)map_get(map, "foo"));
 }
 
@@ -737,23 +756,23 @@ int main(int argc, char **argv) {
 
    test_map();
 
-   //Vector *vec = new_vector();
-   //vec_push(vec, 9);
+   // Vector *vec = new_vector();
+   // vec_push(vec, 9);
    // assert(1 == vec->len);
 
    tokenize(argv[1]);
    toplevel();
-   //Node *node = node_mathexpr();
+   // Node *node = node_mathexpr();
    // char *p = argv[1];
 
    puts(".intel_syntax");
    puts(".global main");
    puts("main:");
 
-   puts("push rbp"); 
+   puts("push rbp");
    puts("mov rbp, rsp");
    printf("sub rsp, %d\n", rsp_offset);
-   for (int j=0;code[j];j++) {
+   for (int j = 0; code[j]; j++) {
       gen(code[j]);
       puts("pop rax");
    }
