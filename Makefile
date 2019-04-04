@@ -8,7 +8,7 @@ target=hanando
 $(target): $(objects)
 	$(CC) $(objects) -o $(target) $(LDFLAGS)
 $(objects): main.h
-test:	test1 test2 test3 test4 test5 test6 test7 test8
+test:	test1 test2 test3 test4 test5 test6 test7 test8 test9
 
 test1:
 	sh test.sh '1;' 1
@@ -58,6 +58,13 @@ test7:
 test8:
 	sh test.sh 'a=1;++a;a;' 2
 	sh test.sh 'a=4;--a;a;' 3
+
+test9:
+	sh test.sh '2<0;' 0
+	sh test.sh '0<2;' 1
+	sh test.sh '2>0;' 1
+	sh test.sh '0>2;' 0
+
 
 clean:
 	$(RM) -f $(target) $(objects)

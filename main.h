@@ -31,6 +31,8 @@ typedef enum {
    ND_XOR = '^',
    ND_OR = '|',
    ND_AND = '&',
+   ND_LESS = '<',
+   ND_GREATER = '>',
    ND_LEFTPARENSIS = '(',
    ND_RIGHTPARENSIS = ')',
    ND_NUM = 256,

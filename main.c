@@ -169,8 +169,8 @@ void tokenize(char *p) {
             token->ty = TK_ISNOTEQ;
             p += 2;
          } else {
-            puts("error: not supported");
-            exit(1);
+            token->ty = *p;
+            p++;
          }
          vec_push(tokens, token);
          continue;
@@ -182,8 +182,8 @@ void tokenize(char *p) {
             token->ty = TK_LSHIFT;
             p += 2;
          } else {
-            puts("error: not supported");
-            exit(1);
+            token->ty = *p;
+            p++;
          }
          vec_push(tokens, token);
          continue;
@@ -195,8 +195,8 @@ void tokenize(char *p) {
             token->ty = TK_RSHIFT;
             p += 2;
          } else {
-            puts("error: not supported");
-            exit(1);
+            token->ty = *p;
+            p++;
          }
          vec_push(tokens, token);
          continue;
@@ -287,11 +287,24 @@ Node *node_or() {
       }
    }
 }
-Node *node_and() {
+Node *node_compare() {
    Node *node = node_shift();
    while (1) {
+      if (consume_node('<')) {
+         node = new_node('<', node, node_shift());
+      } else if (consume_node('>')) {
+         node = new_node('>', node, node_shift());
+      } else {
+         return node;
+      }
+   }
+}
+
+Node *node_and() {
+   Node *node = node_compare();
+   while (1) {
       if (consume_node('&')) {
-         node = new_node('&', node, node_shift());
+         node = new_node('&', node, node_compare());
       } else {
          return node;
       }
@@ -577,6 +590,18 @@ void gen(Node *node) {
       case ND_ISNOTEQ:
          puts("cmp rdi, rax");
          puts("setne al");
+         puts("movzx rax, al");
+         break;
+      case '>':
+         puts("cmp rdi, rax");
+         puts("setb al");
+         puts("movzx rax, al");
+         break;
+      case '<':
+         // reverse of < and >
+         puts("cmp rdi, rax");
+         // TODO: is "andb 1 %al" required?
+         puts("setg al");
          puts("movzx rax, al");
          break;
       default:
