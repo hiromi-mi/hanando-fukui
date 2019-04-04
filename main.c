@@ -378,6 +378,10 @@ Node *node_cast() {
    } else if (consume_node(TK_SUBSUB)) {
       Node *node = new_ident_node(tokens->data[pos++]->input);
       return new_node(ND_DEC, node, NULL);
+   } else if (consume_node('&')) {
+      return new_node(ND_ADDRESS, node_mathexpr(), NULL);
+   } else if (consume_node('*')) {
+      return new_node(ND_DEREF, node_mathexpr(), NULL);
    } else {
       return node_term();
    }
