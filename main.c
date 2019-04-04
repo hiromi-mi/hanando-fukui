@@ -441,13 +441,19 @@ void gen(Node *node) {
       Env *prev_env = env;
       env = node->env;
       printf("%s:\n", node->name);
+      //puts("push rbp");
+      //puts("mov rbp, rsp");
+      //printf("sub rsp, %d\n", rsp_offset);
       for (int j = 0; node->code[j] != NULL; j++) {
          // read inside functions.
          gen(node->code[j]);
+         //puts("pop rax");
       }
+      //puts("mov rsp, rbp");
       puts("pop rbp");
+      // This is return valu
+      puts("mov rax, rbp");
       puts("ret");
-      // FIXME
       env = prev_env;
       return;
 
@@ -719,15 +725,14 @@ void toplevel() {
           tokens->data[pos + 1]->ty == TK_IDENT &&
           tokens->data[pos + 2]->ty == '(') {
          // expected int func() {
-         // skip ')', '{'
+         // skip TK_IDENT, TK_IDENT, (
          code[i] = new_fdef_node(tokens->data[pos + 1]->input, NULL);
-         pos += 2;
+         pos += 3;
          // look up arguments
          for (code[i]->argc = 0; code[i]->argc < 6 && !consume_node(')');) {
             code[i]->args[code[i]->argc++] = node_mathexpr();
          }
          consume_node('{');
-         pos += 1;
          program(code[i++]->code);
          continue;
       }
@@ -766,19 +771,21 @@ int main(int argc, char **argv) {
    // char *p = argv[1];
 
    puts(".intel_syntax");
-   puts(".global main");
-   puts("main:");
 
-   puts("push rbp");
-   puts("mov rbp, rsp");
-   printf("sub rsp, %d\n", rsp_offset);
+   // Old
+   puts(".global main");
+   //puts("main:");
+
+   //puts("push rbp");
+   //puts("mov rbp, rsp");
+   //printf("sub rsp, %d\n", rsp_offset);
    for (int j = 0; code[j]; j++) {
       gen(code[j]);
-      puts("pop rax");
+      //puts("pop rax");
    }
-   puts("mov rsp, rbp");
-   puts("pop rbp");
-   puts("ret");
-
+   //puts("mov rsp, rbp");
+   //puts("pop rbp");
+   //puts("ret");
+   
    return 0;
 }

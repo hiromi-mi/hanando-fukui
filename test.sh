@@ -3,7 +3,10 @@
 tmps=$(mktemp --tmpdir XXXXXX.s)
 tmprun=$(mktemp --tmpdir XXXXXX.run)
 # Not safe for exception trapping.
-./hanando $1 > $tmps
+naiyou=$1
+naiyou2="int main(){$naiyou}"
+echo $naiyou2
+./hanando "$naiyou2" > $tmps
 clang $tmps -o $tmprun
 $tmprun
 actual="$?"
