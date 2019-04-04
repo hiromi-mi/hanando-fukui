@@ -476,6 +476,14 @@ void gen(Node *node) {
       // printf("%s:\n", node->name);
       for (int j = 0; node->code[j] != NULL; j++) {
          // read inside functions.
+         if (node->code[j]->ty == ND_RETURN) {
+            gen(node->code[j]->lhs);
+            puts("pop rax");
+            puts("mov rsp, rbp");
+            puts("pop rbp");
+            puts("ret");
+            break;
+         }
          gen(node->code[j]);
       }
       env = prev_env;
