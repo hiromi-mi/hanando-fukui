@@ -21,6 +21,7 @@ typedef enum {
    TK_PLUSPLUS = '+'+'+',
    TK_SUBSUB = '-'+'-',
    TK_TYPE,
+   TK_RETURN,
 } TokenConst;
 
 typedef enum {
@@ -49,6 +50,7 @@ typedef enum {
    ND_BLOCK,
    ND_IF,
    ND_WHILE,
+   ND_RETURN,
 } NodeType;
 
 struct Type {

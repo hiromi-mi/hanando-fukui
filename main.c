@@ -239,7 +239,9 @@ void tokenize(char *p) {
          }
          if (strcmp(token->input, "int") == 0) {
             token->ty = TK_TYPE;
-            // FIXME
+         }
+         if (strcmp(token->input, "return") == 0) {
+            token->ty = TK_RETURN;
          }
          vec_push(tokens, token);
          continue;
@@ -461,15 +463,16 @@ void gen(Node *node) {
       puts("mov rbp, rsp");
       printf("sub rsp, %d\n", env->rsp_offset);
       for (int j = 0; node->code[j] != NULL; j++) {
+         if (node->code[j]->ty == ND_RETURN) {
+            gen(node->code[j]->lhs);
+            puts("pop rax");
+            break;
+         }
          // read inside functions.
          gen(node->code[j]);
          puts("pop rax");
       }
       puts("mov rsp, rbp");
-      // This is return valu
-      //puts("pop rax");
-      //puts("mov rax, rbp");
-      //puts("mov rsp, rbp");
       puts("pop rbp");
       puts("ret");
       env = prev_env;
@@ -659,13 +662,14 @@ Node *assign() {
 Node *stmt() {
    Node *node;
    if (consume_node(TK_TYPE)) {
-      // FIXME: ignore current type
       if (strcmp(tokens->data[pos++]->input, "int") == 0) {
          node = new_ident_node(tokens->data[pos++]->input);
       } else {
          puts("Error: invalid type");
          exit(1);
       }
+   } else if (consume_node(TK_RETURN))  {
+      node = new_node(ND_RETURN, assign(), NULL);
    } else {
       node = assign();
    }

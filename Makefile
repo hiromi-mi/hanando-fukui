@@ -71,6 +71,7 @@ test10:
 
 test11:
 	sh testfdef.sh "int main(){func()+2;} int func(){4;}" 6
+	sh testfdef.sh "int main(){func()+2;} int func(){return 4;}" 6
 
 
 clean:
