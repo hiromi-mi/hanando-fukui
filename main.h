@@ -76,6 +76,7 @@ typedef struct {
 typedef struct Env {
    struct Env *env;
    Map *idents;
+   int rsp_offset_all;
    int rsp_offset;
 } Env;
 

@@ -42,7 +42,7 @@ Node *new_ident_node(char *name) {
    node->ty = ND_IDENT;
    node->name = name;
    if (get_lval_offset(node) != (int)NULL) {
-      rsp_offset += 8;
+      env->rsp_offset += 8;
       map_put(env->idents, name, (void *)8);
    }
    return node;
@@ -63,6 +63,11 @@ Env *new_env(Env *prev_env) {
    env->env = prev_env;
    env->idents = new_map();
    env->rsp_offset = 0;
+   if (prev_env) {
+      env->rsp_offset_all = prev_env->rsp_offset_all + prev_env->rsp_offset;
+   } else {
+      env->rsp_offset_all = 0;
+   }
    return env;
 }
 
@@ -409,6 +414,9 @@ int get_lval_offset(Node *node) {
    Env *local_env = env;
    while (offset == (int)NULL && local_env != NULL) {
       offset = (int)map_get(local_env->idents, node->name);
+      if (offset != (int)NULL) {
+         offset += local_env->rsp_offset_all;
+      }
       local_env = local_env->env;
    }
    return offset;
@@ -451,7 +459,7 @@ void gen(Node *node) {
       printf("%s:\n", node->name);
       puts("push rbp");
       puts("mov rbp, rsp");
-      printf("sub rsp, %d\n", rsp_offset);
+      printf("sub rsp, %d\n", env->rsp_offset);
       for (int j = 0; node->code[j] != NULL; j++) {
          // read inside functions.
          gen(node->code[j]);
@@ -736,7 +744,7 @@ void toplevel() {
           tokens->data[pos + 2]->ty == '(') {
          // expected int func() {
          // skip TK_IDENT, TK_IDENT, (
-         code[i] = new_fdef_node(tokens->data[pos + 1]->input, NULL);
+         code[i] = new_fdef_node(tokens->data[pos + 1]->input, env);
          pos += 3;
          // look up arguments
          for (code[i]->argc = 0; code[i]->argc < 6 && !consume_node(')');) {
