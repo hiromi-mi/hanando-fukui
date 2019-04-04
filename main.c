@@ -441,32 +441,23 @@ void gen(Node *node) {
       Env *prev_env = env;
       env = node->env;
       printf("%s:\n", node->name);
-      //puts("push rbp");
-      //puts("mov rbp, rsp");
-      //printf("sub rsp, %d\n", rsp_offset);
-      for (int j = 0; node->code[j] != NULL; j++) {
-         // read inside functions.
-         gen(node->code[j]);
-         //puts("pop rax");
-      }
-      //puts("mov rsp, rbp");
-      puts("pop rbp");
-      // This is return valu
-      puts("mov rax, rbp");
-      puts("ret");
-      env = prev_env;
-      return;
-
-      /*
       puts("push rbp");
       puts("mov rbp, rsp");
       printf("sub rsp, %d\n", rsp_offset);
-      for (int i=0;code[i];i++) {
-         gen(code[i]);
+      for (int j = 0; node->code[j] != NULL; j++) {
+         // read inside functions.
+         gen(node->code[j]);
          puts("pop rax");
       }
       puts("mov rsp, rbp");
-      */
+      // This is return valu
+      //puts("pop rax");
+      //puts("mov rax, rbp");
+      //puts("mov rsp, rbp");
+      puts("pop rbp");
+      puts("ret");
+      env = prev_env;
+      return;
    }
 
    if (node->ty == ND_FUNC) {
@@ -772,13 +763,8 @@ int main(int argc, char **argv) {
 
    puts(".intel_syntax");
 
-   // Old
    puts(".global main");
-   //puts("main:");
 
-   //puts("push rbp");
-   //puts("mov rbp, rsp");
-   //printf("sub rsp, %d\n", rsp_offset);
    for (int j = 0; code[j]; j++) {
       gen(code[j]);
       //puts("pop rax");

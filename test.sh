@@ -7,7 +7,7 @@ naiyou=$1
 naiyou2="int main(){$naiyou}"
 echo $naiyou2
 ./hanando "$naiyou2" > $tmps
-clang $tmps -o $tmprun
+clang $tmps -g -o $tmprun
 $tmprun
 actual="$?"
 if [ $actual -ne $2 ]; then

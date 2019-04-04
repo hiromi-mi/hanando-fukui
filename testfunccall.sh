@@ -1,7 +1,8 @@
 # testfunccall.sh
 
 clang foo.c -o foo.o -c
-./hanando $1 > tmp.s
+naiyou2="int main(){$1}"
+./hanando "$naiyou2" > tmp.s
 clang tmp.s foo.o -o tmp
 actual=$(./tmp)
 retval=$?
