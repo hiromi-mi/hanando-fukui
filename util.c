@@ -11,14 +11,14 @@ Map *new_map() {
    return map;
 }
 
-void map_put(Map *map, char* key, void* val) {
-   vec_push(map->keys, (void*)key);
-   vec_push(map->vals, (void*)val);
+void map_put(Map *map, char *key, void *val) {
+   vec_push(map->keys, (void *)key);
+   vec_push(map->vals, (void *)val);
 }
 
-void *map_get(Map *map, char* key) {
-   for (int i=map->keys->len-1;i>=0;i--) {
-      if (strcmp((char*)map->keys->data[i], key) == 0) {
+void *map_get(Map *map, char *key) {
+   for (int i = map->keys->len - 1; i >= 0; i--) {
+      if (strcmp((char *)map->keys->data[i], key) == 0) {
          return map->vals->data[i];
       }
    }
@@ -26,18 +26,17 @@ void *map_get(Map *map, char* key) {
 }
 
 Vector *new_vector() {
-   Vector* vec = malloc(sizeof(Vector));
+   Vector *vec = malloc(sizeof(Vector));
    vec->capacity = 16;
-   vec->data = malloc(sizeof(Token*) * vec->capacity);
+   vec->data = malloc(sizeof(Token *) * vec->capacity);
    vec->len = 0;
    return vec;
 }
 
-
-void vec_push(Vector *vec, Token* element) {
+void vec_push(Vector *vec, Token *element) {
    if (vec->capacity == vec->len) {
       vec->capacity *= 2;
-      vec->data = realloc(vec->data, sizeof(Token*) * vec->capacity);
+      vec->data = realloc(vec->data, sizeof(Token *) * vec->capacity);
    }
    vec->data[vec->len++] = element;
 }

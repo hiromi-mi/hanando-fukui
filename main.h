@@ -18,8 +18,8 @@ typedef enum {
    TK_RSHIFT,
    TK_LSHIFT,
    TK_OPAS,
-   TK_PLUSPLUS = '+'+'+',
-   TK_SUBSUB = '-'+'-',
+   TK_PLUSPLUS = '+' + '+',
+   TK_SUBSUB = '-' + '-',
    TK_TYPE,
    TK_RETURN,
 } TokenConst;
@@ -53,13 +53,9 @@ typedef enum {
    ND_RETURN,
 } NodeType;
 
-struct Type {
-   enum {TY_INT, TY_PTR} ty;
+typedef struct Type {
+   enum { TY_INT, TY_PTR } ty;
    struct Type *ptrof;
-};
-
-typedef struct {
-   struct Type kind;
    int offset;
 } Type;
 
@@ -70,13 +66,13 @@ typedef struct {
 } Token;
 
 typedef struct {
-   Token** data;
+   Token **data;
    int capacity;
    int len;
 } Vector;
 
 typedef struct {
-   Vector* keys;
+   Vector *keys;
    Vector *vals;
 } Map;
 
@@ -95,14 +91,14 @@ typedef struct Node {
    struct Node *code[100];
    int argc;
    long num_val;
-   char* name;
+   char *name;
    Env *env;
 } Node;
 
 Map *new_map();
-void map_put(Map *map, char* key, void* val);
-void *map_get(Map *map, char* key);
+void map_put(Map *map, char *key, void *val);
+void *map_get(Map *map, char *key);
 Vector *new_vector();
-void vec_push(Vector *vec, Token* element);
+void vec_push(Vector *vec, Token *element);
 
 #endif /* __HANANDO_FUKUI_MAIN__ */

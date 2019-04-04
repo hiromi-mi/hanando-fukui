@@ -36,14 +36,33 @@ Node *new_num_node(long num_val) {
 Env *env;
 static int if_cnt = 0;
 
+Node *new_ident_node_with_new_variable(char *name, Type *type) {
+   Node *node = malloc(sizeof(Node));
+   node->ty = ND_IDENT;
+   node->name = name;
+   env->rsp_offset += 8;
+   type->offset = env->rsp_offset;
+   // type->ptrof = NULL;
+   // type->ty = TY_INT;
+   printf("#define: %s on %d\n", name, env->rsp_offset);
+   map_put(env->idents, name, type);
+   return node;
+}
+
 Node *new_ident_node(char *name) {
    Node *node = malloc(sizeof(Node));
    node->ty = ND_IDENT;
    node->name = name;
    if (get_lval_offset(node) == (int)NULL) {
+      fprintf(stderr, "Error: New Variable Definition.\n");
+      exit(1);
       env->rsp_offset += 8;
+      Type *type = malloc(sizeof(Type));
+      type->offset = env->rsp_offset;
+      type->ptrof = NULL;
+      type->ty = TY_INT;
       printf("#define: %s on %d\n", name, env->rsp_offset);
-      map_put(env->idents, name, (void *)env->rsp_offset);
+      map_put(env->idents, name, type);
    }
    return node;
 }
@@ -407,8 +426,8 @@ Node *node_term() {
       return node;
    }
    fprintf(stderr, "Error: Incorrect Parensis without %c %d -> %c %d\n",
-          tokens->data[pos - 1]->ty, tokens->data[pos - 1]->ty,
-          tokens->data[pos]->ty, tokens->data[pos]->ty);
+           tokens->data[pos - 1]->ty, tokens->data[pos - 1]->ty,
+           tokens->data[pos]->ty, tokens->data[pos]->ty);
    exit(1);
 }
 
@@ -416,9 +435,9 @@ int get_lval_offset(Node *node) {
    int offset = (int)NULL;
    Env *local_env = env;
    while (offset == (int)NULL && local_env != NULL) {
-      offset = (int)map_get(local_env->idents, node->name);
-      if (offset != (int)NULL) {
-         offset += local_env->rsp_offset_all;
+      Type *type = map_get(local_env->idents, node->name);
+      if (type != (int)NULL) {
+         offset = local_env->rsp_offset_all + type->offset;
       }
       local_env = local_env->env;
    }
@@ -464,7 +483,7 @@ void gen(Node *node) {
       puts("mov rbp, rsp");
       printf("sub rsp, %d\n", env->rsp_offset);
       char registers[6][4] = {"rdi", "rsi", "rdx", "rcx", "r8", "r9"};
-      for (int j = 0; j<node->argc; j++) {
+      for (int j = 0; j < node->argc; j++) {
          gen_lval(node->args[j]);
          puts("pop rax");
          printf("mov [rax], %s\n", registers[j]);
@@ -669,15 +688,19 @@ Node *assign() {
 
 Node *stmt() {
    Node *node;
-   if (consume_node(TK_TYPE)) {
+   if (confirm_node(TK_TYPE)) {
       // Variable Definition.
       if (strcmp(tokens->data[pos++]->input, "int") == 0) {
-         node = new_ident_node(tokens->data[pos++]->input);
+         Type *type = malloc(sizeof(Type));
+         type->ty = TY_INT;
+         type->ptrof = NULL;
+         node =
+             new_ident_node_with_new_variable(tokens->data[pos++]->input, type);
       } else {
          puts("Error: invalid type");
          exit(1);
       }
-   } else if (consume_node(TK_RETURN))  {
+   } else if (consume_node(TK_RETURN)) {
       node = new_node(ND_RETURN, assign(), NULL);
    } else {
       node = assign();
@@ -691,10 +714,10 @@ Node *stmt() {
 int i = 0;
 
 void program(Node *block_node) {
-   Node** args = block_node->code;
-   Env* prev_env = env;
+   Node **args = block_node->code;
+   Env *prev_env = env;
    env = block_node->env;
-   //env = new_env(env);
+   // env = new_env(env);
    while (!consume_node('}')) {
       if (consume_node('{')) {
          args[0] = new_block_node(env);
@@ -765,7 +788,11 @@ void toplevel() {
          // look up arguments
          for (code[i]->argc = 0; code[i]->argc < 6 && !consume_node(')');) {
             consume_node(TK_TYPE);
-            code[i]->args[code[i]->argc++] = new_ident_node(tokens->data[pos++]->input);
+            Type *type = malloc(sizeof(Type));
+            type->ty = TY_INT;
+            type->ptrof = NULL;
+            code[i]->args[code[i]->argc++] =
+                new_ident_node_with_new_variable(tokens->data[pos++]->input, type);
             consume_node(',');
          }
          consume_node('{');
@@ -813,6 +840,6 @@ int main(int argc, char **argv) {
    for (int j = 0; code[j]; j++) {
       gen(code[j]);
    }
-   
+
    return 0;
 }
