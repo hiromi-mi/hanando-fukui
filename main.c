@@ -33,7 +33,7 @@ Node *new_num_node(long num_val) {
 }
 
 // Map *idents;
-static Env *env;
+Env *env;
 static int if_cnt = 0;
 int rsp_offset = 0;
 
@@ -41,8 +41,9 @@ Node *new_ident_node(char *name) {
    Node *node = malloc(sizeof(Node));
    node->ty = ND_IDENT;
    node->name = name;
-   if (get_lval_offset(node) != (int)NULL) {
+   if (get_lval_offset(node) == (int)NULL) {
       env->rsp_offset += 8;
+      printf("#define: %s on %d\n", name, env->rsp_offset);
       map_put(env->idents, name, (void *)8);
    }
    return node;
@@ -89,7 +90,7 @@ Node *new_block_node(Env *prev_env) {
    node->lhs = NULL;
    node->rhs = NULL;
    node->argc = 0;
-   node->env = prev_env;
+   node->env = new_env(prev_env);
    return node;
 }
 
@@ -462,6 +463,16 @@ void gen(Node *node) {
       puts("push rbp");
       puts("mov rbp, rsp");
       printf("sub rsp, %d\n", env->rsp_offset);
+      char registers[6][4] = {"rdi", "rsi", "rdx", "rcx", "r8", "r9"};
+      for (int j = 0; j<node->argc; j++) {
+         //get_lval_offset(node->args[j]);
+         gen_lval(node->args[j]);
+         puts("pop rax");
+         //puts("mov rdi, [rax]");
+         //puts("add rdi, 1");
+         printf("mov [rax], %s\n", registers[j]);
+         puts("push rax");
+      }
       for (int j = 0; node->code[j] != NULL; j++) {
          if (node->code[j]->ty == ND_RETURN) {
             gen(node->code[j]->lhs);
@@ -681,12 +692,15 @@ Node *stmt() {
 }
 int i = 0;
 
-void program(Node **args) {
-   env = new_env(env);
+void program(Node *block_node) {
+   Node** args = block_node->code;
+   Env* prev_env = env;
+   env = block_node->env;
+   //env = new_env(env);
    while (!consume_node('}')) {
       if (consume_node('{')) {
          args[0] = new_block_node(env);
-         program(args[0]->code);
+         program(args[0]);
          args++;
          continue;
       }
@@ -700,11 +714,11 @@ void program(Node **args) {
          // Suppress COndition
 
          args[0]->lhs = new_block_node(env);
-         program(args[0]->lhs->code);
+         program(args[0]->lhs);
          if (consume_node(TK_ELSE)) {
             consume_node('{'); // if "else {"
             args[0]->rhs = new_block_node(env);
-            program(args[0]->rhs->code);
+            program(args[0]->rhs);
          } else {
             args[0]->rhs = NULL;
          }
@@ -715,7 +729,7 @@ void program(Node **args) {
          args[0] = new_node(ND_WHILE, node_mathexpr(), NULL);
          consume_node('{');
          args[0]->rhs = new_block_node(env);
-         program(args[0]->rhs->code);
+         program(args[0]->rhs);
          args++;
          continue;
       }
@@ -726,7 +740,7 @@ void program(Node **args) {
    args[0] = NULL;
 
    // 'consumed }'
-   env = env->env;
+   env = prev_env;
 }
 
 void toplevel() {
@@ -752,15 +766,17 @@ void toplevel() {
          pos += 3;
          // look up arguments
          for (code[i]->argc = 0; code[i]->argc < 6 && !consume_node(')');) {
-            code[i]->args[code[i]->argc++] = node_mathexpr();
+            consume_node(TK_TYPE);
+            code[i]->args[code[i]->argc++] = new_ident_node(tokens->data[pos++]->input);
+            consume_node(',');
          }
          consume_node('{');
-         program(code[i++]->code);
+         program(code[i++]);
          continue;
       }
       if (consume_node('{')) {
          code[i] = new_block_node(NULL);
-         program(code[i++]->code);
+         program(code[i++]);
          continue;
       }
       code[i++] = stmt();

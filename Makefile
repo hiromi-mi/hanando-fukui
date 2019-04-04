@@ -67,11 +67,12 @@ test10:
 	sh test.sh "{if(1){3;}}" 3
 	sh test.sh "{if(1){3;}else{4;}}" 3
 	sh test.sh "{if(0){3;}else{4;}}" 4
-	sh test.sh "a=0;while(a<3){a+=1;}a;" 3
+	sh test.sh "a=0;while(a<3){a+=1;} return a;" 3
 
 test11:
 	sh testfdef.sh "int main(){func()+2;} int func(){4;}" 6
 	sh testfdef.sh "int main(){func()+2;} int func(){return 4;}" 6
+	sh testfdef.sh "int main(){func(8)+2;} int func(a){return a-4;}" 6
 
 
 clean:
