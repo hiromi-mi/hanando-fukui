@@ -691,9 +691,18 @@ Node *assign() {
    if (consume_node('=')) {
       if (confirm_node(TK_OPAS)) {
          // FIXME: shift
+         NodeType tp = tokens->data[pos++]->input[0];
+         if (tokens->data[pos++]->input[0] == '<') {
+            tp = ND_LSHIFT;
+            pos++;
+         }
+         if (tokens->data[pos++]->input[0] == '>') {
+            tp = ND_RSHIFT;
+            pos++;
+         }
          node =
              new_node('=', node,
-                      new_node(tokens->data[pos++]->input[0], node, assign()));
+                      new_node(tp, node, assign()));
       } else {
          node = new_node('=', node, assign());
       }

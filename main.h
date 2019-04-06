@@ -51,6 +51,8 @@ typedef enum {
    ND_IF,
    ND_WHILE,
    ND_RETURN,
+   ND_ADDRESS,
+   ND_DEREF,
 } NodeType;
 
 typedef struct Type {
