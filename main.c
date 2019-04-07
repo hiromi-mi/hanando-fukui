@@ -17,6 +17,11 @@ int pos = 0;
 Node *code[100];
 int get_lval_offset(Node *node);
 
+void error(const char* str) {
+   fprintf(stderr, "%s\n", str);
+   exit(1);
+}
+
 Node *new_node(NodeType ty, Node *lhs, Node *rhs) {
    Node *node = malloc(sizeof(Node));
    node->ty = ty;
@@ -54,8 +59,7 @@ Node *new_ident_node(char *name) {
    node->ty = ND_IDENT;
    node->name = name;
    if (get_lval_offset(node) == (int)NULL) {
-      fprintf(stderr, "Error: New Variable Definition.\n");
-      exit(1);
+      error("Error: New Variable Definition.");
       env->rsp_offset += 8;
       Type *type = malloc(sizeof(Type));
       type->offset = env->rsp_offset;
@@ -274,7 +278,6 @@ void tokenize(char *p) {
       }
 
       fprintf(stderr, "Cannot Tokenize: %s\n", p);
-      exit(1);
       // DEBUG
       /*
       for (int j=0;j<=tokens->len-1;j++) {
@@ -431,12 +434,11 @@ Node *node_term() {
    if (consume_node('(')) {
       Node *node = assign();
       if (!consume_node(')')) {
-         fprintf(stderr, "Error: Incorrect Parensis.\n");
-         exit(1);
+         error("Error: Incorrect Parensis.");
       }
       return node;
    }
-   fprintf(stderr, "Error: Incorrect Parensis without %c %d -> %c %d\n",
+   fprintf(stderr, "Error: Incorrect Paresis without %c %d -> %c %d\n",
            tokens->data[pos - 1]->ty, tokens->data[pos - 1]->ty,
            tokens->data[pos]->ty, tokens->data[pos]->ty);
    exit(1);
@@ -464,8 +466,7 @@ void gen_lval(Node *node) {
       puts("push rax");
       return;
    }
-   fprintf(stderr, "error: Incorrect Variable of lvalue");
-   exit(1);
+   error("Error: Incorrect Variable of lvalue");
 }
 
 void gen(Node *node) {
@@ -673,8 +674,7 @@ void gen(Node *node) {
          puts("movzx rax, al");
          break;
       default:
-         fprintf(stderr, "Error");
-         exit(1);
+         error("Error: no generations found.");
    }
    puts("push rax");
 }
@@ -692,13 +692,13 @@ Node *assign() {
       if (confirm_node(TK_OPAS)) {
          // FIXME: shift
          NodeType tp = tokens->data[pos++]->input[0];
-         if (tokens->data[pos++]->input[0] == '<') {
+         if (tokens->data[pos]->input[0] == '<') {
             tp = ND_LSHIFT;
-            pos++;
+            //pos+=3;
          }
-         if (tokens->data[pos++]->input[0] == '>') {
+         if (tokens->data[pos]->input[0] == '>') {
             tp = ND_RSHIFT;
-            pos++;
+            //pos+=3;
          }
          node =
              new_node('=', node,
@@ -734,8 +734,7 @@ Node *stmt() {
          node =
              new_ident_node_with_new_variable(tokens->data[pos++]->input, type);
       } else {
-         fprintf(stderr, "Error: invalid type");
-         exit(1);
+         error("Error: invalid type");
       }
    } else if (consume_node(TK_RETURN)) {
       node = new_node(ND_RETURN, assign(), NULL);
@@ -743,8 +742,7 @@ Node *stmt() {
       node = assign();
    }
    if (!consume_node(';')) {
-      fprintf(stderr, "Error: Not token ;");
-      exit(1);
+      error("Error: Not token ;");
    }
    return node;
 }
@@ -855,7 +853,7 @@ void test_map() {
 
 int main(int argc, char **argv) {
    if (argc < 2) {
-      puts("Incorrect Arguments");
+      error("Incorrect Arguments");
       exit(1);
    }
 
