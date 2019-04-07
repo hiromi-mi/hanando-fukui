@@ -95,6 +95,7 @@ typedef struct Node {
    long num_val;
    char *name;
    Env *env;
+   Type *type;
 } Node;
 
 Map *new_map();

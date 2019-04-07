@@ -17,7 +17,7 @@ int pos = 0;
 Node *code[100];
 int get_lval_offset(Node *node);
 
-void error(const char* str) {
+void error(const char *str) {
    fprintf(stderr, "%s\n", str);
    exit(1);
 }
@@ -27,6 +27,7 @@ Node *new_node(NodeType ty, Node *lhs, Node *rhs) {
    node->ty = ty;
    node->lhs = lhs;
    node->rhs = rhs;
+   node->type = NULL;
    return node;
 }
 
@@ -34,6 +35,7 @@ Node *new_num_node(long num_val) {
    Node *node = malloc(sizeof(Node));
    node->ty = ND_NUM;
    node->num_val = num_val;
+   node->type = NULL;
    return node;
 }
 
@@ -45,6 +47,7 @@ Node *new_ident_node_with_new_variable(char *name, Type *type) {
    Node *node = malloc(sizeof(Node));
    node->ty = ND_IDENT;
    node->name = name;
+   node->type = NULL;
    env->rsp_offset += 8;
    type->offset = env->rsp_offset;
    // type->ptrof = NULL;
@@ -58,6 +61,7 @@ Node *new_ident_node(char *name) {
    Node *node = malloc(sizeof(Node));
    node->ty = ND_IDENT;
    node->name = name;
+   node->type = NULL;
    if (get_lval_offset(node) == (int)NULL) {
       error("Error: New Variable Definition.");
       env->rsp_offset += 8;
@@ -437,13 +441,14 @@ Node *node_term() {
    exit(1);
 }
 
+// TODO: another effect: set node->type
 int get_lval_offset(Node *node) {
    int offset = (int)NULL;
    Env *local_env = env;
    while (offset == (int)NULL && local_env != NULL) {
-      Type *type = map_get(local_env->idents, node->name);
-      if (type != NULL) {
-         offset = local_env->rsp_offset_all + type->offset;
+      node->type = map_get(local_env->idents, node->name);
+      if (node->type != NULL) {
+         offset = local_env->rsp_offset_all + node->type->offset;
       }
       local_env = local_env->env;
    }
@@ -459,6 +464,16 @@ void gen_lval(Node *node) {
       puts("push rax");
       return;
    }
+   if (node->ty == ND_DEREF) {
+      gen_lval(node->lhs); // Compile as RVALUE
+      puts("#deref_lval");
+      puts("pop rax");
+      puts("mov rax, [rax]");
+      puts("push rax");
+      puts("\n");
+      return;
+   }
+
    error("Error: Incorrect Variable of lvalue");
 }
 
@@ -570,10 +585,10 @@ void gen(Node *node) {
       puts("push rax");
       return;
    }
-   
+
    if (node->ty == ND_DEREF) {
-      puts("#deref");
       gen(node->lhs); // Compile as RVALUE
+      puts("#deref");
       puts("pop rax");
       puts("mov rax, [rax]");
       puts("push rax");
@@ -583,6 +598,8 @@ void gen(Node *node) {
 
    if (node->ty == ND_ADDRESS) {
       gen_lval(node->lhs);
+      node->type = malloc(sizeof(Type));
+      node->type->ty = TY_PTR;
       return;
    }
 
@@ -618,8 +635,45 @@ void gen(Node *node) {
    gen(node->lhs);
    gen(node->rhs);
 
-   puts("pop rdi");
-   puts("pop rax");
+   if (node->lhs->type && node->lhs->type->ty == TY_PTR) {
+      puts("pop rax"); // rhs
+      puts("pop rdi"); // lhs because of mul
+      puts("mov r10, 4");
+      puts("mul r10"); // TODO multiply pointer size (8)
+      switch (node->ty) {
+         case '+':
+            puts("add rax, rdi");
+            break;
+         case '-':
+            puts("sub rax, rdi"); // stack
+            break;
+         default:
+            error("Error: Not supported pointer eq.");
+      }
+      puts("push rax");
+      return;
+   }
+   if (node->rhs->type && node->rhs->type->ty == TY_PTR) {
+      puts("pop rdi"); // rhs
+      puts("pop rax"); // lhs
+      puts("mov r10, 4");
+      puts("mul r10"); // TODO multiply pointer size (8)
+      switch (node->ty) {
+         case '+':
+            puts("add rax, rdi");
+            break;
+         case '-':
+            puts("sub rax, rdi"); // stack
+            break;
+         default:
+            error("Error: Not supported pointer eq.");
+      }
+      puts("push rax");
+      return;
+   }
+
+   puts("pop rdi"); // rhs
+   puts("pop rax"); // lhs
    switch (node->ty) {
       case '+':
          puts("add rax, rdi");
@@ -702,15 +756,13 @@ Node *assign() {
          NodeType tp = tokens->data[pos++]->input[0];
          if (tokens->data[pos]->input[0] == '<') {
             tp = ND_LSHIFT;
-            //pos+=3;
+            // pos+=3;
          }
          if (tokens->data[pos]->input[0] == '>') {
             tp = ND_RSHIFT;
-            //pos+=3;
+            // pos+=3;
          }
-         node =
-             new_node('=', node,
-                      new_node(tp, node, assign()));
+         node = new_node('=', node, new_node(tp, node, assign()));
       } else {
          node = new_node('=', node, assign());
       }
