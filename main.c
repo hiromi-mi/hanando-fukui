@@ -16,6 +16,7 @@ Vector *tokens;
 int pos = 0;
 Node *code[100];
 int get_lval_offset(Node *node);
+void gen(Node *node);
 
 void error(const char *str) {
    fprintf(stderr, "%s\n", str);
@@ -433,6 +434,12 @@ Node *node_term() {
          }
          assert(node->argc <= 6);
          // pos++ because of consume_node(')')
+      // array
+      } else if (tokens->data[pos + 1]->ty == '[') {
+         // TODO: 3[a] does not work yet
+         node = new_node(ND_DEREF,
+               new_node('+', new_ident_node(tokens->data[pos++]->input), node_mathexpr()), NULL);
+         expect_node(']');
       } else {
          node = new_ident_node(tokens->data[pos++]->input);
       }
@@ -476,12 +483,15 @@ void gen_lval(Node *node) {
       return;
    }
    if (node->ty == ND_DEREF) {
-      gen_lval(node->lhs); // Compile as RVALUE
       if (node->lhs->type->ty == TY_PTR) {
+         gen_lval(node->lhs); // Compile as RVALUE
          puts("#deref_lval");
          puts("pop rax");
          puts("mov rax, [rax]");
          puts("push rax");
+      }
+      if (node->lhs->type->ty == TY_ARRAY) {
+         gen(node->lhs);
       }
       return;
    }
