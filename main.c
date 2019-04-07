@@ -48,7 +48,15 @@ Node *new_ident_node_with_new_variable(char *name, Type *type) {
    node->ty = ND_IDENT;
    node->name = name;
    node->type = NULL;
-   env->rsp_offset += 8;
+   switch(type->ty) {
+      case TY_PTR:
+         env->rsp_offset += 8; break;
+      case TY_INT:
+         env->rsp_offset += 8; break;
+      case TY_ARRAY:
+         // TODO: should not be 8 in case of truct
+         env->rsp_offset += 8 * type->array_size; break;
+   }
    type->offset = env->rsp_offset;
    // type->ptrof = NULL;
    // type->ty = TY_INT;
@@ -64,13 +72,6 @@ Node *new_ident_node(char *name) {
    node->type = NULL;
    if (get_lval_offset(node) == (int)NULL) {
       error("Error: New Variable Definition.");
-      env->rsp_offset += 8;
-      Type *type = malloc(sizeof(Type));
-      type->offset = env->rsp_offset;
-      type->ptrof = NULL;
-      type->ty = TY_INT;
-      printf("#define: %s on %d\n", name, env->rsp_offset);
-      map_put(env->idents, name, type);
    }
    return node;
 }
@@ -135,6 +136,16 @@ int consume_node(TokenConst ty) {
    return 1;
 }
 
+int expect_node(TokenConst ty) {
+   if (tokens->data[pos]->ty != ty) {
+      error("Error: Expected TokenConst are different.");
+      return 0;
+   }
+   pos++;
+   return 1;
+}
+
+
 void tokenize(char *p) {
    tokens = new_vector();
    while (*p != '\0') {
@@ -174,7 +185,7 @@ void tokenize(char *p) {
       if (*p == '+' || *p == '-' || *p == '*' || *p == '/' || *p == '(' ||
           *p == ')' || *p == ';' || *p == ',' || *p == '{' || *p == '}' ||
           *p == '%' || *p == '^' || *p == '|' || *p == '&' || *p == '?' ||
-          *p == ':') {
+          *p == ':' || *p == '[' || *p == ']') {
          Token *token = malloc(sizeof(Token));
          token->ty = *p;
          token->input = p;
@@ -466,11 +477,12 @@ void gen_lval(Node *node) {
    }
    if (node->ty == ND_DEREF) {
       gen_lval(node->lhs); // Compile as RVALUE
-      puts("#deref_lval");
-      puts("pop rax");
-      puts("mov rax, [rax]");
-      puts("push rax");
-      puts("\n");
+      if (node->lhs->type->ty == TY_PTR) {
+         puts("#deref_lval");
+         puts("pop rax");
+         puts("mov rax, [rax]");
+         puts("push rax");
+      }
       return;
    }
 
@@ -635,7 +647,7 @@ void gen(Node *node) {
    gen(node->lhs);
    gen(node->rhs);
 
-   if (node->lhs->type && node->lhs->type->ty == TY_PTR) {
+   if (node->lhs->type && (node->lhs->type->ty == TY_ARRAY || node->lhs->type->ty == TY_PTR)) {
       puts("pop rax"); // rhs
       puts("pop rdi"); // lhs because of mul
       puts("mov r10, 4");
@@ -653,7 +665,7 @@ void gen(Node *node) {
       puts("push rax");
       return;
    }
-   if (node->rhs->type && node->rhs->type->ty == TY_PTR) {
+   if (node->rhs->type && (node->rhs->type->ty == TY_ARRAY || node->rhs->type->ty == TY_PTR)) {
       puts("pop rdi"); // rhs
       puts("pop rax"); // lhs
       puts("mov r10, 4");
@@ -775,7 +787,7 @@ Node *assign() {
 }
 
 Node *stmt() {
-   Node *node;
+   Node *node = NULL;
    if (confirm_node(TK_TYPE)) {
       // Variable Definition.
       if (strcmp(tokens->data[pos]->input, "int") == 0) {
@@ -794,8 +806,20 @@ Node *stmt() {
             old_rectype->ty = TY_PTR;
             old_rectype->ptrof = rectype;
          }
-         node =
-             new_ident_node_with_new_variable(tokens->data[pos++]->input, type);
+         char* input = tokens->data[pos++]->input;
+         // array
+         if (consume_node('[')) {
+            type->ty = TY_ARRAY;
+            type->array_size = (int)tokens->data[pos]->num_val;
+            Type *rectype;
+            rectype = malloc(sizeof(Type));
+            rectype->ty = TY_INT;
+            rectype->ptrof = NULL;
+            type->ptrof = rectype;
+            pos++;
+            expect_node(']');
+         }
+         node = new_ident_node_with_new_variable(input, type);
       } else {
          error("Error: invalid type");
       }
@@ -829,13 +853,13 @@ void program(Node *block_node) {
          args[0]->argc = 1;
          args[0]->args[0] = assign();
          args[0]->args[1] = NULL;
-         consume_node('{');
+         expect_node('{');
          // Suppress COndition
 
          args[0]->lhs = new_block_node(env);
          program(args[0]->lhs);
          if (consume_node(TK_ELSE)) {
-            consume_node('{'); // if "else {"
+            expect_node('{'); // if "else {"
             args[0]->rhs = new_block_node(env);
             program(args[0]->rhs);
          } else {
@@ -846,7 +870,7 @@ void program(Node *block_node) {
       }
       if (consume_node(TK_WHILE)) {
          args[0] = new_node(ND_WHILE, node_mathexpr(), NULL);
-         consume_node('{');
+         expect_node('{');
          args[0]->rhs = new_block_node(env);
          program(args[0]->rhs);
          args++;
@@ -885,7 +909,7 @@ void toplevel() {
          pos += 3;
          // look up arguments
          for (code[i]->argc = 0; code[i]->argc < 6 && !consume_node(')');) {
-            consume_node(TK_TYPE);
+            expect_node(TK_TYPE);
             Type *type = malloc(sizeof(Type));
             type->ty = TY_INT;
             type->ptrof = NULL;
@@ -893,7 +917,7 @@ void toplevel() {
                 tokens->data[pos++]->input, type);
             consume_node(',');
          }
-         consume_node('{');
+         expect_node('{');
          program(code[i++]);
          continue;
       }

@@ -82,6 +82,10 @@ test12:
 	sh test.sh "int x;int y;x=1;y=2;x+y;" 3
 	sh test.sh "int* y;int x;x=3;y=&x;*y;" 3
 
+test13:
+	sh test.sh "int x[10];1;" 1
+	sh test.sh "int x[10];*x=3;x;" 3
+
 
 clean:
 	$(RM) -f $(target) $(objects)
