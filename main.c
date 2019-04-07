@@ -262,13 +262,6 @@ void tokenize(char *p) {
          }
          if (strcmp(token->input, "int") == 0) {
             token->ty = TK_TYPE;
-            int k = 0;
-            token->num_val = 0;
-            while (isspace(*(p + k)) || (*(p + k) == '*')) {
-               token->num_val += (*(p + k) == '*');
-               k++;
-               p++;
-            }
          }
          if (strcmp(token->input, "return") == 0) {
             token->ty = TK_RETURN;
@@ -577,6 +570,21 @@ void gen(Node *node) {
       puts("push rax");
       return;
    }
+   
+   if (node->ty == ND_DEREF) {
+      puts("#deref");
+      gen(node->lhs); // Compile as RVALUE
+      puts("pop rax");
+      puts("mov rax, [rax]");
+      puts("push rax");
+      puts("\n");
+      return;
+   }
+
+   if (node->ty == ND_ADDRESS) {
+      gen_lval(node->lhs);
+      return;
+   }
 
    if (node->ty == '=') {
       gen_lval(node->lhs);
@@ -722,15 +730,18 @@ Node *stmt() {
          Type *type = malloc(sizeof(Type));
          type->ty = TY_INT;
          type->ptrof = NULL;
-         Type *rec_type = type->ptrof;
-         for (int j = 0; j < tokens->data[pos]->num_val; j++) {
-            type->ty = TY_PTR;
-            rec_type = malloc(sizeof(Type));
-            rec_type->ty = TY_PTR;
-            type->ptrof = rec_type;
-         }
          pos++;
-         type->ptrof = NULL;
+         Type *rectype = type;
+         // consume is pointer or not
+         while (consume_node('*')) {
+            puts("# new use pointer\n");
+            Type *old_rectype = rectype;
+            rectype = malloc(sizeof(Type));
+            rectype->ty = TY_INT;
+            rectype->ptrof = NULL;
+            old_rectype->ty = TY_PTR;
+            old_rectype->ptrof = rectype;
+         }
          node =
              new_ident_node_with_new_variable(tokens->data[pos++]->input, type);
       } else {
