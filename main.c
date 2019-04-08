@@ -48,7 +48,7 @@ Node *new_ident_node_with_new_variable(char *name, Type *type) {
    Node *node = malloc(sizeof(Node));
    node->ty = ND_IDENT;
    node->name = name;
-   node->type = NULL;
+   node->type = type;
    switch(type->ty) {
       case TY_PTR:
          env->rsp_offset += 8; break;
@@ -70,7 +70,7 @@ Node *new_ident_node(char *name) {
    Node *node = malloc(sizeof(Node));
    node->ty = ND_IDENT;
    node->name = name;
-   node->type = NULL;
+   //node->type = NULL;
    if (get_lval_offset(node) == (int)NULL) {
       error("Error: New Variable Definition.");
    }
@@ -437,8 +437,11 @@ Node *node_term() {
       // array
       } else if (tokens->data[pos + 1]->ty == '[') {
          // TODO: 3[a] does not work yet
+         char* input = tokens->data[pos]->input;
+         expect_node(TK_IDENT);
+         expect_node('[');
          node = new_node(ND_DEREF,
-               new_node('+', new_ident_node(tokens->data[pos++]->input), node_mathexpr()), NULL);
+               new_node('+', new_ident_node(input), node_mathexpr()), NULL);
          expect_node(']');
       } else {
          node = new_ident_node(tokens->data[pos++]->input);
@@ -483,16 +486,16 @@ void gen_lval(Node *node) {
       return;
    }
    if (node->ty == ND_DEREF) {
-      if (node->lhs->type->ty == TY_PTR) {
-         gen_lval(node->lhs); // Compile as RVALUE
+      // TODO: should use new_node with types
+      //get_lval_offset(node->lhs);
+      /*
+      gen_lval(node->lhs); // Compile as RVALUE
          puts("#deref_lval");
          puts("pop rax");
          puts("mov rax, [rax]");
          puts("push rax");
-      }
-      if (node->lhs->type->ty == TY_ARRAY) {
-         gen(node->lhs);
-      }
+         */
+      gen(node->lhs);
       return;
    }
 
@@ -602,9 +605,12 @@ void gen(Node *node) {
 
    if (node->ty == ND_IDENT) {
       gen_lval(node);
-      puts("pop rax");
-      puts("mov rax, [rax]");
-      puts("push rax");
+      if (node->type->ty != TY_ARRAY) {
+         // deref
+         puts("pop rax");
+         puts("mov rax, [rax]");
+         puts("push rax");
+      }
       return;
    }
 

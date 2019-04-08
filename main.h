@@ -7,6 +7,8 @@ typedef enum {
    TK_EQUAL = '=',
    TK_BLOCKBEGIN = '{',
    TK_BLOCKEND = '}',
+   TK_PLUSPLUS = '+' + '+',
+   TK_SUBSUB = '-' + '-',
    TK_NUM = 256,
    TK_IDENT,
    TK_EOF,
@@ -18,8 +20,6 @@ typedef enum {
    TK_RSHIFT,
    TK_LSHIFT,
    TK_OPAS,
-   TK_PLUSPLUS = '+' + '+',
-   TK_SUBSUB = '-' + '-',
    TK_TYPE,
    TK_RETURN,
 } TokenConst;
