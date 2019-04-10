@@ -98,6 +98,7 @@ test14:
 
 test15:
 	sh test.sh "char a;a=1;" 1
+	sh test.sh "sizeof 3;" 4
 
 clean:
 	$(RM) -f $(target) $(objects)

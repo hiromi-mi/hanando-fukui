@@ -19,6 +19,7 @@ int get_lval_offset(Node *node);
 Type *get_type(Node *node);
 void gen(Node *node);
 Map *global_vars;
+int type2size(Type *type);
 
 void error(const char *str) {
    fprintf(stderr, "%s\n", str);
@@ -30,7 +31,10 @@ Node *new_node(NodeType ty, Node *lhs, Node *rhs) {
    node->ty = ty;
    node->lhs = lhs;
    node->rhs = rhs;
-   node->type = NULL;
+   if (lhs != NULL) {
+      // TODO
+      node->type = node->lhs->type;
+   }
    return node;
 }
 
@@ -38,7 +42,11 @@ Node *new_num_node(long num_val) {
    Node *node = malloc(sizeof(Node));
    node->ty = ND_NUM;
    node->num_val = num_val;
-   node->type = NULL;
+   node->type = malloc(sizeof(Type));
+   node->type->ty = TY_INT;
+   node->type->ptrof = NULL;
+   node->type->array_size = -1;
+   node->type->offset = -1;
    return node;
 }
 
@@ -91,6 +99,7 @@ Node *new_func_node(char *name) {
    node->name = name;
    node->lhs = NULL;
    node->rhs = NULL;
+   node->type = NULL;
    node->argc = 0;
    return node;
 }
@@ -127,6 +136,7 @@ Node *new_block_node(Env *prev_env) {
    node->lhs = NULL;
    node->rhs = NULL;
    node->argc = 0;
+   node->type = NULL;
    node->env = new_env(prev_env);
    return node;
 }
@@ -291,8 +301,14 @@ void tokenize(char *p) {
          if (strcmp(token->input, "char") == 0) {
             token->ty = TK_TYPE;
          }
+         if (strcmp(token->input, "long") == 0) {
+            token->ty = TK_TYPE;
+         }
          if (strcmp(token->input, "return") == 0) {
             token->ty = TK_RETURN;
+         }
+         if (strcmp(token->input, "sizeof") == 0) {
+            token->ty = TK_SIZEOF;
          }
          vec_push(tokens, token);
          continue;
@@ -408,6 +424,9 @@ Node *node_cast() {
       return new_node(ND_ADDRESS, node_mathexpr(), NULL);
    } else if (consume_node('*')) {
       return new_node(ND_DEREF, node_mathexpr(), NULL);
+   } else if (consume_node(TK_SIZEOF)) {
+      Node *node = node_mathexpr();
+      return new_num_node(type2size(node->type));
    } else {
       return node_term();
    }
@@ -546,6 +565,24 @@ void gen_lval(Node *node) {
    error("Error: Incorrect Variable of lvalue");
 }
 
+int type2size(Type *type) {
+   if (type == NULL) {
+      return 0;
+   }
+   switch(type->ty) {
+      case TY_PTR:
+         return 8;
+      case TY_LONG:
+         return 8;
+      case TY_INT:
+         return 4;
+      case TY_CHAR:
+         return 1;
+      case TY_ARRAY:
+         return type->array_size * type2size(type->ptrof);
+   }
+}
+
 void gen(Node *node) {
    if (node->ty == ND_NUM) {
       printf("push %ld\n", node->num_val);
@@ -635,14 +672,15 @@ void gen(Node *node) {
    }
 
    if (node->ty == ND_WHILE) {
-      printf(".Lbegin%d:\n", if_cnt);
+      int cur_if_cnt = if_cnt++;
+      printf(".Lbegin%d:\n", cur_if_cnt);
       gen(node->lhs);
       puts("pop rax");
       puts("cmp rax, 0");
-      printf("je .Lend%d\n", if_cnt);
+      printf("je .Lend%d\n", cur_if_cnt);
       gen(node->rhs);
-      printf("jmp .Lbegin%d\n", if_cnt);
-      printf(".Lend%d:\n", if_cnt);
+      printf("jmp .Lbegin%d\n", cur_if_cnt);
+      printf(".Lend%d:\n", cur_if_cnt);
       if_cnt++;
       return;
    }
@@ -711,7 +749,7 @@ void gen(Node *node) {
        (node->lhs->type->ty == TY_ARRAY || node->lhs->type->ty == TY_PTR)) {
       puts("pop rax"); // rhs
       puts("pop rdi"); // lhs because of mul
-      puts("mov r10, 4");
+      printf("mov r10, %d\n", type2size(node->lhs->type));
       puts("mul r10"); // TODO multiply pointer size (8)
       switch (node->ty) {
          case '+':
@@ -730,7 +768,7 @@ void gen(Node *node) {
        (node->rhs->type->ty == TY_ARRAY || node->rhs->type->ty == TY_PTR)) {
       puts("pop rdi"); // rhs
       puts("pop rax"); // lhs
-      puts("mov r10, 4");
+      printf("mov r10, %d\n", type2size(node->rhs->type));
       puts("mul r10"); // TODO multiply pointer size (8)
       switch (node->ty) {
          case '+':

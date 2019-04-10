@@ -22,6 +22,7 @@ typedef enum {
    TK_OPAS,
    TK_TYPE,
    TK_RETURN,
+   TK_SIZEOF,
 } TokenConst;
 
 typedef enum {
