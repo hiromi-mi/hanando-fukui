@@ -750,7 +750,7 @@ void gen(Node *node) {
       puts("pop rax"); // rhs
       puts("pop rdi"); // lhs because of mul
       printf("mov r10, %d\n", type2size(node->lhs->type));
-      puts("mul r10"); // TODO multiply pointer size (8)
+      puts("mul r10");
       switch (node->ty) {
          case '+':
             puts("add rax, rdi");
@@ -871,11 +871,9 @@ Node *assign() {
          expect_node(TK_OPAS);
          if (tokens->data[pos]->input[0] == '<') {
             tp = ND_LSHIFT;
-            // pos+=3;
          }
          if (tokens->data[pos]->input[0] == '>') {
             tp = ND_RSHIFT;
-            // pos+=3;
          }
          node = new_node('=', node, new_node(tp, node, assign()));
       } else {
@@ -963,7 +961,7 @@ void program(Node *block_node) {
    env = block_node->env;
    // env = new_env(env);
    while (!consume_node('}')) {
-      if (consume_node('{')) {
+      if (confirm_node('{')) {
          args[0] = new_block_node(env);
          program(args[0]);
          args++;
@@ -975,13 +973,11 @@ void program(Node *block_node) {
          args[0]->argc = 1;
          args[0]->args[0] = assign();
          args[0]->args[1] = NULL;
-         expect_node('{');
          // Suppress COndition
 
          args[0]->lhs = new_block_node(env);
          program(args[0]->lhs);
          if (consume_node(TK_ELSE)) {
-            expect_node('{'); // if "else {"
             args[0]->rhs = new_block_node(env);
             program(args[0]->rhs);
          } else {
@@ -992,7 +988,6 @@ void program(Node *block_node) {
       }
       if (consume_node(TK_WHILE)) {
          args[0] = new_node(ND_WHILE, node_mathexpr(), NULL);
-         expect_node('{');
          args[0]->rhs = new_block_node(env);
          program(args[0]->rhs);
          args++;
@@ -1036,7 +1031,6 @@ void toplevel() {
                    new_ident_node_with_new_variable(arg_name, arg_type);
                consume_node(',');
             }
-            expect_node('{');
             program(code[i++]);
             continue;
          } else {
@@ -1046,7 +1040,7 @@ void toplevel() {
          }
          continue;
       }
-      if (consume_node('{')) {
+      if (confirm_node('{')) {
          code[i] = new_block_node(NULL);
          program(code[i++]);
          continue;
