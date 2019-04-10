@@ -9,7 +9,6 @@
 
 ## Should be Implemented for Self-Hosting
 * `char` and `long`
-* `sizeof(int)`
 * `NULL`
 * string `"abc"`
 * `a++` `a--`
@@ -21,3 +20,4 @@
 * preprocessor `#define` and `#include`
 * variable definition with initialization `int a=1;`
 * `enum`
+* cast
