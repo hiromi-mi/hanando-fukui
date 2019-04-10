@@ -23,7 +23,9 @@ test2:
 	sh test.sh '13-9;' 4
 	sh test.sh '(11-9)*34;' 68
 	sh test.sh 'int a;a=3;a;' 3
+	sh test.sh 'int X;X=3;X;' 3
 	sh test.sh 'int ce;ce=3;ce;' 3
+	sh test.sh 'int DE;DE=2;DE;' 2
 
 test3:
 	sh test.sh '3==3;' 1

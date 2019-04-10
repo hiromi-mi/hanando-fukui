@@ -16,7 +16,7 @@ Vector *tokens;
 int pos = 0;
 Node *code[100];
 int get_lval_offset(Node *node);
-Type* get_type(Node *node);
+Type *get_type(Node *node);
 void gen(Node *node);
 Map *global_vars;
 
@@ -58,6 +58,8 @@ Node *new_ident_node_with_new_variable(char *name, Type *type) {
          env->rsp_offset += 8;
          break;
       case TY_CHAR:
+         env->rsp_offset += 8; // tekitou
+      case TY_LONG:
          env->rsp_offset += 8; // tekitou
       case TY_ARRAY:
          // TODO: should not be 8 in case of truct
@@ -261,7 +263,7 @@ void tokenize(char *p) {
          continue;
       }
 
-      if ('a' <= *p && *p <= 'z') {
+      if (('a' <= *p && *p <= 'z') || ('A' <= *p && *p <= 'Z')) {
          Token *token = malloc(sizeof(Token));
          token->ty = TK_IDENT;
          token->input = malloc(sizeof(char) * 256);
@@ -270,7 +272,8 @@ void tokenize(char *p) {
             token->input[j] = *p;
             p++;
             j++;
-         } while (('a' <= *p && *p <= 'z') || ('0' <= *p && *p <= '9'));
+         } while (('a' <= *p && *p <= 'z') || ('0' <= *p && *p <= '9') ||
+                  ('A' <= *p && *p <= 'Z'));
          token->input[j] = '\0';
 
          if (strcmp(token->input, "if") == 0) {
@@ -477,7 +480,7 @@ Node *node_term() {
    exit(1);
 }
 
-Type* get_type_local(Node *node) {
+Type *get_type_local(Node *node) {
    Env *local_env = env;
    Type *type = NULL;
    while (type == NULL && local_env != NULL) {
@@ -490,8 +493,8 @@ Type* get_type_local(Node *node) {
    return type;
 }
 
-Type* get_type(Node *node) {
-   Type* type = get_type_local(node);
+Type *get_type(Node *node) {
+   Type *type = get_type_local(node);
    if (type == NULL) {
       type = map_get(global_vars, node->name);
    }
@@ -743,8 +746,8 @@ void gen(Node *node) {
       return;
    }
 
-   char* lhs_register = "rax";
-   char* rhs_register = "rdi";
+   char *lhs_register = "rax";
+   char *rhs_register = "rdi";
    puts("pop rdi"); // rhs
    puts("pop rax"); // lhs
    switch (node->ty) {
@@ -861,6 +864,8 @@ Type *read_type(char **input) {
       typekind = TY_INT;
    } else if (strcmp(tokens->data[pos]->input, "char") == 0) {
       typekind = TY_CHAR;
+   } else if (strcmp(tokens->data[pos]->input, "long") == 0) {
+      typekind = TY_LONG;
    }
    type->ty = typekind;
    type->ptrof = NULL;
