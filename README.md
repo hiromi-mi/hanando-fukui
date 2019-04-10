@@ -9,7 +9,7 @@
 
 ## Should be Implemented for Self-Hosting
 * `char` and `long`
-* `sizeof`
+* `sizeof(int)`
 * `NULL`
 * string `"abc"`
 * `a++` `a--`

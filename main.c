@@ -20,6 +20,7 @@ Type *get_type(Node *node);
 void gen(Node *node);
 Map *global_vars;
 int type2size(Type *type);
+Type *read_type(char **input);
 
 void error(const char *str) {
    fprintf(stderr, "%s\n", str);
@@ -425,6 +426,12 @@ Node *node_cast() {
    } else if (consume_node('*')) {
       return new_node(ND_DEREF, node_mathexpr(), NULL);
    } else if (consume_node(TK_SIZEOF)) {
+      if (consume_node('(') && confirm_node(TK_TYPE)) {
+         // sizeof(int) read type without name
+         Type *type = read_type(NULL);
+         expect_node(')');
+         return new_num_node(type2size(type));
+      }
       Node *node = node_mathexpr();
       return new_num_node(type2size(node->type));
    } else {
@@ -917,8 +924,9 @@ Type *read_type(char **input) {
       old_rectype->ty = TY_PTR;
       old_rectype->ptrof = rectype;
    }
+   // There are input: there are ident names 
    *input = tokens->data[pos]->input;
-   expect_node(TK_IDENT);
+   consume_node(TK_IDENT);
    // pos++;
    // array
    if (consume_node('[')) {
