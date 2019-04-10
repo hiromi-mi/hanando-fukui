@@ -71,7 +71,7 @@ Node *new_ident_node(char *name) {
    node->ty = ND_IDENT;
    node->name = name;
    //node->type = NULL;
-   if (get_lval_offset(node) == (int)NULL) {
+   if (get_lval_offset(node) == (int)NULL && map_get(global_vars, node->name) == NULL) {
       error("Error: New Variable Definition.");
    }
    return node;
@@ -480,8 +480,14 @@ int get_lval_offset(Node *node) {
 void gen_lval(Node *node) {
    if (node->ty == ND_IDENT) {
       int offset = get_lval_offset(node);
-      puts("mov rax, rbp");
-      printf("sub rax, %d\n", offset);
+      if (offset != (int)NULL) {
+         puts("mov rax, rbp");
+         printf("sub rax, %d\n", offset);
+      } else {
+         // treat as global variable.
+         node->type = map_get(global_vars, node->name);
+         printf("lea rax, dword ptr %s[rip]\n", node->name);
+      }
       puts("push rax");
       return;
    }
@@ -950,19 +956,10 @@ void toplevel() {
          }else {
             // global variable
             map_put(global_vars, name, type);
+            expect_node(';');
          }
+         continue;
       }
-      /*
-      }
-      if (tokens->data[pos]->ty == TK_TYPE &&
-          tokens->data[pos + 1]->ty == TK_IDENT &&
-          tokens->data[pos + 2]->ty == '(') {
-         // expected int func() {
-         // skip TK_IDENT, TK_IDENT, (
-         code[i] = new_fdef_node(tokens->data[pos + 1]->input, env);
-         pos += 3;
-         // look up arguments
-         // */
       if (consume_node('{')) {
          code[i] = new_block_node(NULL);
          program(code[i++]);
@@ -978,6 +975,16 @@ void test_map() {
    expect(__LINE__, 0, (int)map_get(map, "foo"));
    map_put(map, "foo", (void *)2);
    expect(__LINE__, 2, (int)map_get(map, "foo"));
+}
+
+void globalvar_gen() {
+   for (int j = 0; j<global_vars->keys->len; j++) {
+      printf("%s:\n", global_vars->keys->data[j]);
+      puts(".text");
+      printf(".size %s, 4\n", global_vars->keys->data[j]);
+      printf(".type %s,@object\n", global_vars->keys->data[j]);
+      printf(".zero %d\n", 4); //global_vars->vals->data[j];
+   }
 }
 
 int main(int argc, char **argv) {
@@ -997,7 +1004,12 @@ int main(int argc, char **argv) {
 
    puts(".intel_syntax");
 
+   puts(".bss");
+   puts(".align 4");
    puts(".global main");
+   puts(".type main, @function");
+   // treat with global variables
+   globalvar_gen();
 
    for (int j = 0; code[j]; j++) {
       gen(code[j]);
