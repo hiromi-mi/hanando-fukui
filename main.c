@@ -17,6 +17,7 @@ int pos = 0;
 Node *code[100];
 int get_lval_offset(Node *node);
 void gen(Node *node);
+Map *global_vars;
 
 void error(const char *str) {
    fprintf(stderr, "%s\n", str);
@@ -40,7 +41,6 @@ Node *new_num_node(long num_val) {
    return node;
 }
 
-// Map *idents;
 Env *env;
 int if_cnt = 0;
 
@@ -100,8 +100,9 @@ Env *new_env(Env *prev_env) {
    return env;
 }
 
-Node *new_fdef_node(char *name, Env *prev_env) {
+Node *new_fdef_node(char *name, Env *prev_env, Type *type) {
    Node *node = malloc(sizeof(Node));
+   node->type = type;
    node->ty = ND_FDEF;
    node->name = name;
    node->lhs = NULL;
@@ -478,7 +479,6 @@ int get_lval_offset(Node *node) {
 
 void gen_lval(Node *node) {
    if (node->ty == ND_IDENT) {
-      // int offset = (int)map_get(env->idents, node->name);
       int offset = get_lval_offset(node);
       puts("mov rax, rbp");
       printf("sub rax, %d\n", offset);
@@ -802,43 +802,56 @@ Node *assign() {
    return node;
 }
 
+Type *read_type(char** input) {
+   if (!confirm_node(TK_TYPE)) {
+      error("Error: NOT a type");
+      return NULL;
+   }
+
+   Type *type = malloc(sizeof(Type));
+   // Variable Definition.
+   if (strcmp(tokens->data[pos]->input, "int") == 0) {
+      type->ty = TY_INT;
+      type->ptrof = NULL;
+      consume_node(TK_TYPE);
+      Type *rectype = type;
+      // consume is pointer or not
+      while (consume_node('*')) {
+         puts("# new use pointer\n");
+         Type *old_rectype = rectype;
+         rectype = malloc(sizeof(Type));
+         rectype->ty = TY_INT;
+         rectype->ptrof = NULL;
+         old_rectype->ty = TY_PTR;
+         old_rectype->ptrof = rectype;
+      }
+      *input = tokens->data[pos]->input;
+      expect_node(TK_IDENT);
+      //pos++;
+      // array
+      if (consume_node('[')) {
+         type->ty = TY_ARRAY;
+         // TODO: support NOT functioned type
+         // ex. int a[4+7];
+         type->array_size = (int)tokens->data[pos]->num_val;
+         Type *rectype;
+         rectype = malloc(sizeof(Type));
+         rectype->ty = TY_INT;
+         rectype->ptrof = NULL;
+         type->ptrof = rectype;
+         expect_node(TK_NUM);
+         expect_node(']');
+      }
+   }
+   return type;
+}
+
 Node *stmt() {
    Node *node = NULL;
    if (confirm_node(TK_TYPE)) {
-      // Variable Definition.
-      if (strcmp(tokens->data[pos]->input, "int") == 0) {
-         Type *type = malloc(sizeof(Type));
-         type->ty = TY_INT;
-         type->ptrof = NULL;
-         consume_node(TK_TYPE);
-         Type *rectype = type;
-         // consume is pointer or not
-         while (consume_node('*')) {
-            puts("# new use pointer\n");
-            Type *old_rectype = rectype;
-            rectype = malloc(sizeof(Type));
-            rectype->ty = TY_INT;
-            rectype->ptrof = NULL;
-            old_rectype->ty = TY_PTR;
-            old_rectype->ptrof = rectype;
-         }
-         char* input = tokens->data[pos++]->input;
-         // array
-         if (consume_node('[')) {
-            type->ty = TY_ARRAY;
-            type->array_size = (int)tokens->data[pos]->num_val;
-            Type *rectype;
-            rectype = malloc(sizeof(Type));
-            rectype->ty = TY_INT;
-            rectype->ptrof = NULL;
-            type->ptrof = rectype;
-            pos++;
-            expect_node(']');
-         }
-         node = new_ident_node_with_new_variable(input, type);
-      } else {
-         error("Error: invalid type");
-      }
+      char* input = NULL;
+      Type *type = read_type(&input);
+      node = new_ident_node_with_new_variable(input, type);
    } else if (consume_node(TK_RETURN)) {
       node = new_node(ND_RETURN, assign(), NULL);
    } else {
@@ -912,10 +925,35 @@ void toplevel() {
    // idents = new_map...
    // stmt....
    // consume_node('}')
+   global_vars = new_map();
    env = new_env(NULL);
-   // idents = new_map();
    while (tokens->data[pos]->ty != TK_EOF) {
-      // FIXME because toplevel func call
+      if (tokens->data[pos]->ty == TK_TYPE) {
+         char* name = NULL;
+         Type *type = read_type(&name);
+         if (consume_node('(')) {
+            code[i] = new_fdef_node(name, env, type);
+            // Function definition
+            // because toplevel func call
+            for (code[i]->argc = 0; code[i]->argc < 6 && !consume_node(')');) {
+               expect_node(TK_TYPE);
+               Type *type = malloc(sizeof(Type));
+               type->ty = TY_INT;
+               type->ptrof = NULL;
+               code[i]->args[code[i]->argc++] = new_ident_node_with_new_variable(
+                  tokens->data[pos++]->input, type);
+               consume_node(',');
+            }
+            expect_node('{');
+            program(code[i++]);
+            continue;
+         }else {
+            // global variable
+            map_put(global_vars, name, type);
+         }
+      }
+      /*
+      }
       if (tokens->data[pos]->ty == TK_TYPE &&
           tokens->data[pos + 1]->ty == TK_IDENT &&
           tokens->data[pos + 2]->ty == '(') {
@@ -924,26 +962,7 @@ void toplevel() {
          code[i] = new_fdef_node(tokens->data[pos + 1]->input, env);
          pos += 3;
          // look up arguments
-         for (code[i]->argc = 0; code[i]->argc < 6 && !consume_node(')');) {
-            expect_node(TK_TYPE);
-            Type *type = malloc(sizeof(Type));
-            type->ty = TY_INT;
-            type->ptrof = NULL;
-            code[i]->args[code[i]->argc++] = new_ident_node_with_new_variable(
-                tokens->data[pos++]->input, type);
-            consume_node(',');
-         }
-         expect_node('{');
-         program(code[i++]);
-         continue;
-      }
-
-      if (tokens->data[pos]->ty == TK_TYPE &&
-          tokens->data[pos + 1]->ty == TK_IDENT) {
-         // global variable
-
-      }
-
+         // */
       if (consume_node('{')) {
          code[i] = new_block_node(NULL);
          program(code[i++]);
@@ -975,8 +994,6 @@ int main(int argc, char **argv) {
 
    tokenize(argv[1]);
    toplevel();
-   // Node *node = node_mathexpr();
-   // char *p = argv[1];
 
    puts(".intel_syntax");
 
