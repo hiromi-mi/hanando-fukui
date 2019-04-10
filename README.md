@@ -5,9 +5,9 @@
 * pointer
 * `++a` `--a`
 * `+=` `-=` and so on
+* global variable
 
 ## Should be Implemented for Self-Hosting
-* global variable
 * `char` and `long`
 * `sizeof`
 * `NULL`

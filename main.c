@@ -280,6 +280,9 @@ void tokenize(char *p) {
          if (strcmp(token->input, "int") == 0) {
             token->ty = TK_TYPE;
          }
+         if (strcmp(token->input, "char") == 0) {
+            token->ty = TK_TYPE;
+         }
          if (strcmp(token->input, "return") == 0) {
             token->ty = TK_RETURN;
          }
@@ -816,38 +819,42 @@ Type *read_type(char** input) {
 
    Type *type = malloc(sizeof(Type));
    // Variable Definition.
+   int typekind = 10;
    if (strcmp(tokens->data[pos]->input, "int") == 0) {
-      type->ty = TY_INT;
-      type->ptrof = NULL;
-      consume_node(TK_TYPE);
-      Type *rectype = type;
-      // consume is pointer or not
-      while (consume_node('*')) {
-         puts("# new use pointer\n");
-         Type *old_rectype = rectype;
-         rectype = malloc(sizeof(Type));
-         rectype->ty = TY_INT;
-         rectype->ptrof = NULL;
-         old_rectype->ty = TY_PTR;
-         old_rectype->ptrof = rectype;
-      }
-      *input = tokens->data[pos]->input;
-      expect_node(TK_IDENT);
-      //pos++;
-      // array
-      if (consume_node('[')) {
-         type->ty = TY_ARRAY;
-         // TODO: support NOT functioned type
-         // ex. int a[4+7];
-         type->array_size = (int)tokens->data[pos]->num_val;
-         Type *rectype;
-         rectype = malloc(sizeof(Type));
-         rectype->ty = TY_INT;
-         rectype->ptrof = NULL;
-         type->ptrof = rectype;
-         expect_node(TK_NUM);
-         expect_node(']');
-      }
+      typekind = TY_INT;
+   } else if (strcmp(tokens->data[pos]->input, "char") == 0) {
+      typekind = TY_CHAR;
+   }
+   type->ty = typekind;
+   type->ptrof = NULL;
+   consume_node(TK_TYPE);
+   Type *rectype = type;
+   // consume is pointer or not
+   while (consume_node('*')) {
+      puts("# new use pointer\n");
+      Type *old_rectype = rectype;
+      rectype = malloc(sizeof(Type));
+      rectype->ty = typekind;
+      rectype->ptrof = NULL;
+      old_rectype->ty = TY_PTR;
+      old_rectype->ptrof = rectype;
+   }
+   *input = tokens->data[pos]->input;
+   expect_node(TK_IDENT);
+   //pos++;
+   // array
+   if (consume_node('[')) {
+      type->ty = TY_ARRAY;
+      // TODO: support NOT functioned type
+      // ex. int a[4+7];
+      type->array_size = (int)tokens->data[pos]->num_val;
+      Type *rectype;
+      rectype = malloc(sizeof(Type));
+      rectype->ty = typekind;
+      rectype->ptrof = NULL;
+      type->ptrof = rectype;
+      expect_node(TK_NUM);
+      expect_node(']');
    }
    return type;
 }
@@ -978,6 +985,9 @@ void test_map() {
 }
 
 void globalvar_gen() {
+   if (global_vars->keys->len > 0) {
+      puts(".bss");
+   }
    for (int j = 0; j<global_vars->keys->len; j++) {
       printf("%s:\n", global_vars->keys->data[j]);
       puts(".text");
@@ -1004,7 +1014,6 @@ int main(int argc, char **argv) {
 
    puts(".intel_syntax");
 
-   puts(".bss");
    puts(".align 4");
    puts(".global main");
    puts(".type main, @function");

@@ -56,7 +56,7 @@ typedef enum {
 } NodeType;
 
 typedef struct Type {
-   enum { TY_INT, TY_PTR, TY_ARRAY } ty;
+   enum { TY_INT, TY_PTR, TY_ARRAY, TY_CHAR } ty;
    struct Type *ptrof;
    int array_size;
    int offset;
