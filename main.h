@@ -66,6 +66,7 @@ typedef struct {
    TokenConst ty;
    long num_val;
    char *input;
+   int pos;
 } Token;
 
 typedef struct {

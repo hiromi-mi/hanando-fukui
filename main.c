@@ -16,6 +16,7 @@ Vector *tokens;
 int pos = 0;
 Node *code[100];
 int get_lval_offset(Node *node);
+Type* get_type(Node *node);
 void gen(Node *node);
 Map *global_vars;
 
@@ -56,6 +57,8 @@ Node *new_ident_node_with_new_variable(char *name, Type *type) {
       case TY_INT:
          env->rsp_offset += 8;
          break;
+      case TY_CHAR:
+         env->rsp_offset += 8; // tekitou
       case TY_ARRAY:
          // TODO: should not be 8 in case of truct
          env->rsp_offset += 8 * type->array_size;
@@ -73,9 +76,8 @@ Node *new_ident_node(char *name) {
    Node *node = malloc(sizeof(Node));
    node->ty = ND_IDENT;
    node->name = name;
-   // node->type = NULL;
-   if (get_lval_offset(node) == (int)NULL &&
-       map_get(global_vars, node->name) == NULL) {
+   node->type = get_type(node);
+   if (node->type == NULL) {
       error("Error: New Variable Definition.");
    }
    return node;
@@ -392,10 +394,12 @@ Node *node_add() {
 
 Node *node_cast() {
    if (consume_node(TK_PLUSPLUS)) {
-      Node *node = new_ident_node(tokens->data[pos++]->input);
+      Node *node = new_ident_node(tokens->data[pos]->input);
+      expect_node(TK_IDENT);
       return new_node(ND_INC, node, NULL);
    } else if (consume_node(TK_SUBSUB)) {
-      Node *node = new_ident_node(tokens->data[pos++]->input);
+      Node *node = new_ident_node(tokens->data[pos]->input);
+      expect_node(TK_IDENT);
       return new_node(ND_DEC, node, NULL);
    } else if (consume_node('&')) {
       return new_node(ND_ADDRESS, node_mathexpr(), NULL);
@@ -422,17 +426,19 @@ Node *node_mul() {
 }
 
 Node *node_term() {
-   if (tokens->data[pos]->ty == TK_NUM) {
-      Node *node = new_num_node(tokens->data[pos++]->num_val);
+   if (confirm_node(TK_NUM)) {
+      Node *node = new_num_node(tokens->data[pos]->num_val);
+      expect_node(TK_NUM);
       return node;
    }
-   if (tokens->data[pos]->ty == TK_IDENT) {
+   if (confirm_node(TK_IDENT)) {
       Node *node;
       // Function Call
       if (tokens->data[pos + 1]->ty == '(') {
          node = new_func_node(tokens->data[pos]->input);
          // skip func , (
-         pos += 2;
+         expect_node(TK_IDENT);
+         expect_node('(');
          while (1) {
             if (!consume_node(',') && consume_node(')')) {
                break;
@@ -452,7 +458,8 @@ Node *node_term() {
                          NULL);
          expect_node(']');
       } else {
-         node = new_ident_node(tokens->data[pos++]->input);
+         node = new_ident_node(tokens->data[pos]->input);
+         expect_node(TK_IDENT);
       }
       return node;
    }
@@ -470,7 +477,28 @@ Node *node_term() {
    exit(1);
 }
 
-// TODO: another effect: set node->type
+Type* get_type_local(Node *node) {
+   Env *local_env = env;
+   Type *type = NULL;
+   while (type == NULL && local_env != NULL) {
+      type = map_get(local_env->idents, node->name);
+      if (type != NULL) {
+         break;
+      }
+      local_env = local_env->env;
+   }
+   return type;
+}
+
+Type* get_type(Node *node) {
+   Type* type = get_type_local(node);
+   if (type == NULL) {
+      type = map_get(global_vars, node->name);
+   }
+   return type;
+}
+
+// TODO: another effect: set node->type. And join into get_type()
 int get_lval_offset(Node *node) {
    int offset = (int)NULL;
    Env *local_env = env;
@@ -492,7 +520,7 @@ void gen_lval(Node *node) {
          printf("sub rax, %d\n", offset);
       } else {
          // treat as global variable.
-         node->type = map_get(global_vars, node->name);
+         node->type = get_type(node);
          printf("lea rax, dword ptr %s[rip]\n", node->name);
       }
       puts("push rax");
@@ -715,6 +743,8 @@ void gen(Node *node) {
       return;
    }
 
+   char* lhs_register = "rax";
+   char* rhs_register = "rdi";
    puts("pop rdi"); // rhs
    puts("pop rax"); // lhs
    switch (node->ty) {
@@ -796,7 +826,8 @@ Node *assign() {
    if (consume_node('=')) {
       if (confirm_node(TK_OPAS)) {
          // FIXME: shift
-         NodeType tp = tokens->data[pos++]->input[0];
+         NodeType tp = tokens->data[pos]->input[0];
+         expect_node(TK_OPAS);
          if (tokens->data[pos]->input[0] == '<') {
             tp = ND_LSHIFT;
             // pos+=3;
