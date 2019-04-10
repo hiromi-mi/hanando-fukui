@@ -49,14 +49,17 @@ Node *new_ident_node_with_new_variable(char *name, Type *type) {
    node->ty = ND_IDENT;
    node->name = name;
    node->type = type;
-   switch(type->ty) {
+   switch (type->ty) {
       case TY_PTR:
-         env->rsp_offset += 8; break;
+         env->rsp_offset += 8;
+         break;
       case TY_INT:
-         env->rsp_offset += 8; break;
+         env->rsp_offset += 8;
+         break;
       case TY_ARRAY:
          // TODO: should not be 8 in case of truct
-         env->rsp_offset += 8 * type->array_size; break;
+         env->rsp_offset += 8 * type->array_size;
+         break;
    }
    type->offset = env->rsp_offset;
    // type->ptrof = NULL;
@@ -70,8 +73,9 @@ Node *new_ident_node(char *name) {
    Node *node = malloc(sizeof(Node));
    node->ty = ND_IDENT;
    node->name = name;
-   //node->type = NULL;
-   if (get_lval_offset(node) == (int)NULL && map_get(global_vars, node->name) == NULL) {
+   // node->type = NULL;
+   if (get_lval_offset(node) == (int)NULL &&
+       map_get(global_vars, node->name) == NULL) {
       error("Error: New Variable Definition.");
    }
    return node;
@@ -146,7 +150,6 @@ int expect_node(TokenConst ty) {
    pos++;
    return 1;
 }
-
 
 void tokenize(char *p) {
    tokens = new_vector();
@@ -438,14 +441,15 @@ Node *node_term() {
          }
          assert(node->argc <= 6);
          // pos++ because of consume_node(')')
-      // array
+         // array
       } else if (tokens->data[pos + 1]->ty == '[') {
          // TODO: 3[a] does not work yet
-         char* input = tokens->data[pos]->input;
+         char *input = tokens->data[pos]->input;
          expect_node(TK_IDENT);
          expect_node('[');
          node = new_node(ND_DEREF,
-               new_node('+', new_ident_node(input), node_mathexpr()), NULL);
+                         new_node('+', new_ident_node(input), node_mathexpr()),
+                         NULL);
          expect_node(']');
       } else {
          node = new_ident_node(tokens->data[pos++]->input);
@@ -496,7 +500,7 @@ void gen_lval(Node *node) {
    }
    if (node->ty == ND_DEREF) {
       // TODO: should use new_node with types
-      //get_lval_offset(node->lhs);
+      // get_lval_offset(node->lhs);
       /*
       gen_lval(node->lhs); // Compile as RVALUE
          puts("#deref_lval");
@@ -672,7 +676,8 @@ void gen(Node *node) {
    gen(node->lhs);
    gen(node->rhs);
 
-   if (node->lhs->type && (node->lhs->type->ty == TY_ARRAY || node->lhs->type->ty == TY_PTR)) {
+   if (node->lhs->type &&
+       (node->lhs->type->ty == TY_ARRAY || node->lhs->type->ty == TY_PTR)) {
       puts("pop rax"); // rhs
       puts("pop rdi"); // lhs because of mul
       puts("mov r10, 4");
@@ -690,7 +695,8 @@ void gen(Node *node) {
       puts("push rax");
       return;
    }
-   if (node->rhs->type && (node->rhs->type->ty == TY_ARRAY || node->rhs->type->ty == TY_PTR)) {
+   if (node->rhs->type &&
+       (node->rhs->type->ty == TY_ARRAY || node->rhs->type->ty == TY_PTR)) {
       puts("pop rdi"); // rhs
       puts("pop rax"); // lhs
       puts("mov r10, 4");
@@ -811,7 +817,7 @@ Node *assign() {
    return node;
 }
 
-Type *read_type(char** input) {
+Type *read_type(char **input) {
    if (!confirm_node(TK_TYPE)) {
       error("Error: NOT a type");
       return NULL;
@@ -841,7 +847,7 @@ Type *read_type(char** input) {
    }
    *input = tokens->data[pos]->input;
    expect_node(TK_IDENT);
-   //pos++;
+   // pos++;
    // array
    if (consume_node('[')) {
       type->ty = TY_ARRAY;
@@ -862,7 +868,7 @@ Type *read_type(char** input) {
 Node *stmt() {
    Node *node = NULL;
    if (confirm_node(TK_TYPE)) {
-      char* input = NULL;
+      char *input = NULL;
       Type *type = read_type(&input);
       node = new_ident_node_with_new_variable(input, type);
    } else if (consume_node(TK_RETURN)) {
@@ -929,11 +935,6 @@ void program(Node *block_node) {
 }
 
 void toplevel() {
-   // funcname: tokens->data[0]->input
-   // consume_node('(')
-   // : tokens->data[0]->input
-   // consume_node(',')
-   // ...
    // consume_node('{')
    // idents = new_map...
    // stmt....
@@ -942,25 +943,29 @@ void toplevel() {
    env = new_env(NULL);
    while (tokens->data[pos]->ty != TK_EOF) {
       if (tokens->data[pos]->ty == TK_TYPE) {
-         char* name = NULL;
+         char *name = NULL;
          Type *type = read_type(&name);
          if (consume_node('(')) {
             code[i] = new_fdef_node(name, env, type);
             // Function definition
             // because toplevel func call
             for (code[i]->argc = 0; code[i]->argc < 6 && !consume_node(')');) {
-               expect_node(TK_TYPE);
+               char *arg_name = NULL;
+               Type *arg_type = read_type(&arg_name);
+               // expect_node(TK_TYPE);
+               /*
                Type *type = malloc(sizeof(Type));
                type->ty = TY_INT;
                type->ptrof = NULL;
-               code[i]->args[code[i]->argc++] = new_ident_node_with_new_variable(
-                  tokens->data[pos++]->input, type);
+               */
+               code[i]->args[code[i]->argc++] =
+                   new_ident_node_with_new_variable(arg_name, arg_type);
                consume_node(',');
             }
             expect_node('{');
             program(code[i++]);
             continue;
-         }else {
+         } else {
             // global variable
             map_put(global_vars, name, type);
             expect_node(';');
@@ -988,12 +993,12 @@ void globalvar_gen() {
    if (global_vars->keys->len > 0) {
       puts(".bss");
    }
-   for (int j = 0; j<global_vars->keys->len; j++) {
+   for (int j = 0; j < global_vars->keys->len; j++) {
       printf("%s:\n", global_vars->keys->data[j]);
       puts(".text");
       printf(".size %s, 4\n", global_vars->keys->data[j]);
       printf(".type %s,@object\n", global_vars->keys->data[j]);
-      printf(".zero %d\n", 4); //global_vars->vals->data[j];
+      printf(".zero %d\n", 4); // global_vars->vals->data[j];
    }
 }
 
