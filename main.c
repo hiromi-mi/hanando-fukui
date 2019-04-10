@@ -42,7 +42,7 @@ Node *new_num_node(long num_val) {
 
 // Map *idents;
 Env *env;
-static int if_cnt = 0;
+int if_cnt = 0;
 
 Node *new_ident_node_with_new_variable(char *name, Type *type) {
    Node *node = malloc(sizeof(Node));
@@ -810,7 +810,7 @@ Node *stmt() {
          Type *type = malloc(sizeof(Type));
          type->ty = TY_INT;
          type->ptrof = NULL;
-         pos++;
+         consume_node(TK_TYPE);
          Type *rectype = type;
          // consume is pointer or not
          while (consume_node('*')) {
@@ -937,6 +937,13 @@ void toplevel() {
          program(code[i++]);
          continue;
       }
+
+      if (tokens->data[pos]->ty == TK_TYPE &&
+          tokens->data[pos + 1]->ty == TK_IDENT) {
+         // global variable
+
+      }
+
       if (consume_node('{')) {
          code[i] = new_block_node(NULL);
          program(code[i++]);
