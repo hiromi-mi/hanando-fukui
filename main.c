@@ -284,7 +284,7 @@ void tokenize(char *p) {
             p++;
             j++;
          } while (('a' <= *p && *p <= 'z') || ('0' <= *p && *p <= '9') ||
-                  ('A' <= *p && *p <= 'Z'));
+                  ('A' <= *p && *p <= 'Z') || *p == '_');
          token->input[j] = '\0';
 
          if (strcmp(token->input, "if") == 0) {
@@ -540,7 +540,7 @@ int get_lval_offset(Node *node) {
    while (offset == (int)NULL && local_env != NULL) {
       node->type = map_get(local_env->idents, node->name);
       if (node->type != NULL) {
-        offset = local_env->rsp_offset_all + node->type->offset;
+         offset = local_env->rsp_offset_all + node->type->offset;
       }
       local_env = local_env->env;
    }
@@ -582,7 +582,7 @@ int type2size(Type *type) {
    if (type == NULL) {
       return 0;
    }
-   switch(type->ty) {
+   switch (type->ty) {
       case TY_PTR:
          return 8;
       case TY_LONG:
@@ -706,7 +706,7 @@ void gen(Node *node) {
       gen(node->args[2]);
       printf(".Lcondition%d:\n", cur_if_cnt);
       gen(node->args[1]);
-      
+
       // condition
       puts("pop rax");
       puts("cmp rax, 0");
@@ -818,8 +818,6 @@ void gen(Node *node) {
       return;
    }
 
-   char *lhs_register = "rax";
-   char *rhs_register = "rdi";
    puts("pop rdi"); // rhs
    puts("pop rax"); // lhs
    switch (node->ty) {
@@ -951,7 +949,7 @@ Type *read_type(char **input) {
       old_rectype->ty = TY_PTR;
       old_rectype->ptrof = rectype;
    }
-   // There are input: there are ident names 
+   // There are input: there are ident names
    if (input != NULL) {
       *input = tokens->data[pos]->input;
    } else {
@@ -1126,10 +1124,10 @@ void globalvar_gen() {
       puts(".bss");
    }
    for (int j = 0; j < global_vars->keys->len; j++) {
-      printf("%s:\n", global_vars->keys->data[j]);
+      printf("%s:\n", (char *)global_vars->keys->data[j]);
       puts(".text");
-      printf(".size %s, 4\n", global_vars->keys->data[j]);
-      printf(".type %s,@object\n", global_vars->keys->data[j]);
+      printf(".size %s, 4\n", (char *)global_vars->keys->data[j]);
+      printf(".type %s,@object\n", (char *)global_vars->keys->data[j]);
       printf(".zero %d\n", 4); // global_vars->vals->data[j];
    }
 }
