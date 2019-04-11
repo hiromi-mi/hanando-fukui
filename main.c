@@ -955,6 +955,10 @@ Node *stmt() {
       char *input = NULL;
       Type *type = read_type(&input);
       node = new_ident_node_with_new_variable(input, type);
+      // if there is int a =1;
+      if (consume_node('=')) {
+         node = new_node('=', node, node_mathexpr());
+      }
    } else if (consume_node(TK_RETURN)) {
       node = new_node(ND_RETURN, assign(), NULL);
    } else {
