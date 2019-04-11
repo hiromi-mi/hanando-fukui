@@ -23,7 +23,7 @@ int type2size(Type *type);
 Type *read_type(char **input);
 
 void error(const char *str) {
-   fprintf(stderr, "%s\n", str);
+   fprintf(stderr, "%s on %d: %s\n", str, pos, tokens->data[pos]->input);
    exit(1);
 }
 
@@ -296,6 +296,9 @@ void tokenize(char *p) {
          if (strcmp(token->input, "while") == 0) {
             token->ty = TK_WHILE;
          }
+         if (strcmp(token->input, "for") == 0) {
+            token->ty = TK_FOR;
+         }
          if (strcmp(token->input, "int") == 0) {
             token->ty = TK_TYPE;
          }
@@ -534,7 +537,7 @@ int get_lval_offset(Node *node) {
    while (offset == (int)NULL && local_env != NULL) {
       node->type = map_get(local_env->idents, node->name);
       if (node->type != NULL) {
-         offset = local_env->rsp_offset_all + node->type->offset;
+        offset = local_env->rsp_offset_all + node->type->offset;
       }
       local_env = local_env->env;
    }
@@ -688,7 +691,23 @@ void gen(Node *node) {
       gen(node->rhs);
       printf("jmp .Lbegin%d\n", cur_if_cnt);
       printf(".Lend%d:\n", cur_if_cnt);
-      if_cnt++;
+      return;
+   }
+
+   if (node->ty == ND_FOR) {
+      int cur_if_cnt = if_cnt++;
+      gen(node->args[0]);
+      printf("jmp .Lcondition%d\n", cur_if_cnt);
+      printf(".Lbegin%d:\n", cur_if_cnt);
+      gen(node->rhs);
+      gen(node->args[2]);
+      printf(".Lcondition%d:\n", cur_if_cnt);
+      gen(node->args[1]);
+      
+      // condition
+      puts("pop rax");
+      puts("cmp rax, 0");
+      printf("jne .Lbegin%d\n", cur_if_cnt);
       return;
    }
 
@@ -1005,6 +1024,20 @@ void program(Node *block_node) {
       }
       if (consume_node(TK_WHILE)) {
          args[0] = new_node(ND_WHILE, node_mathexpr(), NULL);
+         args[0]->rhs = new_block_node(env);
+         program(args[0]->rhs);
+         args++;
+         continue;
+      }
+      if (consume_node(TK_FOR)) {
+         args[0] = new_node(ND_FOR, NULL, NULL);
+         expect_node('(');
+         args[0]->args[0] = assign();
+         expect_node(';');
+         args[0]->args[1] = assign();
+         expect_node(';');
+         args[0]->args[2] = assign();
+         expect_node(')');
          args[0]->rhs = new_block_node(env);
          program(args[0]->rhs);
          args++;

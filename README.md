@@ -14,7 +14,6 @@
 * `a++` `a--`
 * `switch` and `case`
 * `continue` and `break`
-* `for`
 * structure `struct`
 * `va_args` `va_start`
 * preprocessor `#define` and `#include`
