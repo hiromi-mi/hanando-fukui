@@ -104,6 +104,10 @@ test15:
 
 test16:
 	sh test.sh "int i;int j=0;for(i=1;i<5;++i) { j+=i;} j;" 10
+	sh test.sh "(1==2 || 2==3);" 0
+	sh test.sh "(1==1);" 1
+	sh test.sh "(1==2);" 0
+	sh test.sh "(1==1 || 2==2);" 1
 
 clean:
 	$(RM) -f $(target) $(objects)

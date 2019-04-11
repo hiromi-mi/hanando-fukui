@@ -25,6 +25,8 @@ typedef enum {
    TK_GOTO,
    TK_RETURN,
    TK_SIZEOF,
+   TK_OR,
+   TK_AND,
 } TokenConst;
 
 typedef enum {
@@ -58,6 +60,8 @@ typedef enum {
    ND_ADDRESS,
    ND_DEREF,
    ND_GOTO,
+   ND_LOR,
+   ND_LAND,
 } NodeType;
 
 typedef struct Type {
