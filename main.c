@@ -925,7 +925,11 @@ Type *read_type(char **input) {
       old_rectype->ptrof = rectype;
    }
    // There are input: there are ident names 
-   *input = tokens->data[pos]->input;
+   if (input != NULL) {
+      *input = tokens->data[pos]->input;
+   } else {
+      input = &tokens->data[pos]->input;
+   }
    consume_node(TK_IDENT);
    // pos++;
    // array
@@ -964,6 +968,7 @@ Node *stmt() {
 int i = 0;
 
 void program(Node *block_node) {
+   expect_node('{');
    Node **args = block_node->code;
    Env *prev_env = env;
    env = block_node->env;
