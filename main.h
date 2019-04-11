@@ -22,6 +22,7 @@ typedef enum {
    TK_LSHIFT,
    TK_OPAS,
    TK_TYPE,
+   TK_GOTO,
    TK_RETURN,
    TK_SIZEOF,
 } TokenConst;
@@ -56,6 +57,7 @@ typedef enum {
    ND_RETURN,
    ND_ADDRESS,
    ND_DEREF,
+   ND_GOTO,
 } NodeType;
 
 typedef struct Type {

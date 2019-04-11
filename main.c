@@ -314,6 +314,9 @@ void tokenize(char *p) {
          if (strcmp(token->input, "sizeof") == 0) {
             token->ty = TK_SIZEOF;
          }
+         if (strcmp(token->input, "goto") == 0) {
+            token->ty = TK_GOTO;
+         }
          vec_push(tokens, token);
          continue;
       }
@@ -739,6 +742,11 @@ void gen(Node *node) {
       return;
    }
 
+   if (node->ty == ND_GOTO) {
+      printf("jmp %s\n", node->name);
+      return;
+   }
+
    if (node->ty == '=') {
       gen_lval(node->lhs);
       gen(node->rhs);
@@ -980,6 +988,12 @@ Node *stmt() {
       }
    } else if (consume_node(TK_RETURN)) {
       node = new_node(ND_RETURN, assign(), NULL);
+      // FIXME GOTO is not statement, expr.
+   } else if (consume_node(TK_GOTO)) {
+      node = new_node(ND_GOTO, NULL, NULL);
+      // TODO should fix
+      node->name = tokens->data[pos]->input;
+      expect_node(TK_IDENT);
    } else {
       node = assign();
    }
