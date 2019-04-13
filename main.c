@@ -549,8 +549,14 @@ Node *node_term() {
                          NULL);
          expect_node(']');
       } else {
+         // Just an ident
          node = new_ident_node(tokens->data[pos]->input);
          expect_node(TK_IDENT);
+         if (consume_node(TK_PLUSPLUS)) {
+            node = new_node(ND_FPLUSPLUS, node, NULL);
+         } else if (consume_node(TK_SUBSUB)) {
+            node = new_node(ND_FSUBSUB, node, NULL);
+         }
       }
       return node;
    }
@@ -877,6 +883,25 @@ void gen(Node *node) {
       puts("push rdi");
       return;
    }
+   
+   if (node->ty == ND_FPLUSPLUS) {
+      gen_lval(node->lhs);
+      puts("pop rax");
+      puts("mov rdi, [rax]");
+      puts("push rdi");
+      puts("add rdi, 1");
+      puts("mov [rax], rdi");
+      return;
+   }
+   if (node->ty == ND_FSUBSUB) {
+      gen_lval(node->lhs);
+      puts("pop rax");
+      puts("mov rdi, [rax]");
+      puts("push rdi");
+      puts("sub rdi, 1");
+      puts("mov [rax], rdi");
+      return;
+   }
 
    if (node->ty == ND_INC) {
       gen_lval(node->lhs);
@@ -884,7 +909,7 @@ void gen(Node *node) {
       puts("mov rdi, [rax]");
       puts("add rdi, 1");
       puts("mov [rax], rdi");
-      puts("push rax");
+      puts("push rdi");
       return;
    }
    if (node->ty == ND_DEC) {
@@ -893,7 +918,7 @@ void gen(Node *node) {
       puts("mov rdi, [rax]");
       puts("sub rdi, 1");
       puts("mov [rax], rdi");
-      puts("push rax");
+      puts("push rdi");
       return;
    }
 

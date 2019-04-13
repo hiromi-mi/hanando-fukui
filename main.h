@@ -64,6 +64,8 @@ typedef enum {
    ND_GOTO,
    ND_LOR,
    ND_LAND,
+   ND_FPLUSPLUS,
+   ND_FSUBSUB,
 } NodeType;
 
 typedef struct {

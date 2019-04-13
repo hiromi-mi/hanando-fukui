@@ -62,6 +62,12 @@ test7:
 test8:
 	sh test.sh 'int a;a=1;++a;a;' 2
 	sh test.sh 'int a;a=4;--a;a;' 3
+	sh test.sh 'int a;a=1;a++;a;' 2
+	sh test.sh 'int a;a=4;a--;a;' 3
+	sh test.sh 'int a;a=1;a++;' 1
+	sh test.sh 'int a;a=4;a--;' 4
+	sh test.sh 'int a;a=1;++a;' 2
+	sh test.sh 'int a;a=4;--a;' 3
 
 test9:
 	sh test.sh '2<0;' 0

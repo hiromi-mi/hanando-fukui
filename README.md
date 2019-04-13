@@ -11,7 +11,6 @@
 * `char` and `long`
 * `NULL`
 * string `"abc"`
-* `a++` `a--`
 * `switch` and `case`
 * `continue` and `break`
 * structure `struct`
