@@ -11,6 +11,7 @@
 #include <stdlib.h>
 #include <string.h>
 
+double ceil(double x);
 // to use vector instead of something
 Vector *tokens;
 int pos = 0;
@@ -806,6 +807,7 @@ void gen(Node *node) {
          gen(node->args[j]);
          printf("pop %s\n", registers[j]);
       }
+      printf("sub rsp, %d\n", (int)(ceil(4*node->argc/16.)) * 16);
       // FIXME: alignment should be 64-bit
       printf("call %s\n", node->name);
       puts("push rax");

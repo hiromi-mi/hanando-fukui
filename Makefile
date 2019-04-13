@@ -1,5 +1,6 @@
 CC = clang
 CFLAGS = -Wall -Wextra -Wpedantic -g
+LDFLAGS = -lm
 
 srcs = $(wildcard *.c)
 objects = $(srcs:.c=.o)
