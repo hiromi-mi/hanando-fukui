@@ -28,6 +28,7 @@ typedef enum {
    TK_OR,
    TK_AND,
    TK_STRUCT,
+   TK_TYPEDEF,
 } TokenConst;
 
 typedef enum {
@@ -65,13 +66,6 @@ typedef enum {
    ND_LAND,
 } NodeType;
 
-typedef struct Type {
-   enum { TY_INT, TY_PTR, TY_ARRAY, TY_CHAR, TY_LONG } ty;
-   struct Type *ptrof;
-   int array_size;
-   int offset;
-} Type;
-
 typedef struct {
    TokenConst ty;
    long num_val;
@@ -89,6 +83,14 @@ typedef struct {
    Vector *keys;
    Vector *vals;
 } Map;
+
+typedef struct Type {
+   enum { TY_INT, TY_PTR, TY_ARRAY, TY_CHAR, TY_LONG, TY_STRUCT } ty;
+   Map *structure; // <name, Type*>
+   struct Type *ptrof;
+   int array_size;
+   int offset;
+} Type;
 
 typedef struct Env {
    struct Env *env;

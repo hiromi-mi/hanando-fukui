@@ -22,6 +22,8 @@ Map *global_vars;
 int type2size(Type *type);
 Type *read_type(char **input);
 
+Map *typedb;
+
 void error(const char *str) {
    fprintf(stderr, "%s on %d: %s\n", str, pos, tokens->data[pos]->input);
    exit(1);
@@ -337,6 +339,16 @@ void tokenize(char *p) {
          if (strcmp(token->input, "struct") == 0) {
             token->ty = TK_STRUCT;
          }
+         if (strcmp(token->input, "typedef") == 0) {
+            token->ty = TK_TYPEDEF;
+         }
+
+         for (int j = 0; j < typedb->keys->len; j++) {
+            // for struct
+            if (strcmp(token->input, typedb->keys->data[j]) == 0) {
+               token->ty = TK_TYPE;
+            }
+         }
          vec_push(tokens, token);
          continue;
       }
@@ -637,6 +649,14 @@ int type2size(Type *type) {
          return 1;
       case TY_ARRAY:
          return type->array_size * type2size(type->ptrof);
+      case TY_STRUCT:
+         {
+            int val = 0;
+            for (int j = 0; j < type->structure->keys->len; j++) {
+               val += type2size(type->structure->keys->data[j]);
+            }
+            return val;
+         }
    }
 }
 
@@ -1166,6 +1186,14 @@ void program(Node *block_node) {
    env = prev_env;
 }
 
+char* expect_ident() {
+   if (tokens->data[pos]->ty != TK_IDENT) {
+      error("Error: Expected Ident but...");
+      return NULL;
+   }
+   return tokens->data[pos++]->input;
+}
+
 void toplevel() {
    // consume_node('{')
    // idents = new_map...
@@ -1174,7 +1202,27 @@ void toplevel() {
    global_vars = new_map();
    env = new_env(NULL);
    while (tokens->data[pos]->ty != TK_EOF) {
-      if (tokens->data[pos]->ty == TK_TYPE) {
+      // definition of struct
+      if (consume_node(TK_TYPEDEF) && consume_node(TK_STRUCT)) {
+         consume_node(TK_IDENT); // for ease
+         expect_node('{');
+         Type *structuretype = malloc(sizeof(Type));
+         structuretype->structure = new_map();
+         structuretype->ty = TY_STRUCT;
+         structuretype->ptrof = NULL;
+         while (!consume_node('}')) {
+            char *name = NULL;
+            Type* type = read_type(&name);
+            expect_node(';');
+            map_put(structuretype->structure, name, type);
+         }
+         char* name = expect_ident();
+         expect_node(';');
+         fprintf(stderr, "#define new struct: %s\n", name);
+         map_put(typedb, name, structuretype);
+         continue;
+      }
+      if (confirm_node(TK_TYPE)) {
          char *name = NULL;
          Type *type = read_type(&name);
          if (consume_node('(')) {
@@ -1244,6 +1292,7 @@ int main(int argc, char **argv) {
    // Vector *vec = new_vector();
    // vec_push(vec, 9);
    // assert(1 == vec->len);
+   typedb = new_map();
 
    tokenize(argv[1]);
    toplevel();
