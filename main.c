@@ -176,6 +176,20 @@ void tokenize(char *p) {
          continue;
       }
       // TODO escape sequence.
+      if (*p == '\"') {
+         Token *token = malloc(sizeof(Token));
+         // TODO
+         token->input = malloc(sizeof(char)*256);
+         token->ty = TK_STRING;
+         int i=0;
+         while (*++p != '\"') {
+            token->input[i++] = *p;
+         }
+         token->input[i] = '\0';
+         p++; // skip "
+         continue;
+      }
+      // TODO escape sequence.
       if (*p == '\'') {
          Token *token = malloc(sizeof(Token));
          token->ty = TK_NUM;

@@ -29,6 +29,7 @@ typedef enum {
    TK_AND,
    TK_STRUCT,
    TK_TYPEDEF,
+   TK_STRING,
 } TokenConst;
 
 typedef enum {
