@@ -175,6 +175,16 @@ void tokenize(char *p) {
          p++;
          continue;
       }
+      // TODO escape sequence.
+      if (*p == '\'') {
+         Token *token = malloc(sizeof(Token));
+         token->ty = TK_NUM;
+         token->input = p;
+         token->num_val = *(p+1);
+         vec_push(tokens, token);
+         p += 3; // *p = '', *p+1 = a, *p+2 = '
+         continue;
+      }
       if ((*p == '+' || *p == '-' || *p == '*' || *p == '/' || *p == '%' ||
            *p == '^' || *p == '|' || *p == '&') &&
           (*(p + 1) == '=')) {
