@@ -27,6 +27,7 @@ typedef enum {
    TK_SIZEOF,
    TK_OR,
    TK_AND,
+   TK_STRUCT,
 } TokenConst;
 
 typedef enum {

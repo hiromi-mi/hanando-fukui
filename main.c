@@ -334,6 +334,9 @@ void tokenize(char *p) {
          if (strcmp(token->input, "goto") == 0) {
             token->ty = TK_GOTO;
          }
+         if (strcmp(token->input, "struct") == 0) {
+            token->ty = TK_STRUCT;
+         }
          vec_push(tokens, token);
          continue;
       }
@@ -637,6 +640,28 @@ int type2size(Type *type) {
    }
 }
 
+char* type2string(Node *node) {
+   Type* type = node->type;
+   if (type == NULL) {
+      return 0;
+   }
+   switch (type->ty) {
+      case TY_PTR:
+         return "";
+      case TY_LONG:
+         return "";
+      case TY_INT:
+         return "";
+      case TY_CHAR:
+         return "byte ptr ";
+      case TY_ARRAY:
+         return "";
+      default:
+         error("Error: NOT a type");
+         return "";
+   }
+}
+
 void gen(Node *node) {
    if (node->ty == ND_NUM) {
       printf("push %ld\n", node->num_val);
@@ -824,7 +849,11 @@ void gen(Node *node) {
       gen(node->rhs);
       puts("pop rdi");
       puts("pop rax");
-      puts("mov [rax], rdi");
+      if (node->type->ty == TY_CHAR) {
+         puts("mov [rax], dil");
+      } else {
+         puts("mov [rax], rdi");
+      }
       puts("push rdi");
       return;
    }
