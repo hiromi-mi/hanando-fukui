@@ -109,7 +109,12 @@ test16:
 	sh test.sh "(1==2);" 0
 	sh test.sh "((1==1) || (2==2));" 1
 	sh test.sh "((1==2) || (2==2));" 1
+	sh test.sh "((1==1) || (1==2));" 1
 	sh test.sh "((1==2) || (3==2));" 0
+	sh test.sh "((1==1) && (2==2));" 1
+	sh test.sh "((1==2) && (2==2));" 0
+	sh test.sh "((1==1) && (1==2));" 0
+	sh test.sh "((1==2) && (3==2));" 0
 
 clean:
 	$(RM) -f $(target) $(objects)

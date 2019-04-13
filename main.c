@@ -210,6 +210,14 @@ void tokenize(char *p) {
          p += 2;
          continue;
       }
+      if ((*p == '&' && *(p+1) == '&')) {
+         Token *token = malloc(sizeof(Token));
+         token->ty = TK_AND;
+         token->input = p;
+         vec_push(tokens, token);
+         p += 2;
+         continue;
+      }
 
       if (*p == '+' || *p == '-' || *p == '*' || *p == '/' || *p == '(' ||
           *p == ')' || *p == ';' || *p == ',' || *p == '{' || *p == '}' ||
@@ -349,6 +357,7 @@ void tokenize(char *p) {
 Node *node_mul();
 Node *node_term();
 Node *node_mathexpr();
+Node *node_land();
 Node *node_or();
 Node *node_lor();
 Node *node_and();
@@ -360,11 +369,22 @@ Node *assign();
 
 Node *node_mathexpr() { return node_lor(); }
 
-Node *node_lor() {
+Node *node_land() {
    Node *node = node_or();
    while (1) {
+      if (consume_node(TK_AND)) {
+         node = new_node(ND_LAND, node, node_or());
+      } else {
+         return node;
+      }
+   }
+}
+
+Node *node_lor() {
+   Node *node = node_land();
+   while (1) {
       if (consume_node(TK_OR)) {
-         node = new_node(ND_LOR, node, node_or());
+         node = new_node(ND_LOR, node, node_land());
       } else {
          return node;
       }
@@ -680,6 +700,21 @@ void gen(Node *node) {
       puts("pop rdi");
       puts("cmp rdi, 0");
       printf("jne .Lorend%d\n", cur_if_cnt);
+      gen(node->rhs);
+      puts("pop rdi");
+      puts("cmp rdi, 0");
+      printf(".Lorend%d:\n", cur_if_cnt);
+      puts("setne al");
+      puts("movzx rax, al");
+      puts("push rax");
+      return;
+   }
+   if (node->ty == ND_LAND) {
+      int cur_if_cnt = if_cnt++;
+      gen(node->lhs);
+      puts("pop rdi");
+      puts("cmp rdi, 0");
+      printf("je .Lorend%d\n", cur_if_cnt);
       gen(node->rhs);
       puts("pop rdi");
       puts("cmp rdi, 0");
