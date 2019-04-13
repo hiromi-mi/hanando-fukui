@@ -89,6 +89,7 @@ typedef struct Type {
    Map *structure; // <name, Type*>
    struct Type *ptrof;
    int array_size;
+   int initval;
    int offset;
 } Type;
 

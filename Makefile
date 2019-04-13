@@ -95,6 +95,9 @@ test13:
 
 test14:
 	sh testfdef.sh "int a;int main(){a=1;a;}" 1
+	sh testfdef.sh "int a;int main(){a;}" 0
+	sh testfdef.sh "int a=2;int main(){a;}" 2
+	sh testfdef.sh "int a=2;int main(){a=3;a;}" 3
 
 test15:
 	sh test.sh "char a;a=1;" 1

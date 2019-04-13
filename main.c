@@ -1247,6 +1247,13 @@ void toplevel() {
          } else {
             // global variable
             map_put(global_vars, name, type);
+            // get initial value
+            type->initval = 0;
+            if (consume_node('=')) {
+               Node* initval = node_term();
+               // TODO: only supported main valu.
+               type->initval = initval->num_val;
+            }
             expect_node(';');
          }
          continue;
@@ -1269,15 +1276,18 @@ void test_map() {
 }
 
 void globalvar_gen() {
-   if (global_vars->keys->len > 0) {
-      puts(".bss");
-   }
+   puts(".data");
    for (int j = 0; j < global_vars->keys->len; j++) {
-      printf("%s:\n", (char *)global_vars->keys->data[j]);
-      puts(".text");
-      printf(".size %s, 4\n", (char *)global_vars->keys->data[j]);
+      if (((Type*)global_vars->vals->data[j])->initval != 0) {
       printf(".type %s,@object\n", (char *)global_vars->keys->data[j]);
-      printf(".zero %d\n", 4); // global_vars->vals->data[j];
+      printf(".size %s, 4\n", (char *)global_vars->keys->data[j]);
+      printf("%s:\n", (char *)global_vars->keys->data[j]);
+      printf(".long %d\n", ((Type *)global_vars->vals->data[j])->initval);
+      puts(".text");
+         // global_vars->vals->data[j];
+      } else {
+         printf(".comm %s, 4\n", (char*)global_vars->keys->data[j]);
+      }
    }
 }
 

@@ -17,6 +17,5 @@
 * structure `struct`
 * `va_args` `va_start`
 * preprocessor `#define` and `#include`
-* global variable definition with initialization `int a=1;`
 * `enum`
 * cast
