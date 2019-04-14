@@ -22,6 +22,9 @@ void gen(Node *node);
 Map *global_vars;
 int type2size(Type *type);
 Type *read_type(char **input);
+int confirm_type();
+int confirm_ident();
+int split_type_ident();
 
 Map *typedb;
 
@@ -180,9 +183,9 @@ void tokenize(char *p) {
       if (*p == '\"') {
          Token *token = malloc(sizeof(Token));
          // TODO
-         token->input = malloc(sizeof(char)*256);
+         token->input = malloc(sizeof(char) * 256);
          token->ty = TK_STRING;
-         int i=0;
+         int i = 0;
          while (*++p != '\"') {
             token->input[i++] = *p;
          }
@@ -195,7 +198,7 @@ void tokenize(char *p) {
          Token *token = malloc(sizeof(Token));
          token->ty = TK_NUM;
          token->input = p;
-         token->num_val = *(p+1);
+         token->num_val = *(p + 1);
          vec_push(tokens, token);
          p += 3; // *p = '', *p+1 = a, *p+2 = '
          continue;
@@ -229,7 +232,7 @@ void tokenize(char *p) {
          continue;
       }
 
-      if ((*p == '|' && *(p+1) == '|')) {
+      if ((*p == '|' && *(p + 1) == '|')) {
          Token *token = malloc(sizeof(Token));
          token->ty = TK_OR;
          token->input = p;
@@ -237,7 +240,7 @@ void tokenize(char *p) {
          p += 2;
          continue;
       }
-      if ((*p == '&' && *(p+1) == '&')) {
+      if ((*p == '&' && *(p + 1) == '&')) {
          Token *token = malloc(sizeof(Token));
          token->ty = TK_AND;
          token->input = p;
@@ -665,19 +668,18 @@ int type2size(Type *type) {
          return 1;
       case TY_ARRAY:
          return type->array_size * type2size(type->ptrof);
-      case TY_STRUCT:
-         {
-            int val = 0;
-            for (int j = 0; j < type->structure->keys->len; j++) {
-               val += type2size(type->structure->keys->data[j]);
-            }
-            return val;
+      case TY_STRUCT: {
+         int val = 0;
+         for (int j = 0; j < type->structure->keys->len; j++) {
+            val += type2size(type->structure->keys->data[j]);
          }
+         return val;
+      }
    }
 }
 
-char* type2string(Node *node) {
-   Type* type = node->type;
+char *type2string(Node *node) {
+   Type *type = node->type;
    if (type == NULL) {
       return 0;
    }
@@ -792,7 +794,7 @@ void gen(Node *node) {
          gen(node->args[j]);
          printf("pop %s\n", registers[j]);
       }
-      printf("sub rsp, %d\n", (int)(ceil(4*node->argc/16.)) * 16);
+      printf("sub rsp, %d\n", (int)(ceil(4 * node->argc / 16.)) * 16);
       // FIXME: alignment should be 64-bit
       printf("call %s\n", node->name);
       puts("push rax");
@@ -894,7 +896,7 @@ void gen(Node *node) {
       puts("push rdi");
       return;
    }
-   
+
    if (node->ty == ND_FPLUSPLUS) {
       gen_lval(node->lhs);
       puts("pop rax");
@@ -1085,6 +1087,7 @@ Type *read_type(char **input) {
    Type *type = malloc(sizeof(Type));
    // Variable Definition.
    int typekind = 10;
+   split_type_ident();
    if (strcmp(tokens->data[pos]->input, "int") == 0) {
       typekind = TY_INT;
    } else if (strcmp(tokens->data[pos]->input, "char") == 0) {
@@ -1227,24 +1230,24 @@ void program(Node *block_node) {
 
 // 0: neither 1:TK_TYPE 2:TK_IDENT
 int split_type_ident() {
-   Token* token = tokens->data[pos];
+   Token *token = tokens->data[pos];
    if (token->ty != TK_IDENT) {
       return 0;
    }
    // ident or type
    if (strcmp(token->input, "int") == 0) {
-      return 1;
+      return TY_INT;
    }
    if (strcmp(token->input, "char") == 0) {
-      return 1;
+      return TY_CHAR;
    }
    if (strcmp(token->input, "long") == 0) {
-      return 1;
+      return TY_LONG;
    }
    for (int j = 0; j < typedb->keys->len; j++) {
       // for struct
       if (strcmp(token->input, typedb->keys->data[j]) == 0) {
-         return 1;
+         return TY_STRUCT;
       }
    }
    return 2;
@@ -1252,20 +1255,20 @@ int split_type_ident() {
 
 int confirm_type() {
    if (split_type_ident() == 1) {
-      //pos++;
+      // pos++;
       return 1;
    }
    return 0;
 }
 int confirm_ident() {
-   if (split_type_ident() == 2) {
-      //pos++;
+   if (split_type_ident() > 2) {
+      // pos++;
       return 1;
    }
    return 0;
 }
 
-char* expect_ident() {
+char *expect_ident() {
    if (tokens->data[pos]->ty != TK_IDENT) {
       error("Error: Expected Ident but...");
       return NULL;
@@ -1291,11 +1294,11 @@ void toplevel() {
          structuretype->ptrof = NULL;
          while (!consume_node('}')) {
             char *name = NULL;
-            Type* type = read_type(&name);
+            Type *type = read_type(&name);
             expect_node(';');
             map_put(structuretype->structure, name, type);
          }
-         char* name = expect_ident();
+         char *name = expect_ident();
          expect_node(';');
          fprintf(stderr, "#define new struct: %s\n", name);
          map_put(typedb, name, structuretype);
@@ -1329,7 +1332,7 @@ void toplevel() {
             // get initial value
             type->initval = 0;
             if (consume_node('=')) {
-               Node* initval = node_term();
+               Node *initval = node_term();
                // TODO: only supported main valu.
                type->initval = initval->num_val;
             }
@@ -1357,15 +1360,15 @@ void test_map() {
 void globalvar_gen() {
    puts(".data");
    for (int j = 0; j < global_vars->keys->len; j++) {
-      if (((Type*)global_vars->vals->data[j])->initval != 0) {
-      printf(".type %s,@object\n", (char *)global_vars->keys->data[j]);
-      printf(".size %s, 4\n", (char *)global_vars->keys->data[j]);
-      printf("%s:\n", (char *)global_vars->keys->data[j]);
-      printf(".long %d\n", ((Type *)global_vars->vals->data[j])->initval);
-      puts(".text");
+      if (((Type *)global_vars->vals->data[j])->initval != 0) {
+         printf(".type %s,@object\n", (char *)global_vars->keys->data[j]);
+         printf(".size %s, 4\n", (char *)global_vars->keys->data[j]);
+         printf("%s:\n", (char *)global_vars->keys->data[j]);
+         printf(".long %d\n", ((Type *)global_vars->vals->data[j])->initval);
+         puts(".text");
          // global_vars->vals->data[j];
       } else {
-         printf(".comm %s, 4\n", (char*)global_vars->keys->data[j]);
+         printf(".comm %s, 4\n", (char *)global_vars->keys->data[j]);
       }
    }
 }
