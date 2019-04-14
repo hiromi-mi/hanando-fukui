@@ -21,7 +21,6 @@ typedef enum {
    TK_RSHIFT,
    TK_LSHIFT,
    TK_OPAS,
-   TK_TYPE,
    TK_GOTO,
    TK_RETURN,
    TK_SIZEOF,

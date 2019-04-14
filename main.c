@@ -343,15 +343,6 @@ void tokenize(char *p) {
          if (strcmp(token->input, "for") == 0) {
             token->ty = TK_FOR;
          }
-         if (strcmp(token->input, "int") == 0) {
-            token->ty = TK_TYPE;
-         }
-         if (strcmp(token->input, "char") == 0) {
-            token->ty = TK_TYPE;
-         }
-         if (strcmp(token->input, "long") == 0) {
-            token->ty = TK_TYPE;
-         }
          if (strcmp(token->input, "return") == 0) {
             token->ty = TK_RETURN;
          }
@@ -368,12 +359,6 @@ void tokenize(char *p) {
             token->ty = TK_TYPEDEF;
          }
 
-         for (int j = 0; j < typedb->keys->len; j++) {
-            // for struct
-            if (strcmp(token->input, typedb->keys->data[j]) == 0) {
-               token->ty = TK_TYPE;
-            }
-         }
          vec_push(tokens, token);
          continue;
       }
@@ -513,7 +498,7 @@ Node *node_cast() {
    } else if (consume_node('*')) {
       return new_node(ND_DEREF, node_mathexpr(), NULL);
    } else if (consume_node(TK_SIZEOF)) {
-      if (consume_node('(') && confirm_node(TK_TYPE)) {
+      if (consume_node('(') && confirm_type()) {
          // sizeof(int) read type without name
          Type *type = read_type(NULL);
          expect_node(')');
@@ -547,7 +532,7 @@ Node *node_term() {
       expect_node(TK_NUM);
       return node;
    }
-   if (confirm_node(TK_IDENT)) {
+   if (confirm_ident()) {
       Node *node;
       // Function Call
       if (tokens->data[pos + 1]->ty == '(') {
@@ -1092,8 +1077,8 @@ Node *assign() {
 }
 
 Type *read_type(char **input) {
-   if (!confirm_node(TK_TYPE)) {
-      error("Error: NOT a type");
+   if (!confirm_type()) {
+      error("Error: NOT a type when reading type.");
       return NULL;
    }
 
@@ -1109,7 +1094,9 @@ Type *read_type(char **input) {
    }
    type->ty = typekind;
    type->ptrof = NULL;
-   consume_node(TK_TYPE);
+   // if there are type def.
+   // skip this name.
+   consume_node(TK_IDENT);
    Type *rectype = type;
    // consume is pointer or not
    while (consume_node('*')) {
@@ -1127,6 +1114,7 @@ Type *read_type(char **input) {
    } else {
       input = &tokens->data[pos]->input;
    }
+   // skip the name  of position.
    consume_node(TK_IDENT);
    // pos++;
    // array
@@ -1148,7 +1136,7 @@ Type *read_type(char **input) {
 
 Node *stmt() {
    Node *node = NULL;
-   if (confirm_node(TK_TYPE)) {
+   if (confirm_type()) {
       char *input = NULL;
       Type *type = read_type(&input);
       node = new_ident_node_with_new_variable(input, type);
@@ -1237,6 +1225,46 @@ void program(Node *block_node) {
    env = prev_env;
 }
 
+// 0: neither 1:TK_TYPE 2:TK_IDENT
+int split_type_ident() {
+   Token* token = tokens->data[pos];
+   if (token->ty != TK_IDENT) {
+      return 0;
+   }
+   // ident or type
+   if (strcmp(token->input, "int") == 0) {
+      return 1;
+   }
+   if (strcmp(token->input, "char") == 0) {
+      return 1;
+   }
+   if (strcmp(token->input, "long") == 0) {
+      return 1;
+   }
+   for (int j = 0; j < typedb->keys->len; j++) {
+      // for struct
+      if (strcmp(token->input, typedb->keys->data[j]) == 0) {
+         return 1;
+      }
+   }
+   return 2;
+}
+
+int confirm_type() {
+   if (split_type_ident() == 1) {
+      //pos++;
+      return 1;
+   }
+   return 0;
+}
+int confirm_ident() {
+   if (split_type_ident() == 2) {
+      //pos++;
+      return 1;
+   }
+   return 0;
+}
+
 char* expect_ident() {
    if (tokens->data[pos]->ty != TK_IDENT) {
       error("Error: Expected Ident but...");
@@ -1273,7 +1301,7 @@ void toplevel() {
          map_put(typedb, name, structuretype);
          continue;
       }
-      if (confirm_node(TK_TYPE)) {
+      if (confirm_type()) {
          char *name = NULL;
          Type *type = read_type(&name);
          if (consume_node('(')) {
