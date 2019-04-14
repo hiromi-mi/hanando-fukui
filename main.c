@@ -1099,7 +1099,7 @@ Type *read_type(char **input) {
    type->ptrof = NULL;
    // if there are type def.
    // skip this name.
-   consume_node(TK_IDENT);
+   pos++;
    Type *rectype = type;
    // consume is pointer or not
    while (consume_node('*')) {
@@ -1254,14 +1254,14 @@ int split_type_ident() {
 }
 
 int confirm_type() {
-   if (split_type_ident() == 1) {
+   if (split_type_ident() > 2) {
       // pos++;
       return 1;
    }
    return 0;
 }
 int confirm_ident() {
-   if (split_type_ident() > 2) {
+   if (split_type_ident() == 2) {
       // pos++;
       return 1;
    }
