@@ -7,6 +7,7 @@ typedef enum {
    TK_EQUAL = '=',
    TK_BLOCKBEGIN = '{',
    TK_BLOCKEND = '}',
+   TK_S = '#',
    TK_PLUSPLUS = '+' + '+',
    TK_SUBSUB = '-' + '-',
    TK_NUM = 256,
@@ -29,6 +30,8 @@ typedef enum {
    TK_STRUCT,
    TK_TYPEDEF,
    TK_STRING,
+   TK_SPACE,
+   TK_NEWLINE,
 } TokenConst;
 
 typedef enum {

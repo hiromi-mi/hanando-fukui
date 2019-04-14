@@ -172,13 +172,24 @@ int expect_node(TokenConst ty) {
    return 1;
 }
 
-void tokenize(char *p) {
-   tokens = new_vector();
+Vector* tokenize(char *p) {
+   Vector* pre_tokens = new_vector();
    while (*p != '\0') {
-      if (isspace(*p) || *p == '\n') {
-         p++;
+      if (*p == '\n') {
+         Token *token = malloc(sizeof(Token));
+         token->ty = TK_NEWLINE;
+         vec_push(pre_tokens, token);
+         while(*p == '\n' && *p != '\0') p++;
          continue;
       }
+      if (isspace(*p)) {
+         Token *token = malloc(sizeof(Token));
+         token->ty = TK_SPACE;
+         vec_push(pre_tokens, token);
+         while(isspace(*p) && *p != '\0') p++;
+         continue;
+      }
+
       // TODO escape sequence.
       if (*p == '\"') {
          Token *token = malloc(sizeof(Token));
@@ -190,6 +201,7 @@ void tokenize(char *p) {
             token->input[i++] = *p;
          }
          token->input[i] = '\0';
+         vec_push(pre_tokens, token);
          p++; // skip "
          continue;
       }
@@ -199,7 +211,7 @@ void tokenize(char *p) {
          token->ty = TK_NUM;
          token->input = p;
          token->num_val = *(p + 1);
-         vec_push(tokens, token);
+         vec_push(pre_tokens, token);
          p += 3; // *p = '', *p+1 = a, *p+2 = '
          continue;
       }
@@ -210,13 +222,13 @@ void tokenize(char *p) {
             Token *token = malloc(sizeof(Token));
             token->ty = '=';
             token->input = p + 1;
-            vec_push(tokens, token);
+            vec_push(pre_tokens, token);
          }
          {
             Token *token = malloc(sizeof(Token));
             token->ty = TK_OPAS;
             token->input = p;
-            vec_push(tokens, token);
+            vec_push(pre_tokens, token);
          }
          p += 2;
          continue;
@@ -227,7 +239,7 @@ void tokenize(char *p) {
          // TK_PLUSPLUS and TK_SUBSUB
          token->ty = *p + *(p + 1);
          token->input = p;
-         vec_push(tokens, token);
+         vec_push(pre_tokens, token);
          p += 2;
          continue;
       }
@@ -236,7 +248,7 @@ void tokenize(char *p) {
          Token *token = malloc(sizeof(Token));
          token->ty = TK_OR;
          token->input = p;
-         vec_push(tokens, token);
+         vec_push(pre_tokens, token);
          p += 2;
          continue;
       }
@@ -244,7 +256,7 @@ void tokenize(char *p) {
          Token *token = malloc(sizeof(Token));
          token->ty = TK_AND;
          token->input = p;
-         vec_push(tokens, token);
+         vec_push(pre_tokens, token);
          p += 2;
          continue;
       }
@@ -252,11 +264,11 @@ void tokenize(char *p) {
       if (*p == '+' || *p == '-' || *p == '*' || *p == '/' || *p == '(' ||
           *p == ')' || *p == ';' || *p == ',' || *p == '{' || *p == '}' ||
           *p == '%' || *p == '^' || *p == '|' || *p == '&' || *p == '?' ||
-          *p == ':' || *p == '[' || *p == ']') {
+          *p == ':' || *p == '[' || *p == ']' || *p == '#') {
          Token *token = malloc(sizeof(Token));
          token->ty = *p;
          token->input = p;
-         vec_push(tokens, token);
+         vec_push(pre_tokens, token);
          p++;
          continue;
       }
@@ -270,7 +282,7 @@ void tokenize(char *p) {
             token->ty = '=';
             p++;
          }
-         vec_push(tokens, token);
+         vec_push(pre_tokens, token);
          continue;
       }
       if (*p == '!') {
@@ -283,7 +295,7 @@ void tokenize(char *p) {
             token->ty = *p;
             p++;
          }
-         vec_push(tokens, token);
+         vec_push(pre_tokens, token);
          continue;
       }
       if (*p == '<') {
@@ -296,7 +308,7 @@ void tokenize(char *p) {
             token->ty = *p;
             p++;
          }
-         vec_push(tokens, token);
+         vec_push(pre_tokens, token);
          continue;
       }
       if (*p == '>') {
@@ -309,7 +321,7 @@ void tokenize(char *p) {
             token->ty = *p;
             p++;
          }
-         vec_push(tokens, token);
+         vec_push(pre_tokens, token);
          continue;
       }
       if (isdigit(*p)) {
@@ -317,7 +329,7 @@ void tokenize(char *p) {
          token->ty = TK_NUM;
          token->input = p;
          token->num_val = strtol(p, &p, 10);
-         vec_push(tokens, token);
+         vec_push(pre_tokens, token);
          continue;
       }
 
@@ -362,16 +374,16 @@ void tokenize(char *p) {
             token->ty = TK_TYPEDEF;
          }
 
-         vec_push(tokens, token);
+         vec_push(pre_tokens, token);
          continue;
       }
 
       fprintf(stderr, "Cannot Tokenize: %s\n", p);
       // DEBUG
       /*
-      for (int j=0;j<=tokens->len-1;j++) {
-         fprintf(stderr, "%c %d %s\n", tokens->data[j]->ty, tokens->data[j]->ty,
-      tokens->data[j]->input);
+      for (int j=0;j<=pre_tokens->len-1;j++) {
+         fprintf(stderr, "%c %d %s\n", pre_tokens->data[j]->ty, pre_tokens->data[j]->ty,
+      pre_tokens->data[j]->input);
       }
       */
    }
@@ -379,7 +391,8 @@ void tokenize(char *p) {
    Token *token = malloc(sizeof(Token));
    token->ty = TK_EOF;
    token->input = p;
-   vec_push(tokens, token);
+   vec_push(pre_tokens, token);
+   return pre_tokens;
 }
 
 Node *node_mul();
@@ -1255,14 +1268,12 @@ int split_type_ident() {
 
 int confirm_type() {
    if (split_type_ident() > 2) {
-      // pos++;
       return 1;
    }
    return 0;
 }
 int confirm_ident() {
    if (split_type_ident() == 2) {
-      // pos++;
       return 1;
    }
    return 0;
@@ -1373,6 +1384,49 @@ void globalvar_gen() {
    }
 }
 
+void preprocess(Vector* pre_tokens) {
+   tokens = new_vector();
+   Map* defined = new_map();
+   for (int j=0;j<=pre_tokens->len-1;j++) {
+      if (pre_tokens->data[j]->ty == '#') {
+         // preprocessor begin
+         j++;
+         if (strcmp(pre_tokens->data[j]->input, "define") == 0) {
+            map_put(defined, pre_tokens->data[j+2]->input, pre_tokens->data[j+4]);
+            while(pre_tokens->data[j]->ty != TK_NEWLINE && pre_tokens->data[j]->ty != TK_EOF) {
+               j++;
+            }
+            /*
+            Token* last_token = pre_tokens->data[j-1];
+            last_token
+            */
+            //j+=4;
+         }
+         continue;
+      }
+      if( pre_tokens->data[j]->ty == TK_NEWLINE) continue;
+      if( pre_tokens->data[j]->ty == TK_SPACE) continue;
+      int called = 0;
+      for (int k=0;k<=defined->keys->len-1;k++) {
+         if ( strcmp(pre_tokens->data[j]->input, defined->keys->data[k]) == 0) {
+            called = 1;
+            fprintf(stderr, "#define changed: %s -> %s\n", pre_tokens->data[j]->input, defined->vals->data[k]->input);
+            //pre_tokens->data[j] = defined->vals->data[k];
+            vec_push(tokens, defined->vals->data[k]);
+            continue;
+         }
+      }
+      if (!called) {
+         vec_push(tokens, pre_tokens->data[j]);
+      }
+   }
+   Token *token = malloc(sizeof(Token));
+   token->ty = TK_EOF;
+   token->input = "";
+   vec_push(pre_tokens, token);
+   vec_push(tokens, token);
+}
+
 int main(int argc, char **argv) {
    if (argc < 2) {
       error("Incorrect Arguments");
@@ -1386,7 +1440,7 @@ int main(int argc, char **argv) {
    // assert(1 == vec->len);
    typedb = new_map();
 
-   tokenize(argv[1]);
+   preprocess(tokenize(argv[1]));
    toplevel();
 
    puts(".intel_syntax");
