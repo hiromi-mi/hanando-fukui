@@ -1322,7 +1322,7 @@ void toplevel() {
             code[i] = new_fdef_node(name, env, type);
             // Function definition
             // because toplevel func call
-            for (code[i]->argc = 0; code[i]->argc < 6 && !consume_node(')');) {
+            for (code[i]->argc = 0; code[i]->argc <= 6 && !consume_node(')');) {
                char *arg_name = NULL;
                Type *arg_type = read_type(&arg_name);
                // expect_node(TK_TYPE);

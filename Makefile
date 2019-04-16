@@ -84,6 +84,8 @@ test10:
 
 test11:
 	sh testfdef.sh "int main(){func()+2;} int func(){4;}" 6
+	sh testfdef.sh "int main(){func(1,2,3,4,5);} int func(int a,int b,int c,int d, int e){a+b+c+d+e;}" 15
+	sh testfdef.sh "int main(){func(1,2,3,4,5,6);} int func(int a,int b,int c,int d, int e, int f){a+b+c+d+e+f;}" 21
 	sh testfdef.sh "int main(){func()+2;} int func(){return 4;}" 6
 	sh testfdef.sh "int main(){func(8)+2;} int func(int a){return a-4;}" 6
 	sh testfdef.sh "int main(){func(6+2)+2;} int func(int a){return a-4;}" 6
