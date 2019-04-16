@@ -11,7 +11,7 @@ $(target): $(objects)
 $(objects): main.h
 test:	test1 test2 test3 test4 \
    test5 test6 test7 test8 test9 \
-   test10 test11 test12 test13 test14\
+   test10 test11 test19 test12 test13 test14\
    test15 test16 test17 test18
 
 test1:
@@ -87,6 +87,8 @@ test11:
 	sh testfdef.sh "int main(){func(1,2,3,4,5);} int func(int a,int b,int c,int d, int e){a+b+c+d+e;}" 15
 	sh testfdef.sh "int main(){func(1,2,3,4,5,6);} int func(int a,int b,int c,int d, int e, int f){a+b+c+d+e+f;}" 21
 	sh testfdef.sh "int main(){func()+2;} int func(){return 4;}" 6
+
+test19:
 	sh testfdef.sh "int main(){func(8)+2;} int func(int a){return a-4;}" 6
 	sh testfdef.sh "int main(){func(6+2)+2;} int func(int a){return a-4;}" 6
 	sh testfdef.sh "int main(){func(5);} int func(int a){ if (a==1){1;} 2;}" 2

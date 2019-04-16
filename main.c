@@ -1402,6 +1402,10 @@ void preprocess(Vector* pre_tokens) {
             */
             //j+=4;
          }
+         if (strcmp(pre_tokens->data[j]->input, "include") == 0) {
+            //pre_tokens->data[j]->ty == TK_STRING
+            j++;
+         }
          continue;
       }
       if( pre_tokens->data[j]->ty == TK_NEWLINE) continue;
