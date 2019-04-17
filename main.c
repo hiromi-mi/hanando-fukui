@@ -398,6 +398,7 @@ Vector* tokenize(char *p) {
 Node *node_mul();
 Node *node_term();
 Node *node_mathexpr();
+Node *node_mathexpr_without_comma();
 Node *node_land();
 Node *node_or();
 Node *node_lor();
@@ -408,7 +409,20 @@ Node *node_add();
 Node *node_cast();
 Node *assign();
 
-Node *node_mathexpr() { return node_lor(); }
+Node *node_mathexpr_without_comma() {
+   return node_lor();
+}
+
+Node *node_mathexpr() {
+   Node* node = node_lor();
+   while (1) {
+      if (consume_node(',')) {
+         node = new_node(',', node, node_lor());
+      } else {
+         return node;
+      }
+   }
+}
 
 Node *node_land() {
    Node *node = node_or();
@@ -560,7 +574,7 @@ Node *node_term() {
             if (!consume_node(',') && consume_node(')')) {
                break;
             }
-            node->args[node->argc++] = node_mathexpr();
+            node->args[node->argc++] = node_mathexpr_without_comma();
          }
          assert(node->argc <= 6);
          // pos++ because of consume_node(')')
@@ -993,6 +1007,9 @@ void gen(Node *node) {
    puts("pop rdi"); // rhs
    puts("pop rax"); // lhs
    switch (node->ty) {
+      case ',':
+         puts("mov rax, rdi");
+         break;
       case '+':
          puts("add rax, rdi");
          break;
