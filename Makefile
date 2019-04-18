@@ -145,6 +145,7 @@ test18:
 	sh test.sh "(3,4);" 4
 	sh test.sh "puts(\"a\");0;" 0
 	sh test.sh "puts(\"Test OK\");0;" 0
+	sh test.sh "printf(\"Test OK\n\");0;" 0
 
 clean:
 	$(RM) -f $(target) $(objects)

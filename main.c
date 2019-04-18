@@ -618,7 +618,6 @@ Node *node_term() {
          // pos++ because of consume_node(')')
          // array
       } else if (tokens->data[pos + 1]->ty == '[') {
-         // TODO: 3[a] does not work yet
          char *input = tokens->data[pos]->input;
          expect_node(TK_IDENT);
          expect_node('[');
@@ -627,7 +626,7 @@ Node *node_term() {
                          NULL);
          expect_node(']');
       } else {
-      // Just an ident
+         // Just an ident
          node = new_ident_node(tokens->data[pos]->input);
          expect_node(TK_IDENT);
          if (consume_node(TK_PLUSPLUS)) {
@@ -884,6 +883,7 @@ void gen(Node *node) {
       }
       printf("sub rsp, %d\n", (int)(ceil(4 * node->argc / 16.)) * 16);
       // FIXME: alignment should be 64-bit
+      puts("mov al, 0"); // TODO to preserve float
       printf("call %s\n", node->name);
       puts("push rax");
       return;
