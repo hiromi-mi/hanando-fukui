@@ -45,6 +45,7 @@ typedef enum {
    ND_AND = '&',
    ND_LESS = '<',
    ND_GREATER = '>',
+   ND_COMMA = ',',
    ND_LEFTPARENSIS = '(',
    ND_RIGHTPARENSIS = ')',
    ND_NUM = 256,

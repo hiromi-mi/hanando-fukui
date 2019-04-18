@@ -80,6 +80,10 @@ Node *new_ident_node_with_new_variable(char *name, Type *type) {
          // TODO: should not be 8 in case of truct
          env->rsp_offset += 8 * type->array_size;
          break;
+      case TY_STRUCT:
+         error("Struct is not supported");
+         exit(1);
+         break;
    }
    type->offset = env->rsp_offset;
    // type->ptrof = NULL;
@@ -649,6 +653,26 @@ int get_lval_offset(Node *node) {
    return offset;
 }
 
+char* rax(Node *node) {
+   if (node->type->ty == TY_CHAR) {
+      return "al";
+   } else if (node->type->ty == TY_INT) {
+      return "eax";
+   } else {
+      return "rax";
+   }
+}
+
+char* rdi(Node *node) {
+   if (node->type->ty == TY_CHAR) {
+      return "dil";
+   } else if (node->type->ty == TY_INT) {
+      return "edi";
+   } else {
+      return "rdi";
+   }
+}
+
 void gen_lval(Node *node) {
    if (node->ty == ND_IDENT) {
       int offset = get_lval_offset(node);
@@ -664,15 +688,6 @@ void gen_lval(Node *node) {
       return;
    }
    if (node->ty == ND_DEREF) {
-      // TODO: should use new_node with types
-      // get_lval_offset(node->lhs);
-      /*
-      gen_lval(node->lhs); // Compile as RVALUE
-         puts("#deref_lval");
-         puts("pop rax");
-         puts("mov rax, [rax]");
-         puts("push rax");
-         */
       gen(node->lhs);
       return;
    }
