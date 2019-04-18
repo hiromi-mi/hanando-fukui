@@ -20,6 +20,8 @@ int get_lval_offset(Node *node);
 Type *get_type(Node *node);
 void gen(Node *node);
 Map *global_vars;
+Map *funcdefs;
+
 int type2size(Type *type);
 Type *read_type(char **input);
 int confirm_type();
@@ -112,6 +114,14 @@ Node *new_func_node(char *name) {
    node->rhs = NULL;
    node->type = NULL;
    node->argc = 0;
+   // should support long?
+   Node* result = map_get(funcdefs, name);
+   if (result) {
+      node->type = result->type;
+   } else {
+      node->type = malloc(sizeof(Type));
+      node->type->ty = TY_INT;
+   }
    return node;
 }
 
@@ -137,6 +147,7 @@ Node *new_fdef_node(char *name, Env *prev_env, Type *type) {
    node->rhs = NULL;
    node->argc = 0;
    node->env = prev_env;
+   map_put(funcdefs, name, node);
    return node;
 }
 
@@ -1026,10 +1037,12 @@ void gen(Node *node) {
          puts("mov rax, rdi");
          break;
       case '+':
-         puts("add rax, rdi");
+         printf("add %s, %s\n", rax(node), rdi(node));
+         //puts("add rax, rdi");
          break;
       case '-':
-         puts("sub rax, rdi");
+         printf("sub %s, %s\n", rax(node), rdi(node));
+         //puts("sub rax, rdi");
          break;
       case '*':
          puts("mul rdi");
@@ -1325,6 +1338,7 @@ void toplevel() {
    // stmt....
    // consume_node('}')
    global_vars = new_map();
+   funcdefs = new_map();
    env = new_env(NULL);
    while (tokens->data[pos]->ty != TK_EOF) {
       // definition of struct
