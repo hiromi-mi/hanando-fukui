@@ -12,7 +12,7 @@ $(objects): main.h
 test:	test1 test2 test3 test4 \
    test5 test6 test7 test8 test9 \
    test10 test11 test19 test12 test13 test14\
-   test15 test16 test17 test18 test20
+   test15 test16 test17 test18 test20 test21
 
 test1:
 	sh test.sh '1;' 1
@@ -92,8 +92,11 @@ test19:
 	sh testfdef.sh "int main(){func(8)+2;} int func(int a){return a-4;}" 6
 	sh testfdef.sh "int main(){func(6+2)+2;} int func(int a){return a-4;}" 6
 	sh testfdef.sh "int main(){func(5);} int func(int a){ if (a==1){1;} 2;}" 2
+
+test21:
 	sh testfdef.sh "int main(){func(3);} int func(int a){if (a==1) {1;} else {func(a-1)*a;}}" 6
 	sh testfdef.sh "int main(){func(3,4);} int func(int a, int b){if (a==1) {1;} else {return func(a-1)*a+b-b;}}" 6
+	sh testfdef.sh "int func(int a, int b); int main(){func(3,4);} int func(int a, int b){if (a==1) {1;} else {return func(a-1)*a+b-b;}}" 6
  
 test12:
 	sh test.sh "int x;int y;x=1;y=2;x+y;" 3

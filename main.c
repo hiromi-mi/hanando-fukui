@@ -1381,7 +1381,12 @@ void toplevel() {
                    new_ident_node_with_new_variable(arg_name, arg_type);
                consume_node(',');
             }
-            program(code[i++]);
+            // to support prototype def.
+            if (confirm_node('{')) {
+               program(code[i++]);
+            } else {
+               expect_node(';');
+            }
             continue;
          } else {
             // global variable
