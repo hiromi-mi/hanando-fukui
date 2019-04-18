@@ -217,6 +217,15 @@ Vector* tokenize(char *p) {
          // skip because of one-lined comment
          while(*p != '\n' && *p != '\0') p++;
       }
+      if (*p == '/' && *(p+1) == '*') {
+         // skip because of one-lined comment
+         while(*p != '\0') {
+            if (*p == '*' && *(p+1) == '/') {
+               break;
+            }
+            p++;
+         }
+      }
       if (isspace(*p)) {
          Token *token = malloc(sizeof(Token));
          token->ty = TK_SPACE;
