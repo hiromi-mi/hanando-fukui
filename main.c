@@ -225,7 +225,14 @@ Vector* tokenize(char *p) {
          Token *token = malloc(sizeof(Token));
          token->ty = TK_NUM;
          token->input = p;
-         token->num_val = *(p + 1);
+         if (*(p+1) != '\\') {
+            token->num_val = *(p + 1);
+         } else {
+            char str[16];
+            snprintf(str, 16, "%s", p);
+            token->num_val = str[0];
+            p++;
+         }
          vec_push(pre_tokens, token);
          p += 3; // *p = '', *p+1 = a, *p+2 = '
          continue;

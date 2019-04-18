@@ -141,6 +141,7 @@ test17:
 
 test18:
 	sh test.sh "char a='a';a;" 97
+	sh test.sh "char a='\n';a;" 39
 	sh test.sh "(3,4);" 4
 
 clean:
