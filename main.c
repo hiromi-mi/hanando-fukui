@@ -1536,11 +1536,16 @@ int main(int argc, char **argv) {
    if (strcmp(argv[1], "-f") == 0) {
       FILE *fp;
       fp = fopen(argv[2], "r");
+      if (fp == NULL) {
+         fprintf(stderr, "No file found.");
+         exit(1);
+      }
       fseek(fp, 0, SEEK_END);
       long length = ftell(fp);
       fseek(fp, 0, SEEK_SET);
       char *buf = malloc(sizeof(char) * (length+5));
-      fgets(buf, length+5, fp);
+      fread(buf, length+5, sizeof(char), fp);
+      //fgets(buf, length+5, fp);
       fclose(fp);
       preprocess(tokenize(buf));
    } else {
