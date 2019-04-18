@@ -21,6 +21,7 @@ Type *get_type(Node *node);
 void gen(Node *node);
 Map *global_vars;
 Map *funcdefs;
+Vector *strs;
 
 int type2size(Type *type);
 Type *read_type(char **input);
@@ -33,6 +34,21 @@ Map *typedb;
 void error(const char *str) {
    fprintf(stderr, "%s on %d: %s\n", str, pos, tokens->data[pos]->input);
    exit(1);
+}
+
+Node *new_string_node(char* id) {
+   Node *node = malloc(sizeof(Node));
+   node->ty = ND_STRING;
+   node->lhs = NULL;
+   node->rhs = NULL;
+   node->name = id;
+   Type *type = malloc(sizeof(Type));
+   type->ty = TY_PTR;
+   type->ptrof = malloc(sizeof(Type));
+   type->ptrof->ty = TY_CHAR;
+   type->ptrof->ptrof = NULL;
+   node->type = type;
+   return node;
 }
 
 Node *new_node(NodeType ty, Node *lhs, Node *rhs) {
@@ -611,7 +627,7 @@ Node *node_term() {
                          NULL);
          expect_node(']');
       } else {
-         // Just an ident
+      // Just an ident
          node = new_ident_node(tokens->data[pos]->input);
          expect_node(TK_IDENT);
          if (consume_node(TK_PLUSPLUS)) {
@@ -620,6 +636,13 @@ Node *node_term() {
             node = new_node(ND_FSUBSUB, node, NULL);
          }
       }
+      return node;
+   }
+   if (confirm_node(TK_STRING)) {
+      char *str = malloc(sizeof(char) *256);
+      snprintf(str, 255, ".LC%d", vec_push(strs, tokens->data[pos]->input)); 
+      Node* node = new_string_node(str);
+      expect_node(TK_STRING);
       return node;
    }
    // Parensis
@@ -763,6 +786,11 @@ char *type2string(Node *node) {
 void gen(Node *node) {
    if (node->ty == ND_NUM) {
       printf("push %ld\n", node->num_val);
+      return;
+   }
+   if (node->ty == ND_STRING) {
+      printf("lea rax, dword ptr %s[rip]\n", node->name);
+      puts("push rax");
       return;
    }
 
@@ -1346,6 +1374,7 @@ void toplevel() {
    // consume_node('}')
    global_vars = new_map();
    funcdefs = new_map();
+   strs = new_vector();
    env = new_env(NULL);
    while (tokens->data[pos]->ty != TK_EOF) {
       // definition of struct
@@ -1439,6 +1468,10 @@ void globalvar_gen() {
       } else {
          printf(".comm %s, 4\n", (char *)global_vars->keys->data[j]);
       }
+   }
+   for (int j = 0; j < strs->len; j++) {
+      printf(".LC%d:\n", j);
+      printf(".string \"%s\"\n", (char *)strs->data[j]);
    }
 }
 

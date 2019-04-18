@@ -11,9 +11,9 @@ Map *new_map() {
    return map;
 }
 
-void map_put(Map *map, char *key, void *val) {
+int map_put(Map *map, char *key, void *val) {
    vec_push(map->keys, (void *)key);
-   vec_push(map->vals, (void *)val);
+   return vec_push(map->vals, (void *)val);
 }
 
 void *map_get(Map *map, char *key) {
@@ -33,10 +33,11 @@ Vector *new_vector() {
    return vec;
 }
 
-void vec_push(Vector *vec, Token *element) {
+int vec_push(Vector *vec, Token *element) {
    if (vec->capacity == vec->len) {
       vec->capacity *= 2;
       vec->data = realloc(vec->data, sizeof(Token *) * vec->capacity);
    }
-   vec->data[vec->len++] = element;
+   vec->data[vec->len] = element;
+   return vec->len++;
 }

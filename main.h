@@ -70,6 +70,7 @@ typedef enum {
    ND_LAND,
    ND_FPLUSPLUS,
    ND_FSUBSUB,
+   ND_STRING,
 } NodeType;
 
 typedef struct {
@@ -120,9 +121,9 @@ typedef struct Node {
 } Node;
 
 Map *new_map();
-void map_put(Map *map, char *key, void *val);
+int map_put(Map *map, char *key, void *val);
 void *map_get(Map *map, char *key);
 Vector *new_vector();
-void vec_push(Vector *vec, Token *element);
+int vec_push(Vector *vec, Token *element);
 
 #endif /* __HANANDO_FUKUI_MAIN__ */
