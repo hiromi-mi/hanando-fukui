@@ -213,6 +213,10 @@ Vector* tokenize(char *p) {
          while(*p == '\n' && *p != '\0') p++;
          continue;
       }
+      if (*p == '/' && *(p+1) == '/') {
+         // skip because of one-lined comment
+         while(*p != '\n' && *p != '\0') p++;
+      }
       if (isspace(*p)) {
          Token *token = malloc(sizeof(Token));
          token->ty = TK_SPACE;
@@ -417,6 +421,7 @@ Vector* tokenize(char *p) {
       }
 
       fprintf(stderr, "Cannot Tokenize: %s\n", p);
+      exit(1);
       // DEBUG
       /*
       for (int j=0;j<=pre_tokens->len-1;j++) {
@@ -1528,6 +1533,20 @@ int main(int argc, char **argv) {
       exit(1);
    }
 
+   if (strcmp(argv[1], "-f") == 0) {
+      FILE *fp;
+      fp = fopen(argv[2], "r");
+      fseek(fp, 0, SEEK_END);
+      long length = ftell(fp);
+      fseek(fp, 0, SEEK_SET);
+      char *buf = malloc(sizeof(char) * (length+5));
+      fgets(buf, length+5, fp);
+      fclose(fp);
+      preprocess(tokenize(buf));
+   } else {
+      preprocess(tokenize(argv[1]));
+   }
+
    test_map();
 
    // Vector *vec = new_vector();
@@ -1535,7 +1554,6 @@ int main(int argc, char **argv) {
    // assert(1 == vec->len);
    typedb = new_map();
 
-   preprocess(tokenize(argv[1]));
    toplevel();
 
    puts(".intel_syntax");
