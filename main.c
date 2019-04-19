@@ -36,7 +36,7 @@ void error(const char *str) {
    exit(1);
 }
 
-Node *new_string_node(char* id) {
+Node *new_string_node(char *id) {
    Node *node = malloc(sizeof(Node));
    node->ty = ND_STRING;
    node->lhs = NULL;
@@ -131,7 +131,7 @@ Node *new_func_node(char *name) {
    node->type = NULL;
    node->argc = 0;
    // should support long?
-   Node* result = map_get(funcdefs, name);
+   Node *result = map_get(funcdefs, name);
    if (result) {
       node->type = result->type;
    } else {
@@ -203,24 +203,26 @@ int expect_node(TokenConst ty) {
    return 1;
 }
 
-Vector* tokenize(char *p) {
-   Vector* pre_tokens = new_vector();
+Vector *tokenize(char *p) {
+   Vector *pre_tokens = new_vector();
    while (*p != '\0') {
       if (*p == '\n') {
          Token *token = malloc(sizeof(Token));
          token->ty = TK_NEWLINE;
          vec_push(pre_tokens, token);
-         while(*p == '\n' && *p != '\0') p++;
+         while (*p == '\n' && *p != '\0')
+            p++;
          continue;
       }
-      if (*p == '/' && *(p+1) == '/') {
+      if (*p == '/' && *(p + 1) == '/') {
          // skip because of one-lined comment
-         while(*p != '\n' && *p != '\0') p++;
+         while (*p != '\n' && *p != '\0')
+            p++;
       }
-      if (*p == '/' && *(p+1) == '*') {
+      if (*p == '/' && *(p + 1) == '*') {
          // skip because of one-lined comment
-         while(*p != '\0') {
-            if (*p == '*' && *(p+1) == '/') {
+         while (*p != '\0') {
+            if (*p == '*' && *(p + 1) == '/') {
                break;
             }
             p++;
@@ -230,7 +232,8 @@ Vector* tokenize(char *p) {
          Token *token = malloc(sizeof(Token));
          token->ty = TK_SPACE;
          vec_push(pre_tokens, token);
-         while(isspace(*p) && *p != '\0') p++;
+         while (isspace(*p) && *p != '\0')
+            p++;
          continue;
       }
 
@@ -254,7 +257,7 @@ Vector* tokenize(char *p) {
          Token *token = malloc(sizeof(Token));
          token->ty = TK_NUM;
          token->input = p;
-         if (*(p+1) != '\\') {
+         if (*(p + 1) != '\\') {
             token->num_val = *(p + 1);
          } else {
             char str[16];
@@ -434,8 +437,8 @@ Vector* tokenize(char *p) {
       // DEBUG
       /*
       for (int j=0;j<=pre_tokens->len-1;j++) {
-         fprintf(stderr, "%c %d %s\n", pre_tokens->data[j]->ty, pre_tokens->data[j]->ty,
-      pre_tokens->data[j]->input);
+         fprintf(stderr, "%c %d %s\n", pre_tokens->data[j]->ty,
+      pre_tokens->data[j]->ty, pre_tokens->data[j]->input);
       }
       */
    }
@@ -461,12 +464,10 @@ Node *node_add();
 Node *node_cast();
 Node *assign();
 
-Node *node_mathexpr_without_comma() {
-   return node_lor();
-}
+Node *node_mathexpr_without_comma() { return node_lor(); }
 
 Node *node_mathexpr() {
-   Node* node = node_lor();
+   Node *node = node_lor();
    while (1) {
       if (consume_node(',')) {
          node = new_node(',', node, node_lor());
@@ -652,9 +653,9 @@ Node *node_term() {
       return node;
    }
    if (confirm_node(TK_STRING)) {
-      char *str = malloc(sizeof(char) *256);
-      snprintf(str, 255, ".LC%d", vec_push(strs, tokens->data[pos]->input)); 
-      Node* node = new_string_node(str);
+      char *str = malloc(sizeof(char) * 256);
+      snprintf(str, 255, ".LC%d", vec_push(strs, tokens->data[pos]->input));
+      Node *node = new_string_node(str);
       expect_node(TK_STRING);
       return node;
    }
@@ -707,7 +708,7 @@ int get_lval_offset(Node *node) {
    return offset;
 }
 
-char* rax(Node *node) {
+char *rax(Node *node) {
    if (node->type->ty == TY_CHAR) {
       return "al";
    } else if (node->type->ty == TY_INT) {
@@ -717,7 +718,7 @@ char* rax(Node *node) {
    }
 }
 
-char* rdi(Node *node) {
+char *rdi(Node *node) {
    if (node->type->ty == TY_CHAR) {
       return "dil";
    } else if (node->type->ty == TY_INT) {
@@ -893,6 +894,9 @@ void gen(Node *node) {
       char registers[6][4] = {"rdi", "rsi", "rdx", "rcx", "r8", "r9"};
       for (int j = 0; j < node->argc; j++) {
          gen(node->args[j]);
+      }
+      for (int j = node->argc-1; j>=0; j--) {
+         // because of function call will break these registers
          printf("pop %s\n", registers[j]);
       }
       printf("sub rsp, %d\n", (int)(ceil(4 * node->argc / 16.)) * 16);
@@ -1087,11 +1091,11 @@ void gen(Node *node) {
          break;
       case '+':
          printf("add %s, %s\n", rax(node), rdi(node));
-         //puts("add rax, rdi");
+         // puts("add rax, rdi");
          break;
       case '-':
          printf("sub %s, %s\n", rax(node), rdi(node));
-         //puts("sub rax, rdi");
+         // puts("sub rax, rdi");
          break;
       case '*':
          puts("mul rdi");
@@ -1489,38 +1493,43 @@ void globalvar_gen() {
    }
 }
 
-void preprocess(Vector* pre_tokens) {
+void preprocess(Vector *pre_tokens) {
    tokens = new_vector();
-   Map* defined = new_map();
-   for (int j=0;j<=pre_tokens->len-1;j++) {
+   Map *defined = new_map();
+   for (int j = 0; j <= pre_tokens->len - 1; j++) {
       if (pre_tokens->data[j]->ty == '#') {
          // preprocessor begin
          j++;
          if (strcmp(pre_tokens->data[j]->input, "define") == 0) {
-            map_put(defined, pre_tokens->data[j+2]->input, pre_tokens->data[j+4]);
-            while(pre_tokens->data[j]->ty != TK_NEWLINE && pre_tokens->data[j]->ty != TK_EOF) {
+            map_put(defined, pre_tokens->data[j + 2]->input,
+                    pre_tokens->data[j + 4]);
+            while (pre_tokens->data[j]->ty != TK_NEWLINE &&
+                   pre_tokens->data[j]->ty != TK_EOF) {
                j++;
             }
             /*
             Token* last_token = pre_tokens->data[j-1];
             last_token
             */
-            //j+=4;
+            // j+=4;
          }
          if (strcmp(pre_tokens->data[j]->input, "include") == 0) {
-            //pre_tokens->data[j]->ty == TK_STRING
+            // pre_tokens->data[j]->ty == TK_STRING
             j++;
          }
          continue;
       }
-      if( pre_tokens->data[j]->ty == TK_NEWLINE) continue;
-      if( pre_tokens->data[j]->ty == TK_SPACE) continue;
+      if (pre_tokens->data[j]->ty == TK_NEWLINE)
+         continue;
+      if (pre_tokens->data[j]->ty == TK_SPACE)
+         continue;
       int called = 0;
-      for (int k=0;k<=defined->keys->len-1;k++) {
-         if ( strcmp(pre_tokens->data[j]->input, defined->keys->data[k]) == 0) {
+      for (int k = 0; k <= defined->keys->len - 1; k++) {
+         if (strcmp(pre_tokens->data[j]->input, defined->keys->data[k]) == 0) {
             called = 1;
-            fprintf(stderr, "#define changed: %s -> %s\n", pre_tokens->data[j]->input, defined->vals->data[k]->input);
-            //pre_tokens->data[j] = defined->vals->data[k];
+            fprintf(stderr, "#define changed: %s -> %s\n",
+                    pre_tokens->data[j]->input, defined->vals->data[k]->input);
+            // pre_tokens->data[j] = defined->vals->data[k];
             vec_push(tokens, defined->vals->data[k]);
             continue;
          }
@@ -1552,9 +1561,9 @@ int main(int argc, char **argv) {
       fseek(fp, 0, SEEK_END);
       long length = ftell(fp);
       fseek(fp, 0, SEEK_SET);
-      char *buf = malloc(sizeof(char) * (length+5));
-      fread(buf, length+5, sizeof(char), fp);
-      //fgets(buf, length+5, fp);
+      char *buf = malloc(sizeof(char) * (length + 5));
+      fread(buf, length + 5, sizeof(char), fp);
+      // fgets(buf, length+5, fp);
       fclose(fp);
       preprocess(tokenize(buf));
    } else {
