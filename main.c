@@ -489,6 +489,7 @@ Node *node_mathexpr() {
    while (1) {
       if (consume_node(',')) {
          node = new_node(',', node, node_lor());
+         node->type = node->rhs->type;
       } else {
          return node;
       }
@@ -594,8 +595,16 @@ Node *node_add() {
    while (1) {
       if (consume_node('+')) {
          node = new_node('+', node, node_mul());
+         if (node->rhs->type->ty == TY_PTR) {
+            node->type = node->rhs->type;
+            // TY_PTR no matter when node->lhs is INT or PTR
+         }
       } else if (consume_node('-')) {
          node = new_node('-', node, node_mul());
+         if (node->rhs->type->ty == TY_PTR) {
+            node->type = node->rhs->type;
+            // TY_PTR no matter when node->lhs is INT or PTR
+         }
       } else {
          return node;
       }
@@ -1351,10 +1360,8 @@ Node *stmt() {
       expect_node(TK_IDENT);
    } else if (consume_node(TK_BREAK)) {
       node = new_node(ND_BREAK, NULL, NULL);
-      // FIXME GOTO is not statement, expr.
    } else if (consume_node(TK_CONTINUE)) {
       node = new_node(ND_CONTINUE, NULL, NULL);
-      // FIXME GOTO is not statement, expr.
    } else {
       node = assign();
    }
