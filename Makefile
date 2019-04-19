@@ -161,6 +161,8 @@ test22:
 test23:
 	sh test.sh "if (2 <= 1) 1; 7;" 7
 	sh test.sh "if (1 <= 2) 1;" 1
+	sh test.sh "NULL;" 0
+
 
 clean:
 	$(RM) -f $(target) $(objects)

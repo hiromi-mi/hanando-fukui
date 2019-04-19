@@ -8,7 +8,6 @@
 * global variable
 
 ## Should be Implemented for Self-Hosting
-* `NULL`
 * `switch` and `case`
 * structure `struct`
 * `va_args` `va_start`

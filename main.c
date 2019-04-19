@@ -438,6 +438,9 @@ Vector *tokenize(char *p) {
          if (strcmp(token->input, "continue") == 0) {
             token->ty = TK_CONTINUE;
          }
+         if (strcmp(token->input, "NULL") == 0) {
+            token->ty = TK_NULL;
+         }
 
          vec_push(pre_tokens, token);
          continue;
@@ -642,6 +645,12 @@ Node *node_term() {
       Node *node = new_num_node(tokens->data[pos]->num_val);
       expect_node(TK_NUM);
       return node;
+   }
+   if (consume_node(TK_NULL)) {
+      Node *node = new_num_node(0);
+      node->type->ty = TY_PTR;
+      return node;
+      // zatu
    }
    if (confirm_ident()) {
       Node *node;

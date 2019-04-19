@@ -36,6 +36,7 @@ typedef enum {
    TK_ISMOREEQ,
    TK_BREAK,
    TK_CONTINUE,
+   TK_NULL,
 } TokenConst;
 
 typedef enum {
