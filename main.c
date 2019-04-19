@@ -237,7 +237,6 @@ Vector *tokenize(char *p) {
          continue;
       }
 
-      // TODO escape sequence.
       if (*p == '\"') {
          Token *token = malloc(sizeof(Token));
          // TODO
@@ -252,7 +251,6 @@ Vector *tokenize(char *p) {
          p++; // skip "
          continue;
       }
-      // TODO escape sequence.
       if (*p == '\'') {
          Token *token = malloc(sizeof(Token));
          token->ty = TK_NUM;
@@ -358,6 +356,9 @@ Vector *tokenize(char *p) {
          if (*(p + 1) == '<') {
             token->ty = TK_LSHIFT;
             p += 2;
+         } else if (*(p+1) == '=') {
+            token->ty = TK_ISLESSEQ;
+            p += 2;
          } else {
             token->ty = *p;
             p++;
@@ -370,6 +371,9 @@ Vector *tokenize(char *p) {
          token->input = p;
          if (*(p + 1) == '>') {
             token->ty = TK_RSHIFT;
+            p += 2;
+         } else if (*(p+1) == '=') {
+            token->ty = TK_ISMOREEQ;
             p += 2;
          } else {
             token->ty = *p;
@@ -1151,6 +1155,19 @@ void gen(Node *node) {
          puts("setg al");
          puts("movzx rax, al");
          break;
+      case ND_ISMOREEQ:
+         puts("cmp rax, rdi");
+         puts("setge al");
+         puts("and al, 1");
+         // should be eax instead of rax?
+         puts("movzx rax, al");
+         break;
+      case ND_ISLESSEQ:
+         puts("cmp rax, rdi");
+         puts("setle al");
+         puts("and al, 1");
+         puts("movzx eax, al");
+         break;
       default:
          error("Error: no generations found.");
    }
@@ -1185,6 +1202,10 @@ Node *assign() {
       node = new_node(ND_ISEQ, node, assign());
    } else if (consume_node(TK_ISNOTEQ)) {
       node = new_node(ND_ISNOTEQ, node, assign());
+   } else if (consume_node(TK_ISLESSEQ)) {
+      node = new_node(ND_ISLESSEQ, node, assign());
+   } else if (consume_node(TK_ISMOREEQ)) {
+      node = new_node(ND_ISMOREEQ, node, assign());
    }
    return node;
 }

@@ -32,6 +32,8 @@ typedef enum {
    TK_STRING,
    TK_SPACE,
    TK_NEWLINE,
+   TK_ISLESSEQ,
+   TK_ISMOREEQ,
 } TokenConst;
 
 typedef enum {
@@ -52,6 +54,8 @@ typedef enum {
    ND_IDENT,
    ND_ISEQ,
    ND_ISNOTEQ,
+   ND_ISLESSEQ,
+   ND_ISMOREEQ,
    ND_FUNC,
    ND_FDEF,
    ND_RSHIFT,
