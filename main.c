@@ -356,7 +356,7 @@ Vector *tokenize(char *p) {
          if (*(p + 1) == '<') {
             token->ty = TK_LSHIFT;
             p += 2;
-         } else if (*(p+1) == '=') {
+         } else if (*(p + 1) == '=') {
             token->ty = TK_ISLESSEQ;
             p += 2;
          } else {
@@ -372,7 +372,7 @@ Vector *tokenize(char *p) {
          if (*(p + 1) == '>') {
             token->ty = TK_RSHIFT;
             p += 2;
-         } else if (*(p+1) == '=') {
+         } else if (*(p + 1) == '=') {
             token->ty = TK_ISMOREEQ;
             p += 2;
          } else {
@@ -532,6 +532,23 @@ Node *node_compare() {
          node = new_node('<', node, node_shift());
       } else if (consume_node('>')) {
          node = new_node('>', node, node_shift());
+      } else if (consume_node(TK_ISLESSEQ)) {
+         node = new_node(ND_ISLESSEQ, node, node_shift());
+      } else if (consume_node(TK_ISMOREEQ)) {
+         node = new_node(ND_ISMOREEQ, node, node_shift());
+      } else {
+         return node;
+      }
+   }
+}
+
+Node *node_iseq() {
+   Node *node = node_compare();
+   while (1) {
+      if (consume_node(TK_ISEQ)) {
+         node = new_node(ND_ISEQ, node, node_compare());
+      } else if (consume_node(TK_ISNOTEQ)) {
+         node = new_node(ND_ISNOTEQ, node, node_compare());
       } else {
          return node;
       }
@@ -539,10 +556,10 @@ Node *node_compare() {
 }
 
 Node *node_and() {
-   Node *node = node_compare();
+   Node *node = node_iseq();
    while (1) {
       if (consume_node('&')) {
-         node = new_node('&', node, node_compare());
+         node = new_node('&', node, node_iseq());
       } else {
          return node;
       }
@@ -899,7 +916,7 @@ void gen(Node *node) {
       for (int j = 0; j < node->argc; j++) {
          gen(node->args[j]);
       }
-      for (int j = node->argc-1; j>=0; j--) {
+      for (int j = node->argc - 1; j >= 0; j--) {
          // because of function call will break these registers
          printf("pop %s\n", registers[j]);
       }
@@ -1198,14 +1215,6 @@ Node *assign() {
       } else {
          node = new_node('=', node, assign());
       }
-   } else if (consume_node(TK_ISEQ)) {
-      node = new_node(ND_ISEQ, node, assign());
-   } else if (consume_node(TK_ISNOTEQ)) {
-      node = new_node(ND_ISNOTEQ, node, assign());
-   } else if (consume_node(TK_ISLESSEQ)) {
-      node = new_node(ND_ISLESSEQ, node, assign());
-   } else if (consume_node(TK_ISMOREEQ)) {
-      node = new_node(ND_ISMOREEQ, node, assign());
    }
    return node;
 }
