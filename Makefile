@@ -13,7 +13,7 @@ test:	test1 test2 test3 test4 \
    test5 test6 test7 test8 test9 \
    test10 test11 test19 test12 test13 test14\
    test15 test16 test17 test18 test20 test21\
-   test22 test23 test24
+   test22 test23
 
 test1:
 	sh test.sh '1;' 1
@@ -82,6 +82,8 @@ test10:
 	sh test.sh "{if(1){3;}else{4;}}" 3
 	sh test.sh "{if(0){3;}else{4;}}" 4
 	sh test.sh "int a;a=0;while(a<3){a+=1;} return a;" 3
+	sh test.sh "int a;a=0;do{a+=1;}while(a<3); return a;" 3
+	sh test.sh "int a=0;do{a+=1;}while(a<0); return a;" 1
 
 test11:
 	sh testfdef.sh "int main(){func()+2;} int func(){4;}" 6

@@ -411,6 +411,9 @@ Vector *tokenize(char *p) {
          if (strcmp(token->input, "else") == 0) {
             token->ty = TK_ELSE;
          }
+         if (strcmp(token->input, "do") == 0) {
+            token->ty = TK_DO;
+         }
          if (strcmp(token->input, "while") == 0) {
             token->ty = TK_WHILE;
          }
@@ -983,6 +986,17 @@ void gen(Node *node) {
       printf(".Lend%d:\n", cur_if_cnt);
       return;
    }
+   if (node->ty == ND_DOWHILE) {
+      int cur_if_cnt = for_while_cnt++;
+      printf(".Lbegin%d:\n", cur_if_cnt);
+      gen(node->rhs);
+      gen(node->lhs);
+      puts("pop rax");
+      puts("cmp rax, 0");
+      printf("jne .Lbegin%d\n", cur_if_cnt);
+      printf(".Lend%d:\n", cur_if_cnt);
+      return;
+   }
 
    if (node->ty == ND_FOR) {
       int cur_if_cnt = for_while_cnt++;
@@ -1384,6 +1398,16 @@ void program(Node *block_node) {
          args[0]->rhs = new_block_node(env);
          program(args[0]->rhs);
          args++;
+         continue;
+      }
+      if (consume_node(TK_DO)) {
+         args[0] = new_node(ND_DOWHILE, NULL, NULL);
+         args[0]->rhs = new_block_node(env);
+         program(args[0]->rhs);
+         expect_node(TK_WHILE);
+         args[0]->lhs = node_mathexpr();
+         args++;
+         expect_node(';');
          continue;
       }
       if (consume_node(TK_FOR)) {
