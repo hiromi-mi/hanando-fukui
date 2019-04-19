@@ -82,6 +82,7 @@ typedef enum {
    ND_STRING,
    ND_CONTINUE,
    ND_BREAK,
+   ND_NEG,
 } NodeType;
 
 typedef struct {

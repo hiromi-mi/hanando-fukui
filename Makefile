@@ -167,6 +167,7 @@ test23:
 
 test24:
 	sh test.sh "/* test */ 3;" 3
+	sh test.sh "-(-1);" 1
 
 
 clean:

@@ -224,7 +224,7 @@ Vector *tokenize(char *p) {
          // skip because of one-lined comment
          while (*p != '\0') {
             if (*p == '*' && *(p + 1) == '/') {
-               p+=2; // due to * and /
+               p += 2; // due to * and /
                break;
             }
             p++;
@@ -645,6 +645,10 @@ Node *node_mul() {
 }
 
 Node *node_term() {
+   if (consume_node('-')) {
+      Node *node = new_node(ND_NEG, node_mathexpr(), NULL);
+      return node;
+   }
    if (confirm_node(TK_NUM)) {
       Node *node = new_num_node(tokens->data[pos]->num_val);
       expect_node(TK_NUM);
@@ -864,11 +868,11 @@ void gen(Node *node) {
             break;
          }
          if (node->code[j]->ty == ND_BREAK) {
-            printf("jmp .Lend%d\n", for_while_cnt-1);
+            printf("jmp .Lend%d\n", for_while_cnt - 1);
             break;
          }
          if (node->code[j]->ty == ND_CONTINUE) {
-            printf("jmp .Lbegin%d\n", for_while_cnt-1);
+            printf("jmp .Lbegin%d\n", for_while_cnt - 1);
             break;
          }
          gen(node->code[j]);
@@ -1036,6 +1040,14 @@ void gen(Node *node) {
       puts("mov rax, [rax]");
       puts("push rax");
       puts("\n");
+      return;
+   }
+
+   if (node->ty == ND_NEG) {
+      gen(node->lhs);
+      puts("pop rax");
+      printf("neg %s\n", rax(node));
+      puts("push rax");
       return;
    }
 
