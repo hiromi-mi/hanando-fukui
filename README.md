@@ -8,9 +8,7 @@
 * global variable
 
 ## Should be Implemented for Self-Hosting
-* `char` and `long`
 * `NULL`
-* string `"abc"`
 * `switch` and `case`
 * `continue` and `break`
 * structure `struct`
@@ -18,3 +16,4 @@
 * preprocessor `#define` and `#include`
 * `enum`
 * cast
+* `int a, b=0`
