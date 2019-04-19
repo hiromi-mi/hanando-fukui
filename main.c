@@ -1318,11 +1318,20 @@ void program(Node *block_node) {
          args[0]->args[1] = NULL;
          // Suppress COndition
 
-         args[0]->lhs = new_block_node(env);
-         program(args[0]->lhs);
+         if (confirm_node(TK_BLOCKBEGIN)) {
+            args[0]->lhs = new_block_node(env);
+            program(args[0]->lhs);
+         } else {
+            // without block
+            args[0]->lhs = stmt();
+         }
          if (consume_node(TK_ELSE)) {
-            args[0]->rhs = new_block_node(env);
-            program(args[0]->rhs);
+            if (confirm_node(TK_BLOCKBEGIN)) {
+               args[0]->rhs = new_block_node(env);
+               program(args[0]->rhs);
+            } else {
+               args[0]->rhs = stmt();
+            }
          } else {
             args[0]->rhs = NULL;
          }
