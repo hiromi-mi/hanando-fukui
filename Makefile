@@ -13,7 +13,7 @@ test:	test1 test2 test3 test4 \
    test5 test6 test7 test8 test9 \
    test10 test11 test19 test12 test13 test14\
    test15 test16 test17 test18 test20 test21\
-   test22 test23
+   test22 test23 test24
 
 test1:
 	sh test.sh '1;' 1
@@ -164,6 +164,9 @@ test23:
 	sh test.sh "if (2 <= 1) 1; 7;" 7
 	sh test.sh "if (1 <= 2) 1;" 1
 	sh test.sh "NULL;" 0
+
+test24:
+	sh test.sh "/* test */ 3;" 3
 
 
 clean:

@@ -224,6 +224,7 @@ Vector *tokenize(char *p) {
          // skip because of one-lined comment
          while (*p != '\0') {
             if (*p == '*' && *(p + 1) == '/') {
+               p+=2; // due to * and /
                break;
             }
             p++;
