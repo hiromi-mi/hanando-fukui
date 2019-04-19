@@ -13,7 +13,7 @@ test:	test1 test2 test3 test4 \
    test5 test6 test7 test8 test9 \
    test10 test11 test19 test12 test13 test14\
    test15 test16 test17 test18 test20 test21\
-   test22 test23
+   test22 test23 test24
 
 test1:
 	sh test.sh '1;' 1
@@ -123,6 +123,8 @@ test15:
 
 test16:
 	sh test.sh "int i;int j=0;for(i=1;i<5;++i) { j+=i;} j;" 10
+	sh test.sh "int i;int j=0;for(i=1;i<5;++i) { break;} i;" 1
+	sh test.sh "int i;int j=0;for(i=1;i<5;++i) { j+=2;continue;} j;" 8
 	sh test.sh "(1==2 || 2==3);" 0
 	sh test.sh "(1==1);" 1
 	sh test.sh "(1==2);" 0

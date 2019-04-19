@@ -10,7 +10,6 @@
 ## Should be Implemented for Self-Hosting
 * `NULL`
 * `switch` and `case`
-* `continue` and `break`
 * structure `struct`
 * `va_args` `va_start`
 * preprocessor `#define` and `#include`

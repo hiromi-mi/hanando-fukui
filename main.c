@@ -77,6 +77,7 @@ Node *new_num_node(long num_val) {
 
 Env *env;
 int if_cnt = 0;
+int for_while_cnt = 0;
 
 Node *new_ident_node_with_new_variable(char *name, Type *type) {
    Node *node = malloc(sizeof(Node));
@@ -430,6 +431,12 @@ Vector *tokenize(char *p) {
          }
          if (strcmp(token->input, "typedef") == 0) {
             token->ty = TK_TYPEDEF;
+         }
+         if (strcmp(token->input, "break") == 0) {
+            token->ty = TK_BREAK;
+         }
+         if (strcmp(token->input, "continue") == 0) {
+            token->ty = TK_CONTINUE;
          }
 
          vec_push(pre_tokens, token);
@@ -843,6 +850,14 @@ void gen(Node *node) {
             puts("ret");
             break;
          }
+         if (node->code[j]->ty == ND_BREAK) {
+            printf("jmp .Lend%d\n", for_while_cnt-1);
+            break;
+         }
+         if (node->code[j]->ty == ND_CONTINUE) {
+            printf("jmp .Lbegin%d\n", for_while_cnt-1);
+            break;
+         }
          gen(node->code[j]);
       }
       env = prev_env;
@@ -932,12 +947,12 @@ void gen(Node *node) {
       gen(node->args[0]);
       puts("pop rax");
       puts("cmp rax, 0");
-      printf("je .Lend%d\n", if_cnt);
+      printf("je .Lendif%d\n", if_cnt);
       gen(node->lhs);
       if (node->rhs) {
          printf("jmp .Lelseend%d\n", if_cnt);
       }
-      printf(".Lend%d:\n", if_cnt);
+      printf(".Lendif%d:\n", if_cnt);
       if (node->rhs) {
          // There are else
          gen(node->rhs);
@@ -948,7 +963,7 @@ void gen(Node *node) {
    }
 
    if (node->ty == ND_WHILE) {
-      int cur_if_cnt = if_cnt++;
+      int cur_if_cnt = for_while_cnt++;
       printf(".Lbegin%d:\n", cur_if_cnt);
       gen(node->lhs);
       puts("pop rax");
@@ -961,11 +976,12 @@ void gen(Node *node) {
    }
 
    if (node->ty == ND_FOR) {
-      int cur_if_cnt = if_cnt++;
+      int cur_if_cnt = for_while_cnt++;
       gen(node->args[0]);
       printf("jmp .Lcondition%d\n", cur_if_cnt);
-      printf(".Lbegin%d:\n", cur_if_cnt);
+      printf(".Lbeginwork%d:\n", cur_if_cnt);
       gen(node->rhs);
+      printf(".Lbegin%d:\n", cur_if_cnt);
       gen(node->args[2]);
       printf(".Lcondition%d:\n", cur_if_cnt);
       gen(node->args[1]);
@@ -973,7 +989,8 @@ void gen(Node *node) {
       // condition
       puts("pop rax");
       puts("cmp rax, 0");
-      printf("jne .Lbegin%d\n", cur_if_cnt);
+      printf("jne .Lbeginwork%d\n", cur_if_cnt);
+      printf(".Lend%d:\n", cur_if_cnt);
       return;
    }
 
@@ -1296,6 +1313,12 @@ Node *stmt() {
       // TODO should fix
       node->name = tokens->data[pos]->input;
       expect_node(TK_IDENT);
+   } else if (consume_node(TK_BREAK)) {
+      node = new_node(ND_BREAK, NULL, NULL);
+      // FIXME GOTO is not statement, expr.
+   } else if (consume_node(TK_CONTINUE)) {
+      node = new_node(ND_CONTINUE, NULL, NULL);
+      // FIXME GOTO is not statement, expr.
    } else {
       node = assign();
    }

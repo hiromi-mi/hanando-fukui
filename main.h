@@ -34,6 +34,8 @@ typedef enum {
    TK_NEWLINE,
    TK_ISLESSEQ,
    TK_ISMOREEQ,
+   TK_BREAK,
+   TK_CONTINUE,
 } TokenConst;
 
 typedef enum {
@@ -75,6 +77,8 @@ typedef enum {
    ND_FPLUSPLUS,
    ND_FSUBSUB,
    ND_STRING,
+   ND_CONTINUE,
+   ND_BREAK,
 } NodeType;
 
 typedef struct {
