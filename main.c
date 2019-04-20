@@ -480,6 +480,7 @@ Node *node_xor();
 Node *node_shift();
 Node *node_add();
 Node *node_cast();
+Node *node_increment();
 Node *assign();
 
 Node *node_mathexpr_without_comma() { return node_lor(); }
@@ -612,6 +613,26 @@ Node *node_add() {
 }
 
 Node *node_cast() {
+   // reading cast stmt.
+   Node *node = NULL;
+   if (consume_node('(')) {
+      if (confirm_type()) {
+         Type *type = read_type(NULL);
+         expect_node(')');
+         node = new_node(ND_CAST, node_increment(), NULL);
+         node->type = type;
+         return node;
+      }
+      // because of consume_node'('
+      // dirty
+      pos--;
+   }
+
+   node = node_increment();
+   return node;
+}
+
+Node *node_increment() {
    if (consume_node(TK_PLUSPLUS)) {
       Node *node = new_ident_node(tokens->data[pos]->input);
       expect_node(TK_IDENT);
@@ -949,6 +970,11 @@ void gen(Node *node) {
       puts("setne al");
       puts("movzx rax, al");
       puts("push rax");
+      return;
+   }
+
+   if (node->ty == ND_CAST) {
+      gen(node->lhs);
       return;
    }
 
