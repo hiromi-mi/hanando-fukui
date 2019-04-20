@@ -318,7 +318,7 @@ Vector *tokenize(char *p) {
       if (*p == '+' || *p == '-' || *p == '*' || *p == '/' || *p == '(' ||
           *p == ')' || *p == ';' || *p == ',' || *p == '{' || *p == '}' ||
           *p == '%' || *p == '^' || *p == '|' || *p == '&' || *p == '?' ||
-          *p == ':' || *p == '[' || *p == ']' || *p == '#') {
+          *p == ':' || *p == '[' || *p == ']' || *p == '#' || *p == '.' ) {
          Token *token = malloc(sizeof(Token));
          token->ty = *p;
          token->input = p;
@@ -393,7 +393,7 @@ Vector *tokenize(char *p) {
          continue;
       }
 
-      if (('a' <= *p && *p <= 'z') || ('A' <= *p && *p <= 'Z')) {
+      if (('a' <= *p && *p <= 'z') || ('A' <= *p && *p <= 'Z') || *p == '_') {
          Token *token = malloc(sizeof(Token));
          token->ty = TK_IDENT;
          token->input = malloc(sizeof(char) * 256);
@@ -1655,8 +1655,10 @@ void preprocess(Vector *pre_tokens) {
             // j+=4;
          }
          if (strcmp(pre_tokens->data[j]->input, "include") == 0) {
-            // pre_tokens->data[j]->ty == TK_STRING
-            j++;
+            while (pre_tokens->data[j]->ty != TK_NEWLINE &&
+                  pre_tokens->data[j]->ty != TK_EOF) {
+               j++;
+            }
          }
          continue;
       }
