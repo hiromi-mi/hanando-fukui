@@ -220,13 +220,16 @@ int expect_node(TokenConst ty) {
 
 Vector *tokenize(char *p) {
    Vector *pre_tokens = new_vector();
+   int pline = 1; // LINE No.
    while (*p != '\0') {
       if (*p == '\n') {
          Token *token = malloc(sizeof(Token));
          token->ty = TK_NEWLINE;
          vec_push(pre_tokens, token);
-         while (*p == '\n' && *p != '\0')
+         while (*p == '\n' && *p != '\0') {
+            pline++;
             p++;
+         }
          continue;
       }
       if (*p == '/' && *(p + 1) == '/') {
@@ -242,6 +245,9 @@ Vector *tokenize(char *p) {
                break;
             }
             p++;
+            if (*p == '\n') {
+               pline++;
+            }
          }
       }
       if (isspace(*p)) {
@@ -476,6 +482,10 @@ Vector *tokenize(char *p) {
          }
          if (strcmp(token->input, "enum") == 0) {
             token->ty = TK_ENUM;
+         }
+         if (strcmp(token->input, "__LINE__") == 0) {
+            token->ty = TK_NUM;
+            token->num_val = pline;
          }
 
          vec_push(pre_tokens, token);
@@ -1314,11 +1324,9 @@ void gen(Node *node) {
          break;
       case '+':
          printf("add %s, %s\n", rax(node), rdi(node));
-         // puts("add rax, rdi");
          break;
       case '-':
          printf("sub %s, %s\n", rax(node), rdi(node));
-         // puts("sub rax, rdi");
          break;
       case '*':
          puts("mul rdi");
@@ -1334,13 +1342,16 @@ void gen(Node *node) {
          puts("mov rax, rdx");
          break;
       case '^':
-         puts("xor rax, rdi");
+         printf("xor %s, %s\n", rax(node), rdi(node));
+         //puts("xor rax, rdi");
          break;
       case '&':
-         puts("and rax, rdi");
+         printf("and %s, %s\n", rax(node), rdi(node));
+         //puts("and rax, rdi");
          break;
       case '|':
-         puts("or rax, rdi");
+         printf("or %s, %s\n", rax(node), rdi(node));
+         //puts("or rax, rdi");
          break;
       case ND_RSHIFT:
          // FIXME: for signed int (Arthmetric)
@@ -1686,6 +1697,16 @@ void toplevel() {
          fprintf(stderr, "#define new struct: %s\n", name);
          map_put(typedb, name, structuretype);
          continue;
+      }
+
+      if (consume_node(TK_ENUM)) {
+         consume_node(TK_IDENT); // for ease
+         expect_node('{');
+         char *name = expect_ident();
+         Type *structuretype = malloc(sizeof(Type));
+         expect_node(';');
+         fprintf(stderr, "#define new enum: %s\n", name);
+         map_put(typedb, name, structuretype);
       }
 
       if (confirm_type()) {

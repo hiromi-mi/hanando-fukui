@@ -178,6 +178,7 @@ test26:
 	sh test.sh "switch(3){case 4: return 5; case 8: return 7; }" 5
 	sh test.sh "-1;" 255
 	sh test.sh "+1;" 1
+	sh test.sh '__LINE__;' 1
 
 test27:
 	sh testfdef.sh "typedef struct { int a;int c;} Type; int main(){Type b;b.a = 2;b.c=4;b.c;}" 4
