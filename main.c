@@ -318,7 +318,7 @@ Vector *tokenize(char *p) {
       if (*p == '+' || *p == '-' || *p == '*' || *p == '/' || *p == '(' ||
           *p == ')' || *p == ';' || *p == ',' || *p == '{' || *p == '}' ||
           *p == '%' || *p == '^' || *p == '|' || *p == '&' || *p == '?' ||
-          *p == ':' || *p == '[' || *p == ']' || *p == '#' || *p == '.' ) {
+          *p == ':' || *p == '[' || *p == ']' || *p == '#' || *p == '.') {
          Token *token = malloc(sizeof(Token));
          token->ty = *p;
          token->input = p;
@@ -682,7 +682,11 @@ Node *node_mul() {
 
 Node *node_term() {
    if (consume_node('-')) {
-      Node *node = new_node(ND_NEG, node_mathexpr(), NULL);
+      Node *node = new_node(ND_NEG, node_term(), NULL);
+      return node;
+   }
+   if (consume_node('+')) {
+      Node *node = node_term();
       return node;
    }
    if (confirm_node(TK_NUM)) {
@@ -896,10 +900,10 @@ void gen(Node *node) {
       // find CASE Labels and lookup into args[0]->code
       for (int j = 0; node->rhs->code[j] != NULL; j++) {
          if (node->rhs->code[j]->ty == ND_CASE) {
-            char* input = malloc(sizeof(char)*256);
+            char *input = malloc(sizeof(char) * 256);
             snprintf(input, 255, ".L%dC%d", cur_if_cnt, j);
             node->rhs->code[j]->name = input; // assign unique ID
-            gen(node->rhs->code[j]->lhs); //find statement
+            gen(node->rhs->code[j]->lhs);     // find statement
             puts("pop rax");
             printf("cmp r10, rax\n");
             printf("je %s\n", input);
@@ -1712,7 +1716,7 @@ void preprocess(Vector *pre_tokens) {
          }
          if (strcmp(pre_tokens->data[j]->input, "include") == 0) {
             while (pre_tokens->data[j]->ty != TK_NEWLINE &&
-                  pre_tokens->data[j]->ty != TK_EOF) {
+                   pre_tokens->data[j]->ty != TK_EOF) {
                j++;
             }
          }

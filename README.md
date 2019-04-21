@@ -12,5 +12,4 @@
 * `va_args` `va_start`
 * preprocessor `#define` and `#include`
 * `enum`
-* cast
 * `int a, b=0`
