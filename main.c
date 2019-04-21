@@ -25,6 +25,7 @@ Vector *strs;
 
 int type2size(Type *type);
 Type *read_type(char **input);
+Type *read_fundamental_type();
 int confirm_type();
 int confirm_ident();
 int split_type_ident();
@@ -454,6 +455,9 @@ Vector *tokenize(char *p) {
          }
          if (strcmp(token->input, "case") == 0) {
             token->ty = TK_CASE;
+         }
+         if (strcmp(token->input, "enum") == 0) {
+            token->ty = TK_ENUM;
          }
 
          vec_push(pre_tokens, token);
@@ -1355,37 +1359,19 @@ Node *assign() {
 }
 
 Type *read_type(char **input) {
-   if (!confirm_type()) {
+   Type *type = read_fundamental_type();
+   if (!type) {
       error("Error: NOT a type when reading type.");
       return NULL;
    }
-
-   Type *type = malloc(sizeof(Type));
    // Variable Definition.
-   int typekind = 10;
-   split_type_ident();
-   if (strcmp(tokens->data[pos]->input, "int") == 0) {
-      typekind = TY_INT;
-   } else if (strcmp(tokens->data[pos]->input, "char") == 0) {
-      typekind = TY_CHAR;
-   } else if (strcmp(tokens->data[pos]->input, "long") == 0) {
-      typekind = TY_LONG;
-   }
-   type->ty = typekind;
-   type->ptrof = NULL;
-   // if there are type def.
-   // skip this name.
-   pos++;
-   Type *rectype = type;
    // consume is pointer or not
    while (consume_node('*')) {
       puts("# new use pointer\n");
-      Type *old_rectype = rectype;
-      rectype = malloc(sizeof(Type));
-      rectype->ty = typekind;
-      rectype->ptrof = NULL;
-      old_rectype->ty = TY_PTR;
-      old_rectype->ptrof = rectype;
+      Type *old_type = type;
+      type = malloc(sizeof(Type));
+      type->ty = TY_PTR;
+      type->ptrof = old_type;
    }
    // There are input: there are ident names
    if (input != NULL) {
@@ -1401,12 +1387,11 @@ Type *read_type(char **input) {
       type->ty = TY_ARRAY;
       // TODO: support NOT functioned type
       // ex. int a[4+7];
+      Type *old_type = type;
+      type = malloc(sizeof(Type));
+      type->ty = TY_ARRAY;
       type->array_size = (int)tokens->data[pos]->num_val;
-      Type *rectype;
-      rectype = malloc(sizeof(Type));
-      rectype->ty = typekind;
-      rectype->ptrof = NULL;
-      type->ptrof = rectype;
+      type->ptrof = old_type;
       expect_node(TK_NUM);
       expect_node(']');
    }
@@ -1545,28 +1530,42 @@ void program(Node *block_node) {
 }
 
 // 0: neither 1:TK_TYPE 2:TK_IDENT
+
+Type *read_fundamental_type() {
+   Token *token = tokens->data[pos];
+   if (token->ty != TK_IDENT) {
+      return NULL;
+   }
+   for (int j = 0; j < typedb->keys->len; j++) {
+      // for struct
+      if (strcmp(token->input, typedb->keys->data[j]) == 0) {
+         pos++;
+         // copy type
+         Type *type = malloc(sizeof(Type));
+         Type *old_type = (Type *)typedb->vals->data[j];
+         // copy all
+         type->ty = old_type->ty;
+         type->structure = old_type->structure;
+         type->array_size = old_type->array_size;
+         type->ptrof = old_type->ptrof;
+         return type;
+      }
+   }
+   return NULL;
+}
+
 int split_type_ident() {
    Token *token = tokens->data[pos];
    if (token->ty != TK_IDENT) {
       return 0;
    }
-   // ident or type
-   if (strcmp(token->input, "int") == 0) {
-      return TY_INT;
-   }
-   if (strcmp(token->input, "char") == 0) {
-      return TY_CHAR;
-   }
-   if (strcmp(token->input, "long") == 0) {
-      return TY_LONG;
-   }
    for (int j = 0; j < typedb->keys->len; j++) {
       // for struct
       if (strcmp(token->input, typedb->keys->data[j]) == 0) {
-         return TY_STRUCT;
+         return typedb->vals->data[j]->ty;
       }
    }
-   return 2;
+   return 2; // IDENT
 }
 
 int confirm_type() {
@@ -1620,6 +1619,7 @@ void toplevel() {
          map_put(typedb, name, structuretype);
          continue;
       }
+
       if (confirm_type()) {
          char *name = NULL;
          Type *type = read_type(&name);
@@ -1752,6 +1752,24 @@ void preprocess(Vector *pre_tokens) {
    vec_push(tokens, token);
 }
 
+void init_typedb() {
+   typedb = new_map();
+   Type *typeint = malloc(sizeof(Type));
+   typeint->ty = TY_INT;
+   typeint->ptrof = NULL;
+   map_put(typedb, "int", typeint);
+
+   Type *typechar = malloc(sizeof(Type));
+   typechar->ty = TY_CHAR;
+   typechar->ptrof = NULL;
+   map_put(typedb, "char", typechar);
+
+   Type *typelong = malloc(sizeof(Type));
+   typelong->ty = TY_LONG;
+   typelong->ptrof = NULL;
+   map_put(typedb, "long", typelong);
+}
+
 int main(int argc, char **argv) {
    if (argc < 2) {
       error("Incorrect Arguments");
@@ -1782,7 +1800,7 @@ int main(int argc, char **argv) {
    // Vector *vec = new_vector();
    // vec_push(vec, 9);
    // assert(1 == vec->len);
-   typedb = new_map();
+   init_typedb();
 
    toplevel();
 

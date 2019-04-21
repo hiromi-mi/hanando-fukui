@@ -40,6 +40,7 @@ typedef enum {
    TK_NULL,
    TK_SWITCH,
    TK_CASE,
+   TK_ENUM,
 } TokenConst;
 
 typedef enum {
