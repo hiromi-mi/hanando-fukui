@@ -41,6 +41,7 @@ typedef enum {
    TK_SWITCH,
    TK_CASE,
    TK_ENUM,
+   TK_ARROW,
 } TokenConst;
 
 typedef enum {

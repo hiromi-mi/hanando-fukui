@@ -179,6 +179,10 @@ test26:
 	sh test.sh "-1;" 255
 	sh test.sh "+1;" 1
 
+test27:
+	sh testfdef.sh "typedef struct { int a;int c;} Type; int main(){Type b;b.a = 2;b.c=4;b.c;}" 4
+	sh testfdef.sh "typedef struct { int a;int c;} Type; int main(){Type b;b.a = 2;b.c=4;b.a;}" 2
+
 
 clean:
 	$(RM) -f $(target) $(objects)

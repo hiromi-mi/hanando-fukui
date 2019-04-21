@@ -105,8 +105,7 @@ Node *new_ident_node_with_new_variable(char *name, Type *type) {
          env->rsp_offset += 8 * type->array_size;
          break;
       case TY_STRUCT:
-         error("Struct is not supported");
-         exit(1);
+         env->rsp_offset += type->offset;
          break;
    }
    type->offset = env->rsp_offset;
@@ -314,6 +313,15 @@ Vector *tokenize(char *p) {
       if ((*p == '&' && *(p + 1) == '&')) {
          Token *token = malloc(sizeof(Token));
          token->ty = TK_AND;
+         token->input = p;
+         vec_push(pre_tokens, token);
+         p += 2;
+         continue;
+      }
+
+      if ((*p == '-' && *(p + 1) == '>')) {
+         Token *token = malloc(sizeof(Token));
+         token->ty = TK_ARROW;
          token->input = p;
          vec_push(pre_tokens, token);
          p += 2;
@@ -688,6 +696,37 @@ Node *node_mul() {
    }
 }
 
+Node *read_complex_ident() {
+   char *input = tokens->data[pos]->input;
+   Node* node = new_ident_node(input);
+   expect_node(TK_IDENT);
+
+   while(1) {
+      if (consume_node('[')) {
+         node = new_node(ND_DEREF,
+               new_node('+', node, node_mathexpr()),
+               NULL);
+         expect_node(']');
+      } else if (consume_node('.')) {
+         if (node->type->ty != TY_STRUCT) {
+            error("Error: dot operator to NOT struct");
+            exit(1);
+         }
+         node = new_node('.', node, NULL);
+         node->name = tokens->data[pos]->input;
+         node->type = (Type*)map_get(node->lhs->type->structure, node->name);
+         if (!node->type) {
+            error("Error: structure not found.");
+            exit(1);
+         }
+         expect_node(TK_IDENT);
+      } else {
+         return node;
+      }
+
+   }
+}
+
 Node *node_term() {
    if (consume_node('-')) {
       Node *node = new_node(ND_NEG, node_term(), NULL);
@@ -724,25 +763,16 @@ Node *node_term() {
          }
          assert(node->argc <= 6);
          // pos++ because of consume_node(')')
-         // array
-      } else if (tokens->data[pos + 1]->ty == '[') {
-         char *input = tokens->data[pos]->input;
-         expect_node(TK_IDENT);
-         expect_node('[');
-         node = new_node(ND_DEREF,
-                         new_node('+', new_ident_node(input), node_mathexpr()),
-                         NULL);
-         expect_node(']');
-      } else {
-         // Just an ident
-         node = new_ident_node(tokens->data[pos]->input);
-         expect_node(TK_IDENT);
-         if (consume_node(TK_PLUSPLUS)) {
-            node = new_node(ND_FPLUSPLUS, node, NULL);
-         } else if (consume_node(TK_SUBSUB)) {
-            node = new_node(ND_FSUBSUB, node, NULL);
-         }
+         return node;
       }
+
+      node = read_complex_ident();
+      if (consume_node(TK_PLUSPLUS)) {
+         node = new_node(ND_FPLUSPLUS, node, NULL);
+      } else if (consume_node(TK_SUBSUB)) {
+         node = new_node(ND_FSUBSUB, node, NULL);
+      }
+      // array
       return node;
    }
    if (confirm_node(TK_STRING)) {
@@ -837,6 +867,14 @@ void gen_lval(Node *node) {
    }
    if (node->ty == ND_DEREF) {
       gen(node->lhs);
+      return;
+   }
+   if (node->ty == '.') {
+      gen_lval(node->lhs);
+      puts("pop rax");
+      //puts("mov rax, rbp");
+      printf("add rax, %d\n", node->type->offset);
+      puts("push rax");
       return;
    }
 
@@ -1108,7 +1146,7 @@ void gen(Node *node) {
       return;
    }
 
-   if (node->ty == ND_IDENT) {
+   if (node->ty == ND_IDENT || node->ty == '.') {
       gen_lval(node);
       if (node->type->ty != TY_ARRAY) {
          // deref
@@ -1548,6 +1586,7 @@ Type *read_fundamental_type() {
          type->structure = old_type->structure;
          type->array_size = old_type->array_size;
          type->ptrof = old_type->ptrof;
+         type->offset = old_type->offset;
          return type;
       }
    }
@@ -1607,12 +1646,16 @@ void toplevel() {
          structuretype->structure = new_map();
          structuretype->ty = TY_STRUCT;
          structuretype->ptrof = NULL;
+         int offset = 0;
          while (!consume_node('}')) {
             char *name = NULL;
             Type *type = read_type(&name);
+            offset += type2size(type);
+            type->offset = offset;
             expect_node(';');
             map_put(structuretype->structure, name, type);
          }
+         structuretype->offset = offset;
          char *name = expect_ident();
          expect_node(';');
          fprintf(stderr, "#define new struct: %s\n", name);
