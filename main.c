@@ -445,6 +445,12 @@ Vector *tokenize(char *p) {
          if (strcmp(token->input, "NULL") == 0) {
             token->ty = TK_NULL;
          }
+         if (strcmp(token->input, "switch") == 0) {
+            token->ty = TK_SWITCH;
+         }
+         if (strcmp(token->input, "case") == 0) {
+            token->ty = TK_CASE;
+         }
 
          vec_push(pre_tokens, token);
          continue;
@@ -883,6 +889,39 @@ void gen(Node *node) {
       return;
    }
 
+   if (node->ty == ND_SWITCH) {
+      int cur_if_cnt = for_while_cnt++;
+      gen(node->lhs);
+      puts("pop r10");
+      // find CASE Labels and lookup into args[0]->code
+      for (int j = 0; node->rhs->code[j] != NULL; j++) {
+         if (node->rhs->code[j]->ty == ND_CASE) {
+            char* input = malloc(sizeof(char)*256);
+            snprintf(input, 255, ".L%dC%d", cur_if_cnt, j);
+            node->rhs->code[j]->name = input; // assign unique ID
+            gen(node->rhs->code[j]->lhs); //find statement
+            puts("pop rax");
+            printf("cmp r10, rax\n");
+            printf("je %s\n", input);
+         }
+      }
+      // content
+      gen(node->rhs);
+      printf(".Lend%d:\n", cur_if_cnt);
+      return;
+   }
+
+   if (node->ty == ND_CASE) {
+      // just an def. of goto
+      // saved with input
+      if (!node->name) {
+         error("Error: case statement without switch\n");
+         exit(1);
+      }
+      printf("%s:\n", node->name);
+      return;
+   }
+
    if (node->ty == ND_BLOCK) {
       Env *prev_env = env;
       env = node->env;
@@ -895,15 +934,15 @@ void gen(Node *node) {
             puts("mov rsp, rbp");
             puts("pop rbp");
             puts("ret");
-            break;
+            continue;
          }
          if (node->code[j]->ty == ND_BREAK) {
             printf("jmp .Lend%d\n", for_while_cnt - 1);
-            break;
+            continue;
          }
          if (node->code[j]->ty == ND_CONTINUE) {
             printf("jmp .Lbegin%d\n", for_while_cnt - 1);
-            break;
+            continue;
          }
          gen(node->code[j]);
       }
@@ -1464,6 +1503,23 @@ void program(Node *block_node) {
          args[0]->args[1] = assign();
          expect_node(';');
          args[0]->args[2] = assign();
+         expect_node(')');
+         args[0]->rhs = new_block_node(env);
+         program(args[0]->rhs);
+         args++;
+         continue;
+      }
+
+      if (consume_node(TK_CASE)) {
+         args[0] = new_node(ND_CASE, node_term(), NULL);
+         expect_node(':');
+         args++;
+         continue;
+      }
+
+      if (consume_node(TK_SWITCH)) {
+         expect_node('(');
+         args[0] = new_node(ND_SWITCH, node_mathexpr(), NULL);
          expect_node(')');
          args[0]->rhs = new_block_node(env);
          program(args[0]->rhs);

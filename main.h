@@ -38,6 +38,8 @@ typedef enum {
    TK_BREAK,
    TK_CONTINUE,
    TK_NULL,
+   TK_SWITCH,
+   TK_CASE,
 } TokenConst;
 
 typedef enum {
@@ -84,6 +86,8 @@ typedef enum {
    ND_BREAK,
    ND_NEG,
    ND_CAST,
+   ND_SWITCH,
+   ND_CASE,
 } NodeType;
 
 typedef struct {
