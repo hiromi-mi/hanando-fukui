@@ -80,6 +80,16 @@ Node *new_num_node(long num_val) {
    return node;
 }
 
+Node *new_deref_node(Node* lhs) {
+   Node *node = new_node(ND_DEREF, lhs, NULL);
+   node->type = node->lhs->type->ptrof;
+   if (!node->type) {
+      error("Error: Dereference on NOT pointered.");
+      exit(1);
+   }
+   return node;
+}
+
 Env *env;
 int if_cnt = 0;
 int for_while_cnt = 0;
@@ -666,7 +676,7 @@ Node *node_increment() {
    } else if (consume_node('&')) {
       return new_node(ND_ADDRESS, node_mathexpr(), NULL);
    } else if (consume_node('*')) {
-      return new_node(ND_DEREF, node_mathexpr(), NULL);
+      return new_deref_node(node_mathexpr());
    } else if (consume_node(TK_SIZEOF)) {
       if (consume_node('(') && confirm_type()) {
          // sizeof(int) read type without name
@@ -696,6 +706,18 @@ Node *node_mul() {
    }
 }
 
+Node *new_dot_node(Node* node) {
+   node = new_node('.', node, NULL);
+   node->name = tokens->data[pos]->input;
+   node->type = (Type*)map_get(node->lhs->type->structure, node->name);
+   if (!node->type) {
+      error("Error: structure not found.");
+      exit(1);
+   }
+   expect_node(TK_IDENT);
+   return node;
+}
+
 Node *read_complex_ident() {
    char *input = tokens->data[pos]->input;
    Node* node = new_ident_node(input);
@@ -703,15 +725,15 @@ Node *read_complex_ident() {
 
    while(1) {
       if (consume_node('[')) {
-         node = new_node(ND_DEREF,
-               new_node('+', node, node_mathexpr()),
-               NULL);
+         node = new_deref_node(new_node('+', node, node_mathexpr()));
          expect_node(']');
       } else if (consume_node('.')) {
          if (node->type->ty != TY_STRUCT) {
             error("Error: dot operator to NOT struct");
             exit(1);
          }
+         node = new_dot_node(node);
+         /*
          node = new_node('.', node, NULL);
          node->name = tokens->data[pos]->input;
          node->type = (Type*)map_get(node->lhs->type->structure, node->name);
@@ -720,6 +742,9 @@ Node *read_complex_ident() {
             exit(1);
          }
          expect_node(TK_IDENT);
+         */
+      } else if (consume_node(TK_ARROW)) {
+         node = new_dot_node(new_deref_node(node));
       } else {
          return node;
       }
