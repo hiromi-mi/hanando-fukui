@@ -32,7 +32,11 @@ int split_type_ident();
 Map *typedb;
 
 void error(const char *str) {
-   fprintf(stderr, "%s on %d: %s\n", str, pos, tokens->data[pos]->input);
+   if (tokens) {
+      fprintf(stderr, "%s on %d: %s\n", str, pos, tokens->data[pos]->input);
+   } else {
+      fprintf(stderr, "%s\n", str);
+   }
    exit(1);
 }
 
