@@ -1705,9 +1705,15 @@ void toplevel() {
             int cnt = 0;
             while (!consume_node('}')) {
                char *itemname = expect_ident();
+               Node *itemnode = NULL;
+               if (consume_node('=')) {
+                  itemnode = new_num_node(tokens->data[pos]->num_val);
+                  expect_node(TK_NUM);
+               } else {
+                  itemnode = new_num_node(cnt);
+               }
                consume_node(','); // TODO for ease
                cnt++;
-               Node *itemnode = new_num_node(cnt);
                map_put(consts, itemname, itemnode);
             }
             char *name = expect_ident();
@@ -1834,6 +1840,20 @@ void preprocess(Vector *pre_tokens) {
       if (pre_tokens->data[j]->ty == '#') {
          // preprocessor begin
          j++;
+         if (strcmp(pre_tokens->data[j]->input, "ifndef") == 0) {
+            while (pre_tokens->data[j]->ty != TK_NEWLINE &&
+                   pre_tokens->data[j]->ty != TK_EOF) {
+               j++;
+            }
+            continue;
+         }
+         if (strcmp(pre_tokens->data[j]->input, "endif") == 0) {
+            while (pre_tokens->data[j]->ty != TK_NEWLINE &&
+                   pre_tokens->data[j]->ty != TK_EOF) {
+               j++;
+            }
+            continue;
+         }
          if (strcmp(pre_tokens->data[j]->input, "define") == 0) {
             map_put(defined, pre_tokens->data[j + 2]->input,
                     pre_tokens->data[j + 4]);
@@ -1842,11 +1862,6 @@ void preprocess(Vector *pre_tokens) {
                j++;
             }
             continue;
-            /*
-            Token* last_token = pre_tokens->data[j-1];
-            last_token
-            */
-            // j+=4;
          }
          if (strcmp(pre_tokens->data[j]->input, "include") == 0) {
             if (pre_tokens->data[j+2]->ty == TK_STRING) {

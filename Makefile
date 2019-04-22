@@ -187,8 +187,8 @@ test27:
 	sh testfdef.sh "typedef struct { int a;int c;} Type; int main(){Type b;Type* e; e=&b;e->a = 2;e->c=4;b.a;}" 2
 
 test28:
-	sh testfdef.sh "typedef enum {TY_INT, TY_CHAR} TypeConst; int main(){TY_CHAR;}" 2
-	sh testfdef.sh "typedef enum {TY_INT, TY_CHAR} TypeConst; int main(){TY_INT;}" 1
+	sh testfdef.sh "typedef enum {TY_INT, TY_CHAR} TypeConst; int main(){TY_CHAR;}" 1
+	sh testfdef.sh "typedef enum {TY_INT, TY_CHAR} TypeConst; int main(){TY_INT;}" 0
 
 
 clean:
