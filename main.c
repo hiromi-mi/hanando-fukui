@@ -30,6 +30,7 @@ Type *read_fundamental_type();
 int confirm_type();
 int confirm_ident();
 int split_type_ident();
+Vector *read_tokenize(char *fname);
 
 Map *typedb;
 
@@ -81,7 +82,7 @@ Node *new_num_node(long num_val) {
    return node;
 }
 
-Node *new_deref_node(Node* lhs) {
+Node *new_deref_node(Node *lhs) {
    Node *node = new_node(ND_DEREF, lhs, NULL);
    node->type = node->lhs->type->ptrof;
    if (!node->type) {
@@ -725,10 +726,10 @@ Node *node_mul() {
    }
 }
 
-Node *new_dot_node(Node* node) {
+Node *new_dot_node(Node *node) {
    node = new_node('.', node, NULL);
    node->name = tokens->data[pos]->input;
-   node->type = (Type*)map_get(node->lhs->type->structure, node->name);
+   node->type = (Type *)map_get(node->lhs->type->structure, node->name);
    if (!node->type) {
       error("Error: structure not found.");
       exit(1);
@@ -739,7 +740,7 @@ Node *new_dot_node(Node* node) {
 
 Node *read_complex_ident() {
    char *input = tokens->data[pos]->input;
-   Node* node = NULL;
+   Node *node = NULL;
    for (int j = 0; j <= consts->keys->len - 1; j++) {
       // support for constant
       if (strcmp(consts->keys->data[j], input) == 0) {
@@ -751,7 +752,7 @@ Node *read_complex_ident() {
    node = new_ident_node(input);
    expect_node(TK_IDENT);
 
-   while(1) {
+   while (1) {
       if (consume_node('[')) {
          node = new_deref_node(new_node('+', node, node_mathexpr()));
          expect_node(']');
@@ -776,7 +777,6 @@ Node *read_complex_ident() {
       } else {
          return node;
       }
-
    }
 }
 
@@ -925,7 +925,7 @@ void gen_lval(Node *node) {
    if (node->ty == '.') {
       gen_lval(node->lhs);
       puts("pop rax");
-      //puts("mov rax, rbp");
+      // puts("mov rax, rbp");
       printf("add rax, %d\n", node->type->offset);
       puts("push rax");
       return;
@@ -1361,15 +1361,15 @@ void gen(Node *node) {
          break;
       case '^':
          printf("xor %s, %s\n", rax(node), rdi(node));
-         //puts("xor rax, rdi");
+         // puts("xor rax, rdi");
          break;
       case '&':
          printf("and %s, %s\n", rax(node), rdi(node));
-         //puts("and rax, rdi");
+         // puts("and rax, rdi");
          break;
       case '|':
          printf("or %s, %s\n", rax(node), rdi(node));
-         //puts("or rax, rdi");
+         // puts("or rax, rdi");
          break;
       case ND_RSHIFT:
          // FIXME: for signed int (Arthmetric)
@@ -1699,7 +1699,7 @@ void toplevel() {
             // ENUM def.
             consume_node(TK_IDENT); // for ease
             expect_node('{');
-            Type* enumtype = malloc(sizeof(Type));
+            Type *enumtype = malloc(sizeof(Type));
             enumtype->ty = TY_INT;
             enumtype->offset = 4;
             int cnt = 0;
@@ -1865,23 +1865,8 @@ void preprocess(Vector *pre_tokens) {
             continue;
          }
          if (strcmp(pre_tokens->data[j]->input, "include") == 0) {
-            if (pre_tokens->data[j+2]->ty == TK_STRING) {
-               // local include.
-      FILE *fp;
-      fp = fopen(pre_tokens->data[j+2]->input, "r");
-      if (fp == NULL) {
-         fprintf(stderr, "No file found: %s\n", pre_tokens->data[j+2]->input);
-         exit(1);
-      }
-      fseek(fp, 0, SEEK_END);
-      long length = ftell(fp);
-      fseek(fp, 0, SEEK_SET);
-      char *buf = malloc(sizeof(char) * (length + 5));
-      fread(buf, length + 5, sizeof(char), fp);
-      // fgets(buf, length+5, fp);
-      fclose(fp);
-               Vector* include_tokens = tokenize(buf);
-               preprocess(include_tokens);
+            if (pre_tokens->data[j + 2]->ty == TK_STRING) {
+               preprocess(read_tokenize(pre_tokens->data[j + 2]->input));
             }
             while (pre_tokens->data[j]->ty != TK_NEWLINE &&
                    pre_tokens->data[j]->ty != TK_EOF) {
@@ -1929,6 +1914,23 @@ void init_typedb() {
    map_put(typedb, "long", typelong);
 }
 
+Vector *read_tokenize(char *fname) {
+   FILE *fp;
+   fp = fopen(fname, "r");
+   if (fp == NULL) {
+      fprintf(stderr, "No file found: %s\n", fname);
+      exit(1);
+   }
+   fseek(fp, 0, SEEK_END);
+   long length = ftell(fp);
+   fseek(fp, 0, SEEK_SET);
+   char *buf = malloc(sizeof(char) * (length + 5));
+   fread(buf, length + 5, sizeof(char), fp);
+   // fgets(buf, length+5, fp);
+   fclose(fp);
+   return tokenize(buf);
+}
+
 int main(int argc, char **argv) {
    if (argc < 2) {
       error("Incorrect Arguments");
@@ -1937,20 +1939,7 @@ int main(int argc, char **argv) {
 
    tokens = new_vector();
    if (strcmp(argv[1], "-f") == 0) {
-      FILE *fp;
-      fp = fopen(argv[2], "r");
-      if (fp == NULL) {
-         fprintf(stderr, "No file found: %s\n", argv[2]);
-         exit(1);
-      }
-      fseek(fp, 0, SEEK_END);
-      long length = ftell(fp);
-      fseek(fp, 0, SEEK_SET);
-      char *buf = malloc(sizeof(char) * (length + 5));
-      fread(buf, length + 5, sizeof(char), fp);
-      // fgets(buf, length+5, fp);
-      fclose(fp);
-      preprocess(tokenize(buf));
+      preprocess(read_tokenize(argv[2]));
    } else {
       preprocess(tokenize(argv[1]));
    }
