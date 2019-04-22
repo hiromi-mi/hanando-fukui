@@ -1821,7 +1821,6 @@ void globalvar_gen() {
 }
 
 void preprocess(Vector *pre_tokens) {
-   tokens = new_vector();
    Map *defined = new_map();
    for (int j = 0; j <= pre_tokens->len - 1; j++) {
       if (pre_tokens->data[j]->ty == '#') {
@@ -1834,6 +1833,7 @@ void preprocess(Vector *pre_tokens) {
                    pre_tokens->data[j]->ty != TK_EOF) {
                j++;
             }
+            continue;
             /*
             Token* last_token = pre_tokens->data[j-1];
             last_token
@@ -1841,6 +1841,24 @@ void preprocess(Vector *pre_tokens) {
             // j+=4;
          }
          if (strcmp(pre_tokens->data[j]->input, "include") == 0) {
+            if (pre_tokens->data[j+2]->ty == TK_STRING) {
+               // local include.
+      FILE *fp;
+      fp = fopen(pre_tokens->data[j+2]->input, "r");
+      if (fp == NULL) {
+         fprintf(stderr, "No file found: %s\n", pre_tokens->data[j+2]->input);
+         exit(1);
+      }
+      fseek(fp, 0, SEEK_END);
+      long length = ftell(fp);
+      fseek(fp, 0, SEEK_SET);
+      char *buf = malloc(sizeof(char) * (length + 5));
+      fread(buf, length + 5, sizeof(char), fp);
+      // fgets(buf, length+5, fp);
+      fclose(fp);
+               Vector* include_tokens = tokenize(buf);
+               preprocess(include_tokens);
+            }
             while (pre_tokens->data[j]->ty != TK_NEWLINE &&
                    pre_tokens->data[j]->ty != TK_EOF) {
                j++;
@@ -1867,11 +1885,6 @@ void preprocess(Vector *pre_tokens) {
          vec_push(tokens, pre_tokens->data[j]);
       }
    }
-   Token *token = malloc(sizeof(Token));
-   token->ty = TK_EOF;
-   token->input = "";
-   vec_push(pre_tokens, token);
-   vec_push(tokens, token);
 }
 
 void init_typedb() {
@@ -1898,11 +1911,12 @@ int main(int argc, char **argv) {
       exit(1);
    }
 
+   tokens = new_vector();
    if (strcmp(argv[1], "-f") == 0) {
       FILE *fp;
       fp = fopen(argv[2], "r");
       if (fp == NULL) {
-         fprintf(stderr, "No file found.");
+         fprintf(stderr, "No file found: %s\n", argv[2]);
          exit(1);
       }
       fseek(fp, 0, SEEK_END);
@@ -1916,6 +1930,10 @@ int main(int argc, char **argv) {
    } else {
       preprocess(tokenize(argv[1]));
    }
+   Token *token = malloc(sizeof(Token));
+   token->ty = TK_EOF;
+   token->input = "";
+   vec_push(tokens, token);
 
    test_map();
 

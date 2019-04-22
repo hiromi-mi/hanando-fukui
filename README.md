@@ -9,5 +9,4 @@
 
 ## Should be Implemented for Self-Hosting
 * `va_args` `va_start`
-* preprocessor `#define` and `#include`
 * `int a, b=0`
