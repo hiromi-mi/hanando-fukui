@@ -21,6 +21,7 @@ Type *get_type(Node *node);
 void gen(Node *node);
 Map *global_vars;
 Map *funcdefs;
+Map *consts;
 Vector *strs;
 
 int type2size(Type *type);
@@ -730,7 +731,16 @@ Node *new_dot_node(Node* node) {
 
 Node *read_complex_ident() {
    char *input = tokens->data[pos]->input;
-   Node* node = new_ident_node(input);
+   Node* node = NULL;
+   for (int j = 0; j <= consts->keys->len - 1; j++) {
+      // support for constant
+      if (strcmp(consts->keys->data[j], input) == 0) {
+         node = consts->vals->data[j];
+         expect_node(TK_IDENT);
+         return node;
+      }
+   }
+   node = new_ident_node(input);
    expect_node(TK_IDENT);
 
    while(1) {
@@ -1671,11 +1681,34 @@ void toplevel() {
    // consume_node('}')
    global_vars = new_map();
    funcdefs = new_map();
+   consts = new_map();
    strs = new_vector();
    env = new_env(NULL);
    while (tokens->data[pos]->ty != TK_EOF) {
       // definition of struct
-      if (consume_node(TK_TYPEDEF) && consume_node(TK_STRUCT)) {
+      if (consume_node(TK_TYPEDEF)) {
+         if (consume_node(TK_ENUM)) {
+            // ENUM def.
+            consume_node(TK_IDENT); // for ease
+            expect_node('{');
+            Type* enumtype = malloc(sizeof(Type));
+            enumtype->ty = TY_INT;
+            enumtype->offset = 4;
+            int cnt = 0;
+            while (!consume_node('}')) {
+               char *itemname = expect_ident();
+               consume_node(','); // TODO for ease
+               cnt++;
+               Node *itemnode = new_num_node(cnt);
+               map_put(consts, itemname, itemnode);
+            }
+            char *name = expect_ident();
+            expect_node(';');
+            fprintf(stderr, "#define new enum: %s\n", name);
+            map_put(typedb, name, enumtype);
+            continue;
+         }
+         expect_node(TK_STRUCT);
          consume_node(TK_IDENT); // for ease
          expect_node('{');
          Type *structuretype = malloc(sizeof(Type));
