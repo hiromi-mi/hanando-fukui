@@ -267,7 +267,15 @@ Vector *tokenize(char *p) {
          token->ty = TK_STRING;
          int i = 0;
          while (*++p != '\"') {
-            token->input[i++] = *p;
+            if (*p == '\\') {
+               // read 2 character and write them into 1 bytes
+               char str[16];
+               snprintf(str, 16, "%s", p);
+               token->num_val = str[0];
+               p++;
+            } else {
+               token->input[i++] = *p;
+            }
          }
          token->input[i] = '\0';
          vec_push(pre_tokens, token);
