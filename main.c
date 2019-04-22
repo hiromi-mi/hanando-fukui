@@ -995,7 +995,7 @@ void gen(Node *node) {
    if (node->ty == ND_SWITCH) {
       int cur_if_cnt = for_while_cnt++;
       gen(node->lhs);
-      puts("pop r10");
+      puts("pop r9");
       // find CASE Labels and lookup into args[0]->code
       for (int j = 0; node->rhs->code[j] != NULL; j++) {
          if (node->rhs->code[j]->ty == ND_CASE) {
@@ -1004,7 +1004,7 @@ void gen(Node *node) {
             node->rhs->code[j]->name = input; // assign unique ID
             gen(node->rhs->code[j]->lhs);     // find statement
             puts("pop rax");
-            printf("cmp r10, rax\n");
+            printf("cmp r9, rax\n");
             printf("je %s\n", input);
          }
       }
