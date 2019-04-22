@@ -1708,6 +1708,7 @@ void toplevel() {
                Node *itemnode = NULL;
                if (consume_node('=')) {
                   itemnode = new_num_node(tokens->data[pos]->num_val);
+                  cnt = tokens->data[pos]->num_val;
                   expect_node(TK_NUM);
                } else {
                   itemnode = new_num_node(cnt);
