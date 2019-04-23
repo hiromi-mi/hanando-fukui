@@ -7,7 +7,10 @@
 #include <stdlib.h>
 #include <string.h>
 
-//double ceil(double x);
+#define SEEK_END 2
+#define SEEK_SET 0
+
+// double ceil(double x);
 // to use vector instead of something
 Vector *tokens;
 int pos = 0;
@@ -556,12 +559,14 @@ Node *node_mathexpr_without_comma() { return node_lor(); }
 Node *node_mathexpr() {
    Node *node = node_lor();
    while (1) {
+      /*
       if (consume_node(',')) {
          node = new_node(',', node, node_lor());
          node->type = node->rhs->type;
       } else {
+      */
          return node;
-      }
+      //}
    }
 }
 
@@ -834,7 +839,7 @@ Node *node_term() {
             }
             node->args[node->argc++] = node_mathexpr_without_comma();
          }
-         assert(node->argc <= 6);
+         //assert(node->argc <= 6);
          // pos++ because of consume_node(')')
          return node;
       }
@@ -1065,23 +1070,6 @@ void gen(Node *node) {
       env = node->env;
       // printf("%s:\n", node->name);
       for (int j = 0; node->code[j] != NULL; j++) {
-         // read inside functions.
-         if (node->code[j]->ty == ND_RETURN) {
-            gen(node->code[j]->lhs);
-            puts("pop rax");
-            puts("mov rsp, rbp");
-            puts("pop rbp");
-            puts("ret");
-            continue;
-         }
-         if (node->code[j]->ty == ND_BREAK) {
-            printf("jmp .Lend%d\n", for_while_cnt - 1);
-            continue;
-         }
-         if (node->code[j]->ty == ND_CONTINUE) {
-            printf("jmp .Lbegin%d\n", for_while_cnt - 1);
-            continue;
-         }
          gen(node->code[j]);
       }
       env = prev_env;
@@ -1095,7 +1083,14 @@ void gen(Node *node) {
       puts("push rbp");
       puts("mov rbp, rsp");
       printf("sub rsp, %d\n", env->rsp_offset);
-      char registers[6][4] = {"rdi", "rsi", "rdx", "rcx", "r8", "r9"};
+      char registers[6][4];
+      strcpy(registers[0], "rdi");
+      strcpy(registers[1], "rsi");
+      strcpy(registers[2], "rdx");
+      strcpy(registers[3], "rcx");
+      strcpy(registers[4], "r8");
+      strcpy(registers[5], "r9");
+      //char registers[6][4] = {"rdi", "rsi", "rdx", "rcx", "r8", "r9"};
       for (int j = 0; j < node->argc; j++) {
          gen_lval(node->args[j]);
          puts("pop rax");
@@ -1150,13 +1145,28 @@ void gen(Node *node) {
       return;
    }
 
+   if (node->ty == ND_BREAK) {
+      printf("jmp .Lend%d\n", for_while_cnt - 1);
+      return;
+   }
+   if (node->ty == ND_CONTINUE) {
+      printf("jmp .Lbegin%d\n", for_while_cnt - 1);
+      return;
+   }
    if (node->ty == ND_CAST) {
       gen(node->lhs);
       return;
    }
 
    if (node->ty == ND_FUNC) {
-      char registers[6][4] = {"rdi", "rsi", "rdx", "rcx", "r8", "r9"};
+      //char registers[6][4] = {"rdi", "rsi", "rdx", "rcx", "r8", "r9"};
+      char registers[6][4];
+      strcpy(registers[0], "rdi");
+      strcpy(registers[1], "rsi");
+      strcpy(registers[2], "rdx");
+      strcpy(registers[3], "rcx");
+      strcpy(registers[4], "r8");
+      strcpy(registers[5], "r9");
       for (int j = 0; j < node->argc; j++) {
          gen(node->args[j]);
       }
@@ -1164,7 +1174,7 @@ void gen(Node *node) {
          // because of function call will break these registers
          printf("pop %s\n", registers[j]);
       }
-      //printf("sub rsp, %d\n", (int)(ceil(4 * node->argc / 16.)) * 16);
+      // printf("sub rsp, %d\n", (int)(ceil(4 * node->argc / 16.)) * 16);
       // FIXME: alignment should be 64-bit
       puts("mov al, 0"); // TODO to preserve float
       printf("call %s\n", node->name);
@@ -1176,18 +1186,18 @@ void gen(Node *node) {
       gen(node->args[0]);
       puts("pop rax");
       puts("cmp rax, 0");
-      printf("je .Lendif%d\n", if_cnt);
+      int cur_if_cnt = if_cnt++;
+      printf("je .Lendif%d\n", cur_if_cnt);
       gen(node->lhs);
       if (node->rhs) {
-         printf("jmp .Lelseend%d\n", if_cnt);
+         printf("jmp .Lelseend%d\n", cur_if_cnt);
       }
-      printf(".Lendif%d:\n", if_cnt);
+      printf(".Lendif%d:\n", cur_if_cnt);
       if (node->rhs) {
          // There are else
          gen(node->rhs);
-         printf(".Lelseend%d:\n", if_cnt);
+         printf(".Lelseend%d:\n", cur_if_cnt);
       }
-      if_cnt++;
       return;
    }
 
@@ -1234,7 +1244,7 @@ void gen(Node *node) {
       return;
    }
 
-   if (node->ty == ND_IDENT || node->ty == '.') {
+   if (node->ty == ND_IDENT || node->ty == '.' || node->ty == ND_EXTERN_SYMBOL) {
       gen_lval(node);
       if (node->type->ty != TY_ARRAY) {
          // deref
@@ -1272,6 +1282,18 @@ void gen(Node *node) {
 
    if (node->ty == ND_GOTO) {
       printf("jmp %s\n", node->name);
+      return;
+   }
+
+   // read inside functions.
+   if (node->ty == ND_RETURN) {
+      if (node->lhs) {
+         gen(node->lhs);
+         puts("pop rax");
+      }
+      puts("mov rsp, rbp");
+      puts("pop rbp");
+      puts("ret");
       return;
    }
 
@@ -1349,15 +1371,15 @@ void gen(Node *node) {
       switch (node->ty) {
          case '+':
             puts("add rax, rdi");
-            break;
+            puts("push rax");
+            return;
          case '-':
             puts("sub rax, rdi"); // stack
-            break;
-         default:
-            error("Error: Not supported pointer eq.");
+            puts("push rax");
+            return;
+         /*default:
+            error("Error: Not supported pointer eq.");*/
       }
-      puts("push rax");
-      return;
    }
    if (node->rhs->type &&
        (node->rhs->type->ty == TY_ARRAY || node->rhs->type->ty == TY_PTR)) {
@@ -1368,15 +1390,19 @@ void gen(Node *node) {
       switch (node->ty) {
          case '+':
             puts("add rax, rdi");
-            break;
+            puts("push rax");
+            return;
          case '-':
             puts("sub rax, rdi"); // stack
+            puts("push rax");
+            return;
+         default:
             break;
+            /*
          default:
             error("Error: Not supported pointer eq.");
+            */
       }
-      puts("push rax");
-      return;
    }
 
    puts("pop rdi"); // rhs
@@ -1543,7 +1569,10 @@ Node *stmt() {
       node = new_ident_node_with_new_variable(input, type);
       // if there is int a =1;
       if (consume_node('=')) {
-         node = new_node('=', node, node_mathexpr());
+         if (consume_node('{')) {
+         } else {
+            node = new_node('=', node, node_mathexpr());
+         }
       }
    } else if (consume_node(TK_RETURN)) {
       if (confirm_node(';')) {
@@ -1572,9 +1601,9 @@ Node *stmt() {
 }
 int i = 0;
 
-Node* node_if() {
-   //Node** args) {
-   Node* node;
+Node *node_if() {
+   // Node** args) {
+   Node *node;
    node = new_node(ND_IF, NULL, NULL);
    node->argc = 1;
    node->args[0] = assign();
@@ -1646,11 +1675,16 @@ void program(Node *block_node) {
          expect_node('(');
          // TODO: should be splited between definition and expression
          args[0]->args[0] = stmt();
-         //expect_node(';');
-         args[0]->args[1] = assign();
-         expect_node(';');
-         args[0]->args[2] = assign();
-         expect_node(')');
+         // expect_node(';');
+         // TODO: to allow without lines
+         if (!consume_node(';')) {
+            args[0]->args[1] = assign();
+            expect_node(';');
+         }
+         if (!consume_node(')')) {
+            args[0]->args[2] = assign();
+            expect_node(')');
+         }
          args[0]->rhs = new_block_node(env);
          program(args[0]->rhs);
          args++;
@@ -1691,11 +1725,11 @@ void program(Node *block_node) {
 
 // 0: neither 1:TK_TYPE 2:TK_IDENT
 
-Type* find_typed_db(char* input, Map* db) {
+Type *find_typed_db(char *input, Map *db) {
    for (int j = 0; j < db->keys->len; j++) {
       // for struct
       if (strcmp(input, db->keys->data[j]) == 0) {
-         //pos++;
+         // pos++;
          // copy type
          Type *type = malloc(sizeof(Type));
          Type *old_type = (Type *)db->vals->data[j];
@@ -1729,7 +1763,7 @@ Type *read_fundamental_type() {
    if (token->ty == TK_STRUCT) {
       // TODO: for ease
       expect_node(TK_STRUCT);
-      char* input = expect_ident();
+      char *input = expect_ident();
       return find_typed_db(input, struct_typedb);
    }
    /*
@@ -1737,7 +1771,7 @@ Type *read_fundamental_type() {
       return NULL;
    }
    */
-   char* input = expect_ident();
+   char *input = expect_ident();
    return find_typed_db(input, typedb);
 }
 
@@ -1828,7 +1862,7 @@ void toplevel() {
          Type *structuretype = malloc(sizeof(Type));
          if (consume_node(TK_STRUCT)) {
             if (confirm_node(TK_IDENT)) {
-               char* name = expect_ident();
+               char *name = expect_ident();
                map_put(struct_typedb, name, structuretype);
             }
          }
@@ -1924,15 +1958,17 @@ void test_map() {
 void globalvar_gen() {
    puts(".data");
    for (int j = 0; j < global_vars->keys->len; j++) {
-      if (((Type *)global_vars->vals->data[j])->initval != 0) {
-         printf(".type %s,@object\n", (char *)global_vars->keys->data[j]);
-         printf(".size %s, 4\n", (char *)global_vars->keys->data[j]);
-         printf("%s:\n", (char *)global_vars->keys->data[j]);
-         printf(".long %d\n", ((Type *)global_vars->vals->data[j])->initval);
+      Type* valdataj = (Type *)global_vars->vals->data[j];
+      char* keydataj = (char *)global_vars->keys->data[j];
+      if (valdataj->initval != 0) {
+         printf(".type %s,@object\n", keydataj);
+         printf(".size %s, 4\n", keydataj);
+         printf("%s:\n", keydataj);
+         printf(".long %d\n", valdataj->initval);
          puts(".text");
          // global_vars->vals->data[j];
       } else {
-         printf(".comm %s, 4\n", (char *)global_vars->keys->data[j]);
+         printf(".comm %s, 4\n", keydataj);
       }
    }
    for (int j = 0; j < strs->len; j++) {
@@ -2026,6 +2062,11 @@ void init_typedb() {
    typevoid->ty = TY_VOID;
    typevoid->ptrof = NULL;
    map_put(typedb, "void", typevoid);
+
+   typevoid = malloc(sizeof(Type));
+   typevoid->ty = TY_STRUCT;
+   typevoid->ptrof = NULL;
+   map_put(typedb, "FILE", typevoid);
 }
 
 Vector *read_tokenize(char *fname) {
