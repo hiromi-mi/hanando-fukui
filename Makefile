@@ -177,6 +177,7 @@ test25:
 test26:
 	sh test.sh "switch(3){case 4: return 5; }" 5
 	sh test.sh "switch(3){case 4: return 5; case 8: return 7; }" 5
+	sh test.sh "switch(3){case 4: return 5; case 8: return 7; default: return 10;}" 10
 	sh test.sh "-1;" 255
 	sh test.sh "+1;" 1
 	sh test.sh '__LINE__;' 1

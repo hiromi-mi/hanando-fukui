@@ -11,4 +11,3 @@
 * `va_args` `va_start`
 * `int a, b=0`
 * #endif, #ifndef
-* anonymous enum

@@ -42,6 +42,8 @@ typedef enum {
    TK_CASE,
    TK_ENUM,
    TK_ARROW,
+   TK_CONST,
+   TK_DEFAULT,
 } TokenConst;
 
 typedef enum {
@@ -90,6 +92,8 @@ typedef enum {
    ND_CAST,
    ND_SWITCH,
    ND_CASE,
+   ND_EXTERN_SYMBOL,
+   ND_DEFAULT,
 } NodeType;
 
 typedef struct {

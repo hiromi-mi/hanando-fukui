@@ -1,8 +1,4 @@
 // main.c
-/*
-
-
-*/
 
 #include "main.h"
 #include <assert.h>
@@ -31,8 +27,9 @@ int confirm_type();
 int confirm_ident();
 int split_type_ident();
 Vector *read_tokenize(char *fname);
-void define_enum();
+void define_enum(int use);
 char *expect_ident();
+void program(Node *block_node);
 
 Map *typedb;
 Map *struct_typedb;
@@ -136,6 +133,15 @@ Node *new_ident_node(char *name) {
    Node *node = malloc(sizeof(Node));
    node->ty = ND_IDENT;
    node->name = name;
+   if (strcmp(node->name, "stderr") == 0) {
+      // TODO dirty
+      node->ty = ND_EXTERN_SYMBOL;
+      node->type = malloc(sizeof(Type));
+      node->type->ty = TY_PTR;
+      node->type->ptrof = malloc(sizeof(Type));
+      node->type->ptrof->ty = TY_INT;
+      return node;
+   }
    node->type = get_type(node);
    if (node->type == NULL) {
       error("Error: New Variable Definition.");
@@ -485,6 +491,9 @@ Vector *tokenize(char *p) {
          if (strcmp(token->input, "continue") == 0) {
             token->ty = TK_CONTINUE;
          }
+         if (strcmp(token->input, "const") == 0) {
+            token->ty = TK_CONST;
+         }
          if (strcmp(token->input, "NULL") == 0) {
             token->ty = TK_NULL;
          }
@@ -493,6 +502,9 @@ Vector *tokenize(char *p) {
          }
          if (strcmp(token->input, "case") == 0) {
             token->ty = TK_CASE;
+         }
+         if (strcmp(token->input, "default") == 0) {
+            token->ty = TK_DEFAULT;
          }
          if (strcmp(token->input, "enum") == 0) {
             token->ty = TK_ENUM;
@@ -789,6 +801,10 @@ Node *node_term() {
       Node *node = new_node(ND_NEG, node_term(), NULL);
       return node;
    }
+   if (consume_node('!')) {
+      Node *node = new_node('!', node_term(), NULL);
+      return node;
+   }
    if (consume_node('+')) {
       Node *node = node_term();
       return node;
@@ -909,6 +925,11 @@ char *rdi(Node *node) {
 }
 
 void gen_lval(Node *node) {
+   if (node->ty == ND_EXTERN_SYMBOL) {
+      printf("mov rax, qword ptr [rip + %s@GOTPCREL]\n", node->name);
+      puts("push rax");
+      return;
+   }
    if (node->ty == ND_IDENT) {
       int offset = get_lval_offset(node);
       if (offset != (int)NULL) {
@@ -1015,6 +1036,12 @@ void gen(Node *node) {
             printf("cmp r9, rax\n");
             printf("je %s\n", input);
          }
+         if (node->rhs->code[j]->ty == ND_DEFAULT) {
+            char *input = malloc(sizeof(char) * 256);
+            snprintf(input, 255, ".L%dC%d", cur_if_cnt, j);
+            node->rhs->code[j]->name = input; // assign unique ID
+            printf("jmp %s\n", input);
+         }
       }
       // content
       gen(node->rhs);
@@ -1022,7 +1049,7 @@ void gen(Node *node) {
       return;
    }
 
-   if (node->ty == ND_CASE) {
+   if (node->ty == ND_CASE || node->ty == ND_DEFAULT) {
       // just an def. of goto
       // saved with input
       if (!node->name) {
@@ -1299,6 +1326,16 @@ void gen(Node *node) {
       puts("push rdi");
       return;
    }
+   if (node->ty == '!') {
+      puts("pop rax");
+      puts("cmp rax, 0");
+      puts("setne al");
+      puts("xor al, -1");
+      puts("and al, 1");
+      puts("movzx eax, al");
+      puts("push rax");
+      return;
+   }
 
    gen(node->lhs);
    gen(node->rhs);
@@ -1483,7 +1520,7 @@ Type *read_type(char **input) {
    consume_node(TK_IDENT);
    // pos++;
    // array
-   if (consume_node('[')) {
+   while (consume_node('[')) {
       type->ty = TY_ARRAY;
       // TODO: support NOT functioned type
       // ex. int a[4+7];
@@ -1535,6 +1572,35 @@ Node *stmt() {
 }
 int i = 0;
 
+Node* node_if() {
+   //Node** args) {
+   Node* node;
+   node = new_node(ND_IF, NULL, NULL);
+   node->argc = 1;
+   node->args[0] = assign();
+   node->args[1] = NULL;
+   // Suppress COndition
+
+   if (confirm_node(TK_BLOCKBEGIN)) {
+      node->lhs = new_block_node(env);
+      program(node->lhs);
+   } else {
+      // without block
+      node->lhs = stmt();
+   }
+   if (consume_node(TK_ELSE)) {
+      if (confirm_node(TK_BLOCKBEGIN)) {
+         node->rhs = new_block_node(env);
+         program(node->rhs);
+      } else if (consume_node(TK_IF)) {
+         node->rhs = node_if();
+      } else {
+         node->rhs = stmt();
+      }
+   }
+   return node;
+}
+
 void program(Node *block_node) {
    expect_node('{');
    Node **args = block_node->code;
@@ -1550,36 +1616,18 @@ void program(Node *block_node) {
       }
 
       if (consume_node(TK_IF)) {
-         args[0] = new_node(ND_IF, NULL, NULL);
-         args[0]->argc = 1;
-         args[0]->args[0] = assign();
-         args[0]->args[1] = NULL;
-         // Suppress COndition
-
-         if (confirm_node(TK_BLOCKBEGIN)) {
-            args[0]->lhs = new_block_node(env);
-            program(args[0]->lhs);
-         } else {
-            // without block
-            args[0]->lhs = stmt();
-         }
-         if (consume_node(TK_ELSE)) {
-            if (confirm_node(TK_BLOCKBEGIN)) {
-               args[0]->rhs = new_block_node(env);
-               program(args[0]->rhs);
-            } else {
-               args[0]->rhs = stmt();
-            }
-         } else {
-            args[0]->rhs = NULL;
-         }
+         args[0] = node_if();
          args++;
          continue;
       }
       if (consume_node(TK_WHILE)) {
          args[0] = new_node(ND_WHILE, node_mathexpr(), NULL);
-         args[0]->rhs = new_block_node(env);
-         program(args[0]->rhs);
+         if (confirm_node(TK_BLOCKBEGIN)) {
+            args[0]->rhs = new_block_node(env);
+            program(args[0]->rhs);
+         } else {
+            args[0]->rhs = stmt();
+         }
          args++;
          continue;
       }
@@ -1596,8 +1644,9 @@ void program(Node *block_node) {
       if (consume_node(TK_FOR)) {
          args[0] = new_node(ND_FOR, NULL, NULL);
          expect_node('(');
-         args[0]->args[0] = assign();
-         expect_node(';');
+         // TODO: should be splited between definition and expression
+         args[0]->args[0] = stmt();
+         //expect_node(';');
          args[0]->args[1] = assign();
          expect_node(';');
          args[0]->args[2] = assign();
@@ -1610,6 +1659,12 @@ void program(Node *block_node) {
 
       if (consume_node(TK_CASE)) {
          args[0] = new_node(ND_CASE, node_term(), NULL);
+         expect_node(':');
+         args++;
+         continue;
+      }
+      if (consume_node(TK_DEFAULT)) {
+         args[0] = new_node(ND_DEFAULT, NULL, NULL);
          expect_node(':');
          args++;
          continue;
@@ -1658,10 +1713,14 @@ Type* find_typed_db(char* input, Map* db) {
 
 Type *read_fundamental_type() {
    Token *token = tokens->data[pos];
+   if (token->ty == TK_CONST) {
+      expect_node(TK_CONST); // TODO : for ease skip
+      token = tokens->data[pos];
+   }
    if (token->ty == TK_ENUM) {
       // treat as anonymous enum
       expect_node(TK_ENUM);
-      define_enum();
+      define_enum(0);
       Type *type = malloc(sizeof(Type));
       type->ty = TY_INT;
       type->ptrof = NULL;
@@ -1717,7 +1776,7 @@ char *expect_ident() {
    return tokens->data[pos++]->input;
 }
 
-void define_enum() {
+void define_enum(int assign_name) {
    // ENUM def.
    consume_node(TK_IDENT); // for ease
    expect_node('{');
@@ -1740,7 +1799,7 @@ void define_enum() {
       map_put(consts, itemname, itemnode);
    }
    // to support anonymous enum
-   if (confirm_ident()) {
+   if (assign_name && confirm_ident()) {
       char *name = expect_ident();
       fprintf(stderr, "#define new enum: %s\n", name);
       map_put(typedb, name, enumtype);
@@ -1761,7 +1820,8 @@ void toplevel() {
       // definition of struct
       if (consume_node(TK_TYPEDEF)) {
          if (consume_node(TK_ENUM)) {
-            define_enum();
+            // not anonymous enum
+            define_enum(1);
             expect_node(';');
             continue;
          }
