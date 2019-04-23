@@ -982,6 +982,10 @@ char *type2string(Node *node) {
 }
 
 void gen(Node *node) {
+   if (node == NULL) {
+      fprintf(stderr, "node == NULL: skip\n");
+      return;
+   }
    if (node->ty == ND_NUM) {
       printf("push %ld\n", node->num_val);
       return;
@@ -1501,7 +1505,12 @@ Node *stmt() {
          node = new_node('=', node, node_mathexpr());
       }
    } else if (consume_node(TK_RETURN)) {
-      node = new_node(ND_RETURN, assign(), NULL);
+      if (confirm_node(';')) {
+         // to support return; with void type
+         node = new_node(ND_RETURN, NULL, NULL);
+      } else {
+         node = new_node(ND_RETURN, assign(), NULL);
+      }
       // FIXME GOTO is not statement, expr.
    } else if (consume_node(TK_GOTO)) {
       node = new_node(ND_GOTO, NULL, NULL);
