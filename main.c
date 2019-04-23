@@ -11,7 +11,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-double ceil(double x);
+//double ceil(double x);
 // to use vector instead of something
 Vector *tokens;
 int pos = 0;
@@ -32,8 +32,11 @@ int confirm_ident();
 int split_type_ident();
 Vector *read_tokenize(char *fname);
 void define_enum();
+char *expect_ident();
 
 Map *typedb;
+Map *struct_typedb;
+Map *enum_typedb;
 
 void error(const char *str) {
    if (tokens) {
@@ -1134,7 +1137,7 @@ void gen(Node *node) {
          // because of function call will break these registers
          printf("pop %s\n", registers[j]);
       }
-      printf("sub rsp, %d\n", (int)(ceil(4 * node->argc / 16.)) * 16);
+      //printf("sub rsp, %d\n", (int)(ceil(4 * node->argc / 16.)) * 16);
       // FIXME: alignment should be 64-bit
       puts("mov al, 0"); // TODO to preserve float
       printf("call %s\n", node->name);
@@ -1633,6 +1636,26 @@ void program(Node *block_node) {
 
 // 0: neither 1:TK_TYPE 2:TK_IDENT
 
+Type* find_typed_db(char* input, Map* db) {
+   for (int j = 0; j < db->keys->len; j++) {
+      // for struct
+      if (strcmp(input, db->keys->data[j]) == 0) {
+         //pos++;
+         // copy type
+         Type *type = malloc(sizeof(Type));
+         Type *old_type = (Type *)db->vals->data[j];
+         // copy all
+         type->ty = old_type->ty;
+         type->structure = old_type->structure;
+         type->array_size = old_type->array_size;
+         type->ptrof = old_type->ptrof;
+         type->offset = old_type->offset;
+         return type;
+      }
+   }
+   return NULL;
+}
+
 Type *read_fundamental_type() {
    Token *token = tokens->data[pos];
    if (token->ty == TK_ENUM) {
@@ -1647,27 +1670,16 @@ Type *read_fundamental_type() {
    if (token->ty == TK_STRUCT) {
       // TODO: for ease
       expect_node(TK_STRUCT);
+      char* input = expect_ident();
+      return find_typed_db(input, struct_typedb);
    }
+   /*
    if (token->ty != TK_IDENT) {
       return NULL;
    }
-   for (int j = 0; j < typedb->keys->len; j++) {
-      // for struct
-      if (strcmp(token->input, typedb->keys->data[j]) == 0) {
-         pos++;
-         // copy type
-         Type *type = malloc(sizeof(Type));
-         Type *old_type = (Type *)typedb->vals->data[j];
-         // copy all
-         type->ty = old_type->ty;
-         type->structure = old_type->structure;
-         type->array_size = old_type->array_size;
-         type->ptrof = old_type->ptrof;
-         type->offset = old_type->offset;
-         return type;
-      }
-   }
-   return NULL;
+   */
+   char* input = expect_ident();
+   return find_typed_db(input, typedb);
 }
 
 int split_type_ident() {
@@ -1753,10 +1765,14 @@ void toplevel() {
             expect_node(';');
             continue;
          }
-         expect_node(TK_STRUCT);
-         consume_node(TK_IDENT); // for ease
-         expect_node('{');
          Type *structuretype = malloc(sizeof(Type));
+         if (consume_node(TK_STRUCT)) {
+            if (confirm_node(TK_IDENT)) {
+               char* name = expect_ident();
+               map_put(struct_typedb, name, structuretype);
+            }
+         }
+         expect_node('{');
          structuretype->structure = new_map();
          structuretype->ty = TY_STRUCT;
          structuretype->ptrof = NULL;
@@ -1927,7 +1943,10 @@ void preprocess(Vector *pre_tokens) {
 }
 
 void init_typedb() {
+   enum_typedb = new_map();
+   struct_typedb = new_map();
    typedb = new_map();
+
    Type *typeint = malloc(sizeof(Type));
    typeint->ty = TY_INT;
    typeint->ptrof = NULL;
