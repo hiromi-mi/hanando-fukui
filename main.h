@@ -111,7 +111,7 @@ typedef struct {
 } Map;
 
 typedef struct Type {
-   enum { TY_INT = 3, TY_PTR, TY_ARRAY, TY_CHAR, TY_LONG, TY_STRUCT } ty;
+   enum { TY_INT = 3, TY_PTR, TY_ARRAY, TY_CHAR, TY_LONG, TY_STRUCT, TY_VOID } ty;
    Map *structure; // <name, Type*>
    struct Type *ptrof;
    int array_size;

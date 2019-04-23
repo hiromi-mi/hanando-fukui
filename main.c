@@ -31,6 +31,7 @@ int confirm_type();
 int confirm_ident();
 int split_type_ident();
 Vector *read_tokenize(char *fname);
+void define_enum();
 
 Map *typedb;
 
@@ -1634,6 +1635,19 @@ void program(Node *block_node) {
 
 Type *read_fundamental_type() {
    Token *token = tokens->data[pos];
+   if (token->ty == TK_ENUM) {
+      // treat as anonymous enum
+      expect_node(TK_ENUM);
+      define_enum();
+      Type *type = malloc(sizeof(Type));
+      type->ty = TY_INT;
+      type->ptrof = NULL;
+      return type;
+   }
+   if (token->ty == TK_STRUCT) {
+      // TODO: for ease
+      expect_node(TK_STRUCT);
+   }
    if (token->ty != TK_IDENT) {
       return NULL;
    }
@@ -1691,6 +1705,36 @@ char *expect_ident() {
    return tokens->data[pos++]->input;
 }
 
+void define_enum() {
+   // ENUM def.
+   consume_node(TK_IDENT); // for ease
+   expect_node('{');
+   Type *enumtype = malloc(sizeof(Type));
+   enumtype->ty = TY_INT;
+   enumtype->offset = 4;
+   int cnt = 0;
+   while (!consume_node('}')) {
+      char *itemname = expect_ident();
+      Node *itemnode = NULL;
+      if (consume_node('=')) {
+         itemnode = new_num_node(tokens->data[pos]->num_val);
+         cnt = tokens->data[pos]->num_val;
+         expect_node(TK_NUM);
+      } else {
+         itemnode = new_num_node(cnt);
+      }
+      consume_node(','); // TODO for ease
+      cnt++;
+      map_put(consts, itemname, itemnode);
+   }
+   // to support anonymous enum
+   if (confirm_ident()) {
+      char *name = expect_ident();
+      fprintf(stderr, "#define new enum: %s\n", name);
+      map_put(typedb, name, enumtype);
+   }
+}
+
 void toplevel() {
    // consume_node('{')
    // idents = new_map...
@@ -1705,31 +1749,8 @@ void toplevel() {
       // definition of struct
       if (consume_node(TK_TYPEDEF)) {
          if (consume_node(TK_ENUM)) {
-            // ENUM def.
-            consume_node(TK_IDENT); // for ease
-            expect_node('{');
-            Type *enumtype = malloc(sizeof(Type));
-            enumtype->ty = TY_INT;
-            enumtype->offset = 4;
-            int cnt = 0;
-            while (!consume_node('}')) {
-               char *itemname = expect_ident();
-               Node *itemnode = NULL;
-               if (consume_node('=')) {
-                  itemnode = new_num_node(tokens->data[pos]->num_val);
-                  cnt = tokens->data[pos]->num_val;
-                  expect_node(TK_NUM);
-               } else {
-                  itemnode = new_num_node(cnt);
-               }
-               consume_node(','); // TODO for ease
-               cnt++;
-               map_put(consts, itemname, itemnode);
-            }
-            char *name = expect_ident();
+            define_enum();
             expect_node(';');
-            fprintf(stderr, "#define new enum: %s\n", name);
-            map_put(typedb, name, enumtype);
             continue;
          }
          expect_node(TK_STRUCT);
@@ -1921,6 +1942,11 @@ void init_typedb() {
    typelong->ty = TY_LONG;
    typelong->ptrof = NULL;
    map_put(typedb, "long", typelong);
+
+   Type *typevoid = malloc(sizeof(Type));
+   typevoid->ty = TY_VOID;
+   typevoid->ptrof = NULL;
+   map_put(typedb, "void", typevoid);
 }
 
 Vector *read_tokenize(char *fname) {
