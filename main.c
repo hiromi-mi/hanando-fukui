@@ -1302,7 +1302,8 @@ void gen(Node *node) {
       gen_lval(node);
       if (node->type->ty != TY_ARRAY) {
          puts("pop rax");
-         printf("mov %s,%s [rax]\n", rax(node),type2string(node));
+         puts("mov rax, [rax]");
+         //printf("mov %s,%s [rax]\n", rax(node),type2string(node));
          puts("push rax");
       }
       return;
@@ -1360,7 +1361,7 @@ void gen(Node *node) {
       puts("pop rdi");
       puts("pop rax");
       if (node->type->ty == TY_CHAR) {
-         puts("mov [rax], dil");
+         puts("movzx rax, dil");
       } else {
          puts("mov [rax], rdi");
       }
