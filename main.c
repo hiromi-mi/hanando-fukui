@@ -136,7 +136,7 @@ Node *new_ident_node_with_new_variable(char *name, Type *type) {
    type->offset = env->rsp_offset;
    // type->ptrof = NULL;
    // type->ty = TY_INT;
-   printf("#define: %s on %d\n", name, env->rsp_offset);
+   fprintf(stderr, "#define: %s on %d\n", name, env->rsp_offset);
    map_put(env->idents, name, type);
    return node;
 }
@@ -743,7 +743,11 @@ Node *node_increment() {
       expect_node(TK_IDENT);
       return new_node(ND_DEC, node, NULL);
    } else if (consume_node('&')) {
-      return new_node(ND_ADDRESS, node_increment(), NULL);
+      Node* node = new_node(ND_ADDRESS, node_increment(), NULL);
+      node->type = malloc(sizeof(Type));
+      node->type->ty = TY_PTR;
+      node->type->ptrof = node->lhs->type;
+      return node;
    } else if (consume_node('*')) {
       return new_deref_node(node_increment());
    } else if (consume_node(TK_SIZEOF)) {
@@ -1316,7 +1320,7 @@ void gen(Node *node) {
       //puts("mov rax, [rax]");
       printf("mov %s, [rax]\n", rax(node));
       if (node->type->ty == TY_CHAR) {
-         printf("movzb rax, al\n");
+         printf("movzx rax, al\n");
       }
       puts("push rax");
       puts("\n");
@@ -1333,8 +1337,6 @@ void gen(Node *node) {
 
    if (node->ty == ND_ADDRESS) {
       gen_lval(node->lhs);
-      node->type = malloc(sizeof(Type));
-      node->type->ty = TY_PTR;
       return;
    }
 
@@ -1360,11 +1362,14 @@ void gen(Node *node) {
       gen(node->rhs);
       puts("pop rdi");
       puts("pop rax");
+      // TODO See samples/2.c
+      /*
       if (node->type->ty == TY_CHAR) {
          puts("movzx rax, dil");
       } else {
+      */
          puts("mov [rax], rdi");
-      }
+      // }
       puts("push rdi");
       return;
    }
@@ -1588,7 +1593,6 @@ Type *read_type(char **input) {
    // Variable Definition.
    // consume is pointer or not
    while (consume_node('*')) {
-      puts("# new use pointer\n");
       Type *old_type = type;
       type = malloc(sizeof(Type));
       type->ty = TY_PTR;
@@ -1625,6 +1629,7 @@ Node *stmt() {
       char *input = NULL;
       Type *type = read_type(&input);
       node = new_ident_node_with_new_variable(input, type);
+      //new_ident_node_with_new_variable(input, type);
       // if there is int a =1;
       if (consume_node('=')) {
          if (consume_node('{')) {
@@ -2124,6 +2129,7 @@ void init_typedb() {
    typevoid = malloc(sizeof(Type));
    typevoid->ty = TY_STRUCT;
    typevoid->ptrof = NULL;
+   typevoid->offset = 8;
    map_put(typedb, "FILE", typevoid);
 }
 
@@ -2174,7 +2180,6 @@ int main(int argc, char **argv) {
 
    puts(".align 4");
    puts(".global main");
-   puts(".type main, @function");
    // treat with global variables
    globalvar_gen();
 

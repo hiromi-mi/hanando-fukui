@@ -195,6 +195,8 @@ test28:
 	sh testfdef.sh "typedef enum {TY_INT, TY_CHAR} TypeConst; int main(){TY_CHAR;}" 1
 	sh testfdef.sh "typedef enum {TY_INT, TY_CHAR} TypeConst; int main(){TY_INT;}" 0
 
+test29:
+	sh testfdef.sh "int func(char* a){ puts(a); return 1; }int main(){func(\"aaa\");}" 1
 
 clean:
 	$(RM) -f $(target) $(objects)
