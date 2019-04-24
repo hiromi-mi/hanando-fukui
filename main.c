@@ -113,9 +113,11 @@ Node *new_ident_node_with_new_variable(char *name, Type *type) {
          env->rsp_offset += 8;
          break;
       case TY_CHAR:
-         env->rsp_offset += 8; // tekitou
+         env->rsp_offset += 1; // tekitou
+         break;
       case TY_LONG:
          env->rsp_offset += 8; // tekitou
+         break;
       case TY_ARRAY:
          // TODO: should not be 8 in case of truct
          env->rsp_offset += 8 * type->array_size;
@@ -281,11 +283,10 @@ Vector *tokenize(char *p) {
          token->ty = TK_STRING;
          int i = 0;
          while (*++p != '\"') {
-            if (*p == '\\') {
+            if (*p == '\\' && *(p+1) == '\"') {
                // read 2 character and write them into 1 bytes
-               char str[16];
-               snprintf(str, 16, "%s", p);
-               token->num_val = str[0];
+               token->input[i++] = *p;
+               token->input[i++] = *(p+1);
                p++;
             } else {
                token->input[i++] = *p;

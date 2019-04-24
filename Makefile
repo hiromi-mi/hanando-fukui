@@ -148,7 +148,7 @@ test17:
 test18:
 	sh test.sh "char a='a';a;" 97
 	sh test.sh "char a='\n';a;" 39
-	sh test.sh "(3,4);" 4
+	# sh test.sh "(3,4);" 4
 	sh test.sh "puts(\"a\");0;" 0
 	sh test.sh "puts(\"Test OK\");0;" 0
 	sh test.sh "printf(\"Test OK\n\");0;" 0
