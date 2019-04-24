@@ -143,13 +143,14 @@ test20:
 	sh test.sh "((1==2) && (2==2));" 0
 	sh test.sh "((1==1) && (1==2));" 0
 	sh test.sh "((1==2) && (3==2));" 0
+	sh test.sh "(2 && 1);" 1
 
 test17:
 	sh test.sh "char a;a=1;" 1
 
 test18:
 	sh test.sh "char a='a';a;" 97
-	sh test.sh "char a='\n';a;" 39
+	sh test.sh "char a='\n';a;" 10
 	# sh test.sh "(3,4);" 4
 	sh test.sh "puts(\"a\");0;" 0
 	sh test.sh "puts(\"Test OK\");0;" 0
@@ -188,6 +189,7 @@ test27:
 	sh testfdef.sh "typedef struct { int a;int c;} Type; int main(){Type b;b.a = 2;b.c=4;b.c;}" 4
 	sh testfdef.sh "typedef struct { int a;int c;} Type; int main(){Type b;b.a = 2;b.c=4;b.a;}" 2
 	sh testfdef.sh "typedef struct { int a;int c;} Type; int main(){Type b;Type* e; e=&b;e->a = 2;e->c=4;b.a;}" 2
+	sh testfdef.sh "typedef struct { int a;int c;int d;} Type; int main(){Type b;Type* e; e=&b;e->a = 2;e->c=4;b.d=5;e->d;}" 5
 
 test28:
 	sh testfdef.sh "typedef enum {TY_INT, TY_CHAR} TypeConst; int main(){TY_CHAR;}" 1

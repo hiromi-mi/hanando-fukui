@@ -33,6 +33,11 @@ Vector *read_tokenize(char *fname);
 void define_enum(int use);
 char *expect_ident();
 void program(Node *block_node);
+int env_for_while = 0;
+int env_for_while_switch = 0;
+Env *env;
+int if_cnt = 0;
+int for_while_cnt = 0;
 
 Map *typedb;
 Map *struct_typedb;
@@ -96,36 +101,38 @@ Node *new_deref_node(Node *lhs) {
    return node;
 }
 
-Env *env;
-int if_cnt = 0;
-int for_while_cnt = 0;
+int cnt_size(Type *type) {
+   int cnt = 0;
+   switch (type->ty) {
+      case TY_PTR:
+         cnt = 8;
+         break;
+      case TY_INT:
+         cnt = 8;
+         break;
+      case TY_CHAR:
+         cnt = 8; // tekitou
+         break;
+      case TY_LONG:
+         cnt = 8; // tekitou
+         break;
+      case TY_ARRAY:
+         // TODO: should not be 8 in case of truct
+         cnt = type2size(type->ptrof) * type->array_size;
+         break;
+      case TY_STRUCT:
+         cnt = type->offset;
+         break;
+   }
+   return cnt;
+}
 
 Node *new_ident_node_with_new_variable(char *name, Type *type) {
    Node *node = malloc(sizeof(Node));
    node->ty = ND_IDENT;
    node->name = name;
    node->type = type;
-   switch (type->ty) {
-      case TY_PTR:
-         env->rsp_offset += 8;
-         break;
-      case TY_INT:
-         env->rsp_offset += 8;
-         break;
-      case TY_CHAR:
-         env->rsp_offset += 1; // tekitou
-         break;
-      case TY_LONG:
-         env->rsp_offset += 8; // tekitou
-         break;
-      case TY_ARRAY:
-         // TODO: should not be 8 in case of truct
-         env->rsp_offset += 8 * type->array_size;
-         break;
-      case TY_STRUCT:
-         env->rsp_offset += type->offset;
-         break;
-   }
+   env->rsp_offset += cnt_size(type);
    type->offset = env->rsp_offset;
    // type->ptrof = NULL;
    // type->ty = TY_INT;
@@ -271,8 +278,10 @@ Vector *tokenize(char *p) {
          Token *token = malloc(sizeof(Token));
          token->ty = TK_SPACE;
          vec_push(pre_tokens, token);
-         while (isspace(*p) && *p != '\0')
+         while (isspace(*p) && *p != '\0') {
+            //fprintf(stderr, "Skip %c, %d, %d\n", *p, isspace(*p), *p != '\0');
             p++;
+         }
          continue;
       }
 
@@ -304,9 +313,27 @@ Vector *tokenize(char *p) {
          if (*(p + 1) != '\\') {
             token->num_val = *(p + 1);
          } else {
+            switch(*(p+2)) {
+               case 'n':
+               token->num_val = '\n'; break;
+               case '0':
+               token->num_val = '\0'; break;
+               case 't':
+               token->num_val = '\t'; break;
+               case '\\':
+               token->num_val = '\\'; break;
+               case '\"':
+               token->num_val = '\"'; break;
+               case '\'':
+               token->num_val = '\''; break;
+               default:
+               error("Error: Error On this escape sequence.");
+            }
+                  /*
             char str[16];
-            snprintf(str, 16, "%s", p);
+            snprintf(str, 16, "%s", p+1);
             token->num_val = str[0];
+            */
             p++;
          }
          vec_push(pre_tokens, token);
@@ -716,9 +743,9 @@ Node *node_increment() {
       expect_node(TK_IDENT);
       return new_node(ND_DEC, node, NULL);
    } else if (consume_node('&')) {
-      return new_node(ND_ADDRESS, node_mathexpr(), NULL);
+      return new_node(ND_ADDRESS, node_increment(), NULL);
    } else if (consume_node('*')) {
-      return new_deref_node(node_mathexpr());
+      return new_deref_node(node_increment());
    } else if (consume_node(TK_SIZEOF)) {
       if (consume_node('(') && confirm_type()) {
          // sizeof(int) read type without name
@@ -979,7 +1006,8 @@ int type2size(Type *type) {
       case TY_CHAR:
          return 1;
       case TY_ARRAY:
-         return type->array_size * type2size(type->ptrof);
+         //return //type->array_size * 
+         return type2size(type->ptrof);
       case TY_STRUCT: {
          int val = 0;
          for (int j = 0; j < type->structure->keys->len; j++) {
@@ -1006,6 +1034,8 @@ char *type2string(Node *node) {
          return "byte ptr ";
       case TY_ARRAY:
          return "";
+      case TY_STRUCT:
+         return "";
       default:
          error("Error: NOT a type");
          return "";
@@ -1029,6 +1059,8 @@ void gen(Node *node) {
 
    if (node->ty == ND_SWITCH) {
       int cur_if_cnt = for_while_cnt++;
+      int prev_env_for_while_switch = env_for_while_switch;
+      env_for_while_switch = cur_if_cnt;
       gen(node->lhs);
       puts("pop r9");
       // find CASE Labels and lookup into args[0]->code
@@ -1052,6 +1084,7 @@ void gen(Node *node) {
       // content
       gen(node->rhs);
       printf(".Lend%d:\n", cur_if_cnt);
+      env_for_while_switch = prev_env_for_while_switch;
       return;
    }
 
@@ -1080,6 +1113,7 @@ void gen(Node *node) {
    if (node->ty == ND_FDEF) {
       Env *prev_env = env;
       env = node->env;
+      printf(".type %s,@function\n", node->name);
       printf("%s:\n", node->name);
       puts("push rbp");
       puts("mov rbp, rsp");
@@ -1124,6 +1158,8 @@ void gen(Node *node) {
       gen(node->rhs);
       puts("pop rdi");
       puts("cmp rdi, 0");
+      puts("setne al");
+      puts("movzx rax, al");
       printf(".Lorend%d:\n", cur_if_cnt);
       puts("setne al");
       puts("movzx rax, al");
@@ -1147,11 +1183,11 @@ void gen(Node *node) {
    }
 
    if (node->ty == ND_BREAK) {
-      printf("jmp .Lend%d\n", for_while_cnt - 1);
+      printf("jmp .Lend%d\n", env_for_while_switch);
       return;
    }
    if (node->ty == ND_CONTINUE) {
-      printf("jmp .Lbegin%d\n", for_while_cnt - 1);
+      printf("jmp .Lbegin%d\n", env_for_while);
       return;
    }
    if (node->ty == ND_CAST) {
@@ -1204,6 +1240,10 @@ void gen(Node *node) {
 
    if (node->ty == ND_WHILE) {
       int cur_if_cnt = for_while_cnt++;
+      int prev_env_for_while = env_for_while;
+      int prev_env_for_while_switch = env_for_while_switch;
+      env_for_while = cur_if_cnt;
+
       printf(".Lbegin%d:\n", cur_if_cnt);
       gen(node->lhs);
       puts("pop rax");
@@ -1212,10 +1252,16 @@ void gen(Node *node) {
       gen(node->rhs);
       printf("jmp .Lbegin%d\n", cur_if_cnt);
       printf(".Lend%d:\n", cur_if_cnt);
+
+      env_for_while = prev_env_for_while;
+      env_for_while_switch = prev_env_for_while_switch;
       return;
    }
    if (node->ty == ND_DOWHILE) {
       int cur_if_cnt = for_while_cnt++;
+      int prev_env_for_while = env_for_while;
+      int prev_env_for_while_switch = env_for_while_switch;
+      env_for_while = cur_if_cnt;
       printf(".Lbegin%d:\n", cur_if_cnt);
       gen(node->rhs);
       gen(node->lhs);
@@ -1223,11 +1269,16 @@ void gen(Node *node) {
       puts("cmp rax, 0");
       printf("jne .Lbegin%d\n", cur_if_cnt);
       printf(".Lend%d:\n", cur_if_cnt);
+      env_for_while = prev_env_for_while;
+      env_for_while_switch = prev_env_for_while_switch;
       return;
    }
 
    if (node->ty == ND_FOR) {
       int cur_if_cnt = for_while_cnt++;
+      int prev_env_for_while = env_for_while;
+      int prev_env_for_while_switch = env_for_while_switch;
+      env_for_while = cur_if_cnt;
       gen(node->args[0]);
       printf("jmp .Lcondition%d\n", cur_if_cnt);
       printf(".Lbeginwork%d:\n", cur_if_cnt);
@@ -1242,15 +1293,16 @@ void gen(Node *node) {
       puts("cmp rax, 0");
       printf("jne .Lbeginwork%d\n", cur_if_cnt);
       printf(".Lend%d:\n", cur_if_cnt);
+      env_for_while = prev_env_for_while;
+      env_for_while_switch = prev_env_for_while_switch;
       return;
    }
 
    if (node->ty == ND_IDENT || node->ty == '.' || node->ty == ND_EXTERN_SYMBOL) {
       gen_lval(node);
       if (node->type->ty != TY_ARRAY) {
-         // deref
          puts("pop rax");
-         puts("mov rax, [rax]");
+         printf("mov %s,%s [rax]\n", rax(node),type2string(node));
          puts("push rax");
       }
       return;
@@ -1260,7 +1312,11 @@ void gen(Node *node) {
       gen(node->lhs); // Compile as RVALUE
       puts("#deref");
       puts("pop rax");
-      puts("mov rax, [rax]");
+      //puts("mov rax, [rax]");
+      printf("mov %s, [rax]\n", rax(node));
+      if (node->type->ty == TY_CHAR) {
+         printf("movzb rax, al\n");
+      }
       puts("push rax");
       puts("\n");
       return;
@@ -1548,7 +1604,7 @@ Type *read_type(char **input) {
    // pos++;
    // array
    while (consume_node('[')) {
-      type->ty = TY_ARRAY;
+      //type->ty = TY_ARRAY;
       // TODO: support NOT functioned type
       // ex. int a[4+7];
       Type *old_type = type;
@@ -1969,7 +2025,7 @@ void globalvar_gen() {
          puts(".text");
          // global_vars->vals->data[j];
       } else {
-         printf(".comm %s, 4\n", keydataj);
+         printf(".comm %s, %d\n", keydataj, cnt_size(valdataj));
       }
    }
    for (int j = 0; j < strs->len; j++) {
@@ -2026,8 +2082,8 @@ void preprocess(Vector *pre_tokens) {
       for (int k = 0; k <= defined->keys->len - 1; k++) {
          if (strcmp(pre_tokens->data[j]->input, defined->keys->data[k]) == 0) {
             called = 1;
-            fprintf(stderr, "#define changed: %s -> %s\n",
-                    pre_tokens->data[j]->input, defined->vals->data[k]->input);
+            fprintf(stderr, "#define changed: %s -> %d\n",
+                    pre_tokens->data[j]->input, defined->vals->data[k]->num_val);
             // pre_tokens->data[j] = defined->vals->data[k];
             vec_push(tokens, defined->vals->data[k]);
             continue;
@@ -2113,7 +2169,7 @@ int main(int argc, char **argv) {
 
    toplevel();
 
-   puts(".intel_syntax");
+   puts(".intel_syntax noprefix");
 
    puts(".align 4");
    puts(".global main");
