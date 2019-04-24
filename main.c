@@ -14,7 +14,7 @@
 // to use vector instead of something
 Vector *tokens;
 int pos = 0;
-Node *code[100];
+Node *code[300];
 int get_lval_offset(Node *node);
 Type *get_type(Node *node);
 void gen(Node *node);
@@ -202,6 +202,7 @@ Node *new_fdef_node(char *name, Env *prev_env, Type *type) {
    node->rhs = NULL;
    node->argc = 0;
    node->env = prev_env;
+   node->code = new_vector();
    map_put(funcdefs, name, node);
    return node;
 }
@@ -215,6 +216,7 @@ Node *new_block_node(Env *prev_env) {
    node->argc = 0;
    node->type = NULL;
    node->env = new_env(prev_env);
+   node->code = new_vector();
    return node;
 }
 
@@ -279,7 +281,8 @@ Vector *tokenize(char *p) {
          token->ty = TK_SPACE;
          vec_push(pre_tokens, token);
          while (isspace(*p) && *p != '\0') {
-            //fprintf(stderr, "Skip %c, %d, %d\n", *p, isspace(*p), *p != '\0');
+            // fprintf(stderr, "Skip %c, %d, %d\n", *p, isspace(*p), *p !=
+            // '\0');
             p++;
          }
          continue;
@@ -292,10 +295,10 @@ Vector *tokenize(char *p) {
          token->ty = TK_STRING;
          int i = 0;
          while (*++p != '\"') {
-            if (*p == '\\' && *(p+1) == '\"') {
+            if (*p == '\\' && *(p + 1) == '\"') {
                // read 2 character and write them into 1 bytes
                token->input[i++] = *p;
-               token->input[i++] = *(p+1);
+               token->input[i++] = *(p + 1);
                p++;
             } else {
                token->input[i++] = *p;
@@ -313,27 +316,33 @@ Vector *tokenize(char *p) {
          if (*(p + 1) != '\\') {
             token->num_val = *(p + 1);
          } else {
-            switch(*(p+2)) {
+            switch (*(p + 2)) {
                case 'n':
-               token->num_val = '\n'; break;
+                  token->num_val = '\n';
+                  break;
                case '0':
-               token->num_val = '\0'; break;
+                  token->num_val = '\0';
+                  break;
                case 't':
-               token->num_val = '\t'; break;
+                  token->num_val = '\t';
+                  break;
                case '\\':
-               token->num_val = '\\'; break;
+                  token->num_val = '\\';
+                  break;
                case '\"':
-               token->num_val = '\"'; break;
+                  token->num_val = '\"';
+                  break;
                case '\'':
-               token->num_val = '\''; break;
+                  token->num_val = '\'';
+                  break;
                default:
-               error("Error: Error On this escape sequence.");
+                  error("Error: Error On this escape sequence.");
             }
-                  /*
-            char str[16];
-            snprintf(str, 16, "%s", p+1);
-            token->num_val = str[0];
-            */
+            /*
+      char str[16];
+      snprintf(str, 16, "%s", p+1);
+      token->num_val = str[0];
+      */
             p++;
          }
          vec_push(pre_tokens, token);
@@ -593,7 +602,7 @@ Node *node_mathexpr() {
          node->type = node->rhs->type;
       } else {
       */
-         return node;
+      return node;
       //}
    }
 }
@@ -743,7 +752,7 @@ Node *node_increment() {
       expect_node(TK_IDENT);
       return new_node(ND_DEC, node, NULL);
    } else if (consume_node('&')) {
-      Node* node = new_node(ND_ADDRESS, node_increment(), NULL);
+      Node *node = new_node(ND_ADDRESS, node_increment(), NULL);
       node->type = malloc(sizeof(Type));
       node->type->ty = TY_PTR;
       node->type->ptrof = node->lhs->type;
@@ -871,7 +880,7 @@ Node *node_term() {
             }
             node->args[node->argc++] = node_mathexpr_without_comma();
          }
-         //assert(node->argc <= 6);
+         // assert(node->argc <= 6);
          // pos++ because of consume_node(')')
          return node;
       }
@@ -879,8 +888,16 @@ Node *node_term() {
       node = read_complex_ident();
       if (consume_node(TK_PLUSPLUS)) {
          node = new_node(ND_FPLUSPLUS, node, NULL);
+         node->num_val = 1;
+         if (node->lhs->type->ty == TY_PTR) {
+            node->num_val = type2size(node->lhs->type->ptrof);
+         }
       } else if (consume_node(TK_SUBSUB)) {
          node = new_node(ND_FSUBSUB, node, NULL);
+         node->num_val = 1;
+         if (node->lhs->type->ty == TY_PTR) {
+            node->num_val = type2size(node->lhs->type->ptrof);
+         }
       }
       // array
       return node;
@@ -1010,7 +1027,7 @@ int type2size(Type *type) {
       case TY_CHAR:
          return 1;
       case TY_ARRAY:
-         //return //type->array_size * 
+         // return //type->array_size *
          return type2size(type->ptrof);
       case TY_STRUCT: {
          int val = 0;
@@ -1067,21 +1084,22 @@ void gen(Node *node) {
       env_for_while_switch = cur_if_cnt;
       gen(node->lhs);
       puts("pop r9");
-      // find CASE Labels and lookup into args[0]->code
-      for (int j = 0; node->rhs->code[j] != NULL; j++) {
-         if (node->rhs->code[j]->ty == ND_CASE) {
+      // find CASE Labels and lookup into args[0]->code->data
+      for (int j = 0; node->rhs->code->data[j] != NULL; j++) {
+         Node *curnode = (Node *)node->rhs->code->data[j];
+         if (curnode->ty == ND_CASE) {
             char *input = malloc(sizeof(char) * 256);
             snprintf(input, 255, ".L%dC%d", cur_if_cnt, j);
-            node->rhs->code[j]->name = input; // assign unique ID
-            gen(node->rhs->code[j]->lhs);     // find statement
+            curnode->name = input; // assign unique ID
+            gen(curnode->lhs);
             puts("pop rax");
             printf("cmp r9, rax\n");
             printf("je %s\n", input);
          }
-         if (node->rhs->code[j]->ty == ND_DEFAULT) {
+         if (curnode->ty == ND_DEFAULT) {
             char *input = malloc(sizeof(char) * 256);
             snprintf(input, 255, ".L%dC%d", cur_if_cnt, j);
-            node->rhs->code[j]->name = input; // assign unique ID
+            curnode->name = input;
             printf("jmp %s\n", input);
          }
       }
@@ -1107,8 +1125,8 @@ void gen(Node *node) {
       Env *prev_env = env;
       env = node->env;
       // printf("%s:\n", node->name);
-      for (int j = 0; node->code[j] != NULL; j++) {
-         gen(node->code[j]);
+      for (int j = 0; node->code->data[j] != NULL; j++) {
+         gen(node->code->data[j]);
       }
       env = prev_env;
       return;
@@ -1129,21 +1147,22 @@ void gen(Node *node) {
       strcpy(registers[3], "rcx");
       strcpy(registers[4], "r8");
       strcpy(registers[5], "r9");
-      //char registers[6][4] = {"rdi", "rsi", "rdx", "rcx", "r8", "r9"};
+      // char registers[6][4] = {"rdi", "rsi", "rdx", "rcx", "r8", "r9"};
       for (int j = 0; j < node->argc; j++) {
          gen_lval(node->args[j]);
          puts("pop rax");
          printf("mov [rax], %s\n", registers[j]);
          puts("push rax");
       }
-      for (int j = 0; node->code[j] != NULL; j++) {
-         if (node->code[j]->ty == ND_RETURN) {
-            gen(node->code[j]->lhs);
+      for (int j = 0; node->code->data[j] != NULL; j++) {
+         if (node->code->data[j]->ty == ND_RETURN) {
+            Node *curnode = node->code->data[j];
+            gen(curnode->lhs);
             puts("pop rax");
             break;
          }
          // read inside functions.
-         gen(node->code[j]);
+         gen(node->code->data[j]);
          puts("pop rax");
       }
       puts("mov rsp, rbp");
@@ -1200,7 +1219,7 @@ void gen(Node *node) {
    }
 
    if (node->ty == ND_FUNC) {
-      //char registers[6][4] = {"rdi", "rsi", "rdx", "rcx", "r8", "r9"};
+      // char registers[6][4] = {"rdi", "rsi", "rdx", "rcx", "r8", "r9"};
       char registers[6][4];
       strcpy(registers[0], "rdi");
       strcpy(registers[1], "rsi");
@@ -1302,12 +1321,13 @@ void gen(Node *node) {
       return;
    }
 
-   if (node->ty == ND_IDENT || node->ty == '.' || node->ty == ND_EXTERN_SYMBOL) {
+   if (node->ty == ND_IDENT || node->ty == '.' ||
+       node->ty == ND_EXTERN_SYMBOL) {
       gen_lval(node);
       if (node->type->ty != TY_ARRAY) {
          puts("pop rax");
          puts("mov rax, [rax]");
-         //printf("mov %s,%s [rax]\n", rax(node),type2string(node));
+         // printf("mov %s,%s [rax]\n", rax(node),type2string(node));
          puts("push rax");
       }
       return;
@@ -1317,7 +1337,7 @@ void gen(Node *node) {
       gen(node->lhs); // Compile as RVALUE
       puts("#deref");
       puts("pop rax");
-      //puts("mov rax, [rax]");
+      // puts("mov rax, [rax]");
       printf("mov %s, [rax]\n", rax(node));
       if (node->type->ty == TY_CHAR) {
          printf("movzx rax, al\n");
@@ -1368,7 +1388,7 @@ void gen(Node *node) {
          puts("movzx rax, dil");
       } else {
       */
-         puts("mov [rax], rdi");
+      puts("mov [rax], rdi");
       // }
       puts("push rdi");
       return;
@@ -1379,7 +1399,7 @@ void gen(Node *node) {
       puts("pop rax");
       puts("mov rdi, [rax]");
       puts("push rdi");
-      puts("add rdi, 1");
+      printf("add rdi, %d\n", node->num_val);
       puts("mov [rax], rdi");
       return;
    }
@@ -1388,7 +1408,7 @@ void gen(Node *node) {
       puts("pop rax");
       puts("mov rdi, [rax]");
       puts("push rdi");
-      puts("sub rdi, 1");
+      printf("sub rdi, %d\n", node->num_val);
       puts("mov [rax], rdi");
       return;
    }
@@ -1429,7 +1449,7 @@ void gen(Node *node) {
        (node->lhs->type->ty == TY_ARRAY || node->lhs->type->ty == TY_PTR)) {
       puts("pop rax"); // rhs
       puts("pop rdi"); // lhs because of mul
-      printf("mov r10, %d\n", type2size(node->lhs->type));
+      printf("mov r10, %d\n", type2size(node->lhs->type->ptrof));
       puts("mul r10");
       switch (node->ty) {
          case '+':
@@ -1440,15 +1460,15 @@ void gen(Node *node) {
             puts("sub rax, rdi"); // stack
             puts("push rax");
             return;
-         /*default:
-            error("Error: Not supported pointer eq.");*/
+            /*default:
+               error("Error: Not supported pointer eq.");*/
       }
    }
    if (node->rhs->type &&
        (node->rhs->type->ty == TY_ARRAY || node->rhs->type->ty == TY_PTR)) {
       puts("pop rdi"); // rhs
       puts("pop rax"); // lhs
-      printf("mov r10, %d\n", type2size(node->rhs->type));
+      printf("mov r10, %d\n", type2size(node->rhs->type->ptrof));
       puts("mul r10"); // TODO multiply pointer size (8)
       switch (node->ty) {
          case '+':
@@ -1609,7 +1629,7 @@ Type *read_type(char **input) {
    // pos++;
    // array
    while (consume_node('[')) {
-      //type->ty = TY_ARRAY;
+      // type->ty = TY_ARRAY;
       // TODO: support NOT functioned type
       // ex. int a[4+7];
       Type *old_type = type;
@@ -1629,7 +1649,7 @@ Node *stmt() {
       char *input = NULL;
       Type *type = read_type(&input);
       node = new_ident_node_with_new_variable(input, type);
-      //new_ident_node_with_new_variable(input, type);
+      // new_ident_node_with_new_variable(input, type);
       // if there is int a =1;
       if (consume_node('=')) {
          if (consume_node('{')) {
@@ -1695,92 +1715,96 @@ Node *node_if() {
 
 void program(Node *block_node) {
    expect_node('{');
-   Node **args = block_node->code;
+   // Node **args = block_node->code;
+   Vector *args = block_node->code;
    Env *prev_env = env;
    env = block_node->env;
    // env = new_env(env);
    while (!consume_node('}')) {
       if (confirm_node('{')) {
-         args[0] = new_block_node(env);
-         program(args[0]);
-         args++;
+         Node *new_block = new_block_node(env);
+         program(new_block);
+         vec_push(args, new_block);
+         // args[0] = new_block_node(env);
+         // program(args[0]);
+         // args++;
          continue;
       }
 
       if (consume_node(TK_IF)) {
-         args[0] = node_if();
-         args++;
+         vec_push(args, node_if());
+         // args[0] = node_if();
+         // args++;
          continue;
       }
       if (consume_node(TK_WHILE)) {
-         args[0] = new_node(ND_WHILE, node_mathexpr(), NULL);
+         Node *while_node = new_node(ND_WHILE, node_mathexpr(), NULL);
          if (confirm_node(TK_BLOCKBEGIN)) {
-            args[0]->rhs = new_block_node(env);
-            program(args[0]->rhs);
+            while_node->rhs = new_block_node(env);
+            program(while_node->rhs);
          } else {
-            args[0]->rhs = stmt();
+            while_node->rhs = stmt();
          }
-         args++;
+         vec_push(args, while_node);
          continue;
       }
       if (consume_node(TK_DO)) {
-         args[0] = new_node(ND_DOWHILE, NULL, NULL);
-         args[0]->rhs = new_block_node(env);
-         program(args[0]->rhs);
+         Node *do_node = new_node(ND_DOWHILE, NULL, NULL);
+         do_node->rhs = new_block_node(env);
+         program(do_node->rhs);
          expect_node(TK_WHILE);
-         args[0]->lhs = node_mathexpr();
-         args++;
+         do_node->lhs = node_mathexpr();
+         // args++;
          expect_node(';');
+         vec_push(args, do_node);
          continue;
       }
       if (consume_node(TK_FOR)) {
-         args[0] = new_node(ND_FOR, NULL, NULL);
+         Node *for_node = new_node(ND_FOR, NULL, NULL);
          expect_node('(');
          // TODO: should be splited between definition and expression
-         args[0]->args[0] = stmt();
+         for_node->args[0] = stmt();
          // expect_node(';');
          // TODO: to allow without lines
          if (!consume_node(';')) {
-            args[0]->args[1] = assign();
+            for_node->args[1] = assign();
             expect_node(';');
          }
          if (!consume_node(')')) {
-            args[0]->args[2] = assign();
+            for_node->args[2] = assign();
             expect_node(')');
          }
-         args[0]->rhs = new_block_node(env);
-         program(args[0]->rhs);
-         args++;
+         for_node->rhs = new_block_node(env);
+         program(for_node->rhs);
+         vec_push(args, for_node);
+         // args++;
          continue;
       }
 
       if (consume_node(TK_CASE)) {
-         args[0] = new_node(ND_CASE, node_term(), NULL);
+         vec_push(args, new_node(ND_CASE, node_term(), NULL));
          expect_node(':');
-         args++;
          continue;
       }
       if (consume_node(TK_DEFAULT)) {
-         args[0] = new_node(ND_DEFAULT, NULL, NULL);
+         vec_push(args, new_node(ND_DEFAULT, NULL, NULL));
          expect_node(':');
-         args++;
          continue;
       }
 
       if (consume_node(TK_SWITCH)) {
          expect_node('(');
-         args[0] = new_node(ND_SWITCH, node_mathexpr(), NULL);
+         Node *switch_node = new_node(ND_SWITCH, node_mathexpr(), NULL);
          expect_node(')');
-         args[0]->rhs = new_block_node(env);
-         program(args[0]->rhs);
-         args++;
+         switch_node->rhs = new_block_node(env);
+         program(switch_node->rhs);
+         vec_push(args, switch_node);
          continue;
       }
-      args[0] = stmt();
-      args++;
+      vec_push(args, stmt());
       // args[i++] = stmt();
    }
-   args[0] = NULL;
+   vec_push(args, NULL);
 
    // 'consumed }'
    env = prev_env;
@@ -2021,8 +2045,8 @@ void test_map() {
 void globalvar_gen() {
    puts(".data");
    for (int j = 0; j < global_vars->keys->len; j++) {
-      Type* valdataj = (Type *)global_vars->vals->data[j];
-      char* keydataj = (char *)global_vars->keys->data[j];
+      Type *valdataj = (Type *)global_vars->vals->data[j];
+      char *keydataj = (char *)global_vars->keys->data[j];
       if (valdataj->initval != 0) {
          printf(".type %s,@object\n", keydataj);
          printf(".size %s, 4\n", keydataj);
@@ -2089,7 +2113,8 @@ void preprocess(Vector *pre_tokens) {
          if (strcmp(pre_tokens->data[j]->input, defined->keys->data[k]) == 0) {
             called = 1;
             fprintf(stderr, "#define changed: %s -> %d\n",
-                    pre_tokens->data[j]->input, defined->vals->data[k]->num_val);
+                    pre_tokens->data[j]->input,
+                    defined->vals->data[k]->num_val);
             // pre_tokens->data[j] = defined->vals->data[k];
             vec_push(tokens, defined->vals->data[k]);
             continue;
@@ -2130,6 +2155,7 @@ void init_typedb() {
    typevoid->ty = TY_STRUCT;
    typevoid->ptrof = NULL;
    typevoid->offset = 8;
+   typevoid->structure = new_map();
    map_put(typedb, "FILE", typevoid);
 }
 

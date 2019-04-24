@@ -55,3 +55,9 @@ dkms.conf
 tmp.s
 tmp
 hanando
+
+samples/*.s
+samples/1
+samples/2
+samples/3
+samples/4
