@@ -111,6 +111,8 @@ test13:
 	sh test.sh "int x[10];*x=3;*x;" 3
 	sh test.sh "int x[10];*(x+1)=3;*x=2;*x;" 2
 	sh test.sh "int x[10];x[1]=3;x[1];" 3
+	sh test.sh "int x[10];x[0]=2;x[1]=3;x[1];" 3
+	sh test.sh "int x[10];x[0]=2;x[1]=3;x[0];" 2
 
 test14:
 	sh testfdef.sh "int a;int main(){a=1;a;}" 1
