@@ -123,6 +123,8 @@ int cnt_size(Type *type) {
       case TY_STRUCT:
          cnt = type->offset;
          break;
+      default:
+         error("Error: on void type error.");
    }
    return cnt;
 }
@@ -824,16 +826,6 @@ Node *read_complex_ident() {
             exit(1);
          }
          node = new_dot_node(node);
-         /*
-         node = new_node('.', node, NULL);
-         node->name = tokens->data[pos]->input;
-         node->type = (Type*)map_get(node->lhs->type->structure, node->name);
-         if (!node->type) {
-            error("Error: structure not found.");
-            exit(1);
-         }
-         expect_node(TK_IDENT);
-         */
       } else if (consume_node(TK_ARROW)) {
          node = new_dot_node(new_deref_node(node));
       } else {
