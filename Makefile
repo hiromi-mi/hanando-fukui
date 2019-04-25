@@ -3,7 +3,7 @@ CFLAGS = -Wall -Wextra -Wpedantic -g
 LDFLAGS = -lm
 
 #srcs = $(wildcard *.c)
-srcs = main.c util.c
+srcs = main.c
 objects = $(srcs:.c=.o)
 target=hanando
 

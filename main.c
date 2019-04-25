@@ -43,6 +43,44 @@ Map *typedb;
 Map *struct_typedb;
 Map *enum_typedb;
 
+Map *new_map() {
+   Map *map = malloc(sizeof(Map));
+   map->keys = new_vector();
+   map->vals = new_vector();
+   return map;
+}
+
+int map_put(Map *map, char *key, void *val) {
+   vec_push(map->keys, (void *)key);
+   return vec_push(map->vals, (void *)val);
+}
+
+void *map_get(Map *map, char *key) {
+   for (int i = map->keys->len - 1; i >= 0; i--) {
+      if (strcmp((char *)map->keys->data[i], key) == 0) {
+         return map->vals->data[i];
+      }
+   }
+   return NULL;
+}
+
+Vector *new_vector() {
+   Vector *vec = malloc(sizeof(Vector));
+   vec->capacity = 16;
+   vec->data = malloc(sizeof(Token *) * vec->capacity);
+   vec->len = 0;
+   return vec;
+}
+
+int vec_push(Vector *vec, Token *element) {
+   if (vec->capacity == vec->len) {
+      vec->capacity *= 2;
+      vec->data = realloc(vec->data, sizeof(Token *) * vec->capacity);
+   }
+   vec->data[vec->len] = element;
+   return vec->len++;
+}
+
 void error(const char *str) {
    if (tokens) {
       fprintf(stderr, "%s on %d: %s\n", str, pos, tokens->data[pos]->input);
@@ -102,6 +140,7 @@ Node *new_deref_node(Node *lhs) {
 }
 
 int cnt_size(Type *type) {
+   // TODO: should aligned as x86_64
    int cnt = 0;
    switch (type->ty) {
       case TY_PTR:
@@ -292,7 +331,6 @@ Vector *tokenize(char *p) {
 
       if (*p == '\"') {
          Token *token = malloc(sizeof(Token));
-         // TODO
          token->input = malloc(sizeof(char) * 256);
          token->ty = TK_STRING;
          int i = 0;
@@ -937,6 +975,7 @@ Type *get_type(Node *node) {
 }
 
 // TODO: another effect: set node->type. And join into get_type()
+// should be abolished
 int get_lval_offset(Node *node) {
    int offset = (int)NULL;
    Env *local_env = env;
@@ -1461,7 +1500,7 @@ void gen(Node *node) {
       puts("pop rdi"); // rhs
       puts("pop rax"); // lhs
       printf("mov r10, %d\n", type2size(node->rhs->type->ptrof));
-      puts("mul r10"); // TODO multiply pointer size (8)
+      puts("mul r10");
       switch (node->ty) {
          case '+':
             puts("add rax, rdi");
