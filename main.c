@@ -2141,6 +2141,18 @@ void test_map() {
       error("Error: Map does not work yet!");
       exit(1);
    }
+   Vector *vec = new_vector();
+   Token *hanando_fukui_compiled = malloc(sizeof(Token));
+   hanando_fukui_compiled->ty = TK_NUM;
+   hanando_fukui_compiled->pos = 0;
+   hanando_fukui_compiled->num_val = 1;
+   hanando_fukui_compiled->input = "__HANANDO_FUKUI__";
+   vec_push(vec, hanando_fukui_compiled);
+   vec_push(vec, 9);
+   if (vec->len != 2) {
+      error("Vector does not work yet!");
+      exit(1);
+   }
 }
 
 void globalvar_gen() {
@@ -2315,6 +2327,7 @@ int main(int argc, char **argv) {
       error("Incorrect Arguments");
       exit(1);
    }
+   test_map();
 
    tokens = new_vector();
    if (strcmp(argv[1], "-f") == 0) {
@@ -2327,14 +2340,6 @@ int main(int argc, char **argv) {
    token->input = "";
    vec_push(tokens, token);
 
-   test_map();
-
-   Vector *vec = new_vector();
-   vec_push(vec, 9);
-   if (vec->len != 1) {
-      error("Vector does not work yet!");
-      exit(1);
-   }
    init_typedb();
 
    toplevel();
