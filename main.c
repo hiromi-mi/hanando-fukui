@@ -44,8 +44,10 @@ Map *struct_typedb;
 Map *enum_typedb;
 
 // FOR SELFHOST
+#ifdef __HANANDO_FUKUI__
 FILE* fopen(char* name, char* type);
 void* malloc(int size);
+#endif
 
 Map *new_map() {
    Map *map = malloc(sizeof(Map));
@@ -2155,6 +2157,15 @@ void globalvar_gen() {
 
 void preprocess(Vector *pre_tokens) {
    Map *defined = new_map();
+   // when compiled with hanando
+   Token *hanando_fukui_compiled = malloc(sizeof(Token));
+   hanando_fukui_compiled->ty = TK_NUM;
+   hanando_fukui_compiled->pos = 0;
+   hanando_fukui_compiled->num_val = 1;
+   hanando_fukui_compiled->input = "__HANANDO_FUKUI__";
+   map_put(defined, "__HANANDO_FUKUI__", hanando_fukui_compiled);
+
+   int skipped = 0;
    for (int j = 0; j < pre_tokens->len; j++) {
       if (pre_tokens->data[j]->ty == '#') {
          // preprocessor begin
@@ -2166,11 +2177,29 @@ void preprocess(Vector *pre_tokens) {
             }
             continue;
          }
+         if (strcmp(pre_tokens->data[j]->input, "ifdef") == 0) {
+            if (map_get(defined, pre_tokens->data[j + 2]->input) == NULL) {
+               skipped = 1;
+               // skip until #endif
+               // read because of defined.
+            } else {
+               while (pre_tokens->data[j]->ty != TK_NEWLINE &&
+                     pre_tokens->data[j]->ty != TK_EOF) {
+                  j++;
+               }
+            }
+            continue;
+         }
          if (strcmp(pre_tokens->data[j]->input, "endif") == 0) {
+            skipped = 0;
             while (pre_tokens->data[j]->ty != TK_NEWLINE &&
                    pre_tokens->data[j]->ty != TK_EOF) {
                j++;
             }
+            continue;
+         }
+         // skip without #ifdef, #endif. TODO dirty
+         if (skipped != 0) {
             continue;
          }
          if (strcmp(pre_tokens->data[j]->input, "define") == 0) {
@@ -2191,6 +2220,10 @@ void preprocess(Vector *pre_tokens) {
                j++;
             }
          }
+         continue;
+      }
+      // skip without #ifdef, #endif
+      if (skipped != 0) {
          continue;
       }
       if (pre_tokens->data[j]->ty == TK_NEWLINE)
