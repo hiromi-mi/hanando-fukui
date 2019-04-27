@@ -174,10 +174,6 @@ Node *new_ident_node_with_new_variable(char *name, Type *type) {
    node->name = name;
    node->type = type;
    int size = cnt_size(type);
-   // TODO : 8-based based alignment
-   if ((size % 8 != 0)) {
-      size += (8 - size % 8);
-   }
    env->rsp_offset += size;
    type->offset = env->rsp_offset;
    // type->ptrof = NULL;
