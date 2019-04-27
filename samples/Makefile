@@ -6,6 +6,6 @@ test:
 	../hanando -f 8.c > 8.s
 	gcc 8.s -o 8
 	./8
-	../hanando -f 0.c > 9.s
+	../hanando -f 9.c > 9.s
 	gcc 9.s -o 9
 	./9
