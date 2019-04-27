@@ -123,7 +123,7 @@ Node *new_node(NodeType ty, Node *lhs, Node *rhs) {
    return node;
 }
 
-Node *new_num_node(long num_val) {
+Node *new_num_node(int num_val) {
    Node *node = malloc(sizeof(Node));
    node->ty = ND_NUM;
    node->num_val = num_val;
@@ -817,10 +817,10 @@ Node *node_increment() {
          // sizeof(int) read type without name
          Type *type = read_type(NULL);
          expect_node(')');
-         return new_num_node(type2size(type));
+         return new_num_node(cnt_size(type));
       }
       Node *node = node_mathexpr();
-      return new_num_node(type2size(node->type));
+      return new_num_node(cnt_size(node->type));
    } else {
       return node_term();
    }
@@ -1098,13 +1098,8 @@ int type2size(Type *type) {
          return 1;
       case TY_ARRAY:
          return cnt_size(type->ptrof);
-      case TY_STRUCT: {
-         int val = 0;
-         for (int j = 0; j < type->structure->keys->len; j++) {
-            val += type2size(type->structure->keys->data[j]);
-         }
-         return val;
-      }
+      case TY_STRUCT:
+         return cnt_size(type);
    }
 }
 
@@ -2301,7 +2296,7 @@ Vector *read_tokenize(char *fname) {
       exit(1);
    }
    fseek(fp, 0, SEEK_END);
-   long length = ftell(fp);
+   int length = ftell(fp);
    fseek(fp, 0, SEEK_SET);
    char *buf = malloc(sizeof(char) * (length + 5));
    fread(buf, length + 5, sizeof(char), fp);

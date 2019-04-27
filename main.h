@@ -98,7 +98,7 @@ typedef enum {
 
 typedef struct {
    TokenConst ty;
-   long num_val;
+   int num_val;
    char *input;
    int pos;
 } Token;
@@ -138,7 +138,7 @@ typedef struct Node {
    //struct Node *code[100];
    Vector *code;
    int argc;
-   long num_val;
+   int num_val;
    char *name;
    Env *env;
    Type *type;
