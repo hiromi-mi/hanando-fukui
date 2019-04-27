@@ -1096,9 +1096,7 @@ int type2size(Type *type) {
          return cnt_size(type->ptrof);
       case TY_STRUCT: {
          int val = 0;
-         for (int j = 0; j < type->structure->keys->len; j++) {
-            val += type2size(type->structure->keys->data[j]);
-         }
+         val = cnt_size(type);
          return val;
       }
    }
