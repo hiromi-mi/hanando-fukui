@@ -78,6 +78,10 @@ test9:
 	sh test.sh '0<2;' 1
 	sh test.sh '2>0;' 1
 	sh test.sh '0>2;' 0
+	sh test.sh '3<3;' 0
+	sh test.sh '2>2;' 0
+	sh test.sh '2>(-1);' 1
+	sh test.sh '2<(-1);' 0
 
 test10:
 	sh test.sh "{if(1){3;}}" 3
@@ -164,6 +168,8 @@ test22:
 	sh test.sh "1 >= 2;" 0
 	sh test.sh "1 >= 1;" 1
 	sh test.sh "4 >= 1;" 1
+	sh test.sh "-4 >= 1;" 0
+	sh test.sh "-4 <= 1;" 1
 
 test23:
 	sh test.sh "if (2 <= 1) 1; 7;" 7
@@ -198,6 +204,9 @@ test28:
 
 test29:
 	sh testfdef.sh "int func(char* a){ puts(a); return 1; }int main(){func(\"aaa\");}" 1
+	sh test.sh "char a[3]; a[0]='a'; a[1]='b';a[2]='\0';puts(a);printf(\"%c%c\", *a, *(a+1));" 2
+	sh test.sh "int a[3]; a[0]=8; a[1]=2;a[2]=4;puts(a);printf(\"%d%d\", *a, *(a+1));" 2
+	sh test.sh "char a[12]; a[0]='a'; a[1]='c';a[2]='d';a[3]='g';a[4]='h';a[5]='f';a[6]='k';a[7]='p';a[8]='l';a[9]='\0';puts(a);strcmp(a, \"acdghfkpl\");" 0
 
 clean:
 	$(RM) -f $(target) $(objects)

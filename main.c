@@ -43,6 +43,10 @@ Map *typedb;
 Map *struct_typedb;
 Map *enum_typedb;
 
+// FOR SELFHOST
+FILE* fopen(char* name, char* type);
+void* malloc(int size);
+
 Map *new_map() {
    Map *map = malloc(sizeof(Map));
    map->keys = new_vector();
@@ -786,11 +790,19 @@ Node *node_increment() {
    if (consume_node(TK_PLUSPLUS)) {
       Node *node = new_ident_node(tokens->data[pos]->input);
       expect_node(TK_IDENT);
-      return new_node(ND_INC, node, NULL);
+      node = new_node(ND_INC, node, NULL);
+      if (node->lhs->type->ty == TY_PTR) {
+         node->num_val = type2size(node->lhs->type->ptrof);
+      }
+      return node;
    } else if (consume_node(TK_SUBSUB)) {
       Node *node = new_ident_node(tokens->data[pos]->input);
       expect_node(TK_IDENT);
-      return new_node(ND_DEC, node, NULL);
+      node = new_node(ND_DEC, node, NULL);
+      if (node->lhs->type->ty == TY_PTR) {
+         node->num_val = type2size(node->lhs->type->ptrof);
+      }
+      return node;
    } else if (consume_node('&')) {
       Node *node = new_node(ND_ADDRESS, node_increment(), NULL);
       node->type = malloc(sizeof(Type));
@@ -843,7 +855,7 @@ Node *new_dot_node(Node *node) {
 Node *read_complex_ident() {
    char *input = tokens->data[pos]->input;
    Node *node = NULL;
-   for (int j = 0; j <= consts->keys->len - 1; j++) {
+   for (int j = 0; j < consts->keys->len; j++) {
       // support for constant
       if (strcmp(consts->keys->data[j], input) == 0) {
          node = consts->vals->data[j];
@@ -887,9 +899,11 @@ Node *node_term() {
    }
    if (confirm_node(TK_NUM)) {
       Node *node = new_num_node(tokens->data[pos]->num_val);
+      fprintf(stderr, "ID: i: %d %d\n", pos, node->num_val);
       expect_node(TK_NUM);
       return node;
    }
+   fprintf(stderr, "Should NOT come here!\n");
    if (consume_node(TK_NULL)) {
       Node *node = new_num_node(0);
       node->type->ty = TY_PTR;
@@ -1007,6 +1021,32 @@ char *rdi(Node *node) {
    } else {
       return "rdi";
    }
+}
+
+char* rdi_rax_larger(Node *node) {
+   Node* lhs = node->lhs;
+   Node* rhs = node->rhs;
+   char *str = malloc(sizeof(char) * 24);
+   if (type2size(lhs->type) < type2size(rhs->type)) {
+      // rdi, rax
+      snprintf(str, 24, "%s, %s", rdi(rhs), rax(rhs));
+   } else {
+      snprintf(str, 24, "%s, %s", rdi(lhs), rax(lhs));
+   }
+   return str;
+}
+
+char* rax_rdi_larger(Node *node) {
+   Node* lhs = node->lhs;
+   Node* rhs = node->rhs;
+   char *str = malloc(sizeof(char) * 24);
+   if (type2size(lhs->type) < type2size(rhs->type)) {
+      // rdi, rax
+      snprintf(str, 24, "%s, %s", rax(rhs), rdi(rhs));
+   } else {
+      snprintf(str, 24, "%s, %s", rax(rhs), rdi(rhs));
+   }
+   return str;
 }
 
 void gen_lval(Node *node) {
@@ -1167,6 +1207,8 @@ void gen(Node *node) {
       Env *prev_env = env;
       env = node->env;
       printf(".type %s,@function\n", node->name);
+      // to visible for ld
+      printf(".global %s\n", node->name);
       printf("%s:\n", node->name);
       puts("push rbp");
       puts("mov rbp, rsp");
@@ -1206,12 +1248,12 @@ void gen(Node *node) {
    if (node->ty == ND_LOR) {
       int cur_if_cnt = if_cnt++;
       gen(node->lhs);
-      puts("pop rdi");
-      puts("cmp rdi, 0");
+      printf("pop rdi\n");
+      printf("cmp %s, 0\n", rdi(node->lhs));
       printf("jne .Lorend%d\n", cur_if_cnt);
       gen(node->rhs);
       puts("pop rdi");
-      puts("cmp rdi, 0");
+      printf("cmp %s, 0\n", rdi(node->rhs));
       puts("setne al");
       puts("movzx rax, al");
       printf(".Lorend%d:\n", cur_if_cnt);
@@ -1224,11 +1266,11 @@ void gen(Node *node) {
       int cur_if_cnt = if_cnt++;
       gen(node->lhs);
       puts("pop rdi");
-      puts("cmp rdi, 0");
+      printf("cmp %s, 0\n", rdi(node->lhs));
       printf("je .Lorend%d\n", cur_if_cnt);
       gen(node->rhs);
       puts("pop rdi");
-      puts("cmp rdi, 0");
+      printf("cmp %s, 0\n", rdi(node->rhs));
       printf(".Lorend%d:\n", cur_if_cnt);
       puts("setne al");
       puts("movzx rax, al");
@@ -1276,7 +1318,7 @@ void gen(Node *node) {
    if (node->ty == ND_IF) {
       gen(node->args[0]);
       puts("pop rax");
-      puts("cmp rax, 0");
+      printf("cmp %s, 0\n", rax(node->args[0]));
       int cur_if_cnt = if_cnt++;
       printf("je .Lendif%d\n", cur_if_cnt);
       gen(node->lhs);
@@ -1301,7 +1343,7 @@ void gen(Node *node) {
       printf(".Lbegin%d:\n", cur_if_cnt);
       gen(node->lhs);
       puts("pop rax");
-      puts("cmp rax, 0");
+      printf("cmp %s, 0\n", rax(node->lhs));
       printf("je .Lend%d\n", cur_if_cnt);
       gen(node->rhs);
       printf("jmp .Lbegin%d\n", cur_if_cnt);
@@ -1320,7 +1362,7 @@ void gen(Node *node) {
       gen(node->rhs);
       gen(node->lhs);
       puts("pop rax");
-      puts("cmp rax, 0");
+      printf("cmp %s, 0\n", rax(node->lhs));
       printf("jne .Lbegin%d\n", cur_if_cnt);
       printf(".Lend%d:\n", cur_if_cnt);
       env_for_while = prev_env_for_while;
@@ -1344,7 +1386,7 @@ void gen(Node *node) {
 
       // condition
       puts("pop rax");
-      puts("cmp rax, 0");
+      printf("cmp %s, 0\n", rax(node->args[1]));
       printf("jne .Lbeginwork%d\n", cur_if_cnt);
       printf(".Lend%d:\n", cur_if_cnt);
       env_for_while = prev_env_for_while;
@@ -1464,7 +1506,7 @@ void gen(Node *node) {
    }
    if (node->ty == '!') {
       puts("pop rax");
-      puts("cmp rax, 0");
+      printf("cmp %s, 0\n", rax(node->lhs));
       puts("setne al");
       puts("xor al, -1");
       puts("and al, 1");
@@ -1567,36 +1609,36 @@ void gen(Node *node) {
          puts("sal rax, cl");
          break;
       case ND_ISEQ:
-         puts("cmp rdi, rax");
+         printf("cmp %s\n", rdi_rax_larger(node));
          puts("sete al");
          puts("movzx rax, al");
          break;
       case ND_ISNOTEQ:
-         puts("cmp rdi, rax");
+         printf("cmp %s\n", rdi_rax_larger(node));
          puts("setne al");
          puts("movzx rax, al");
          break;
       case '>':
-         puts("cmp rdi, rax");
-         puts("setb al");
+         printf("cmp %s\n", rdi_rax_larger(node));
+         puts("setl al");
          puts("movzx rax, al");
          break;
       case '<':
          // reverse of < and >
-         puts("cmp rdi, rax");
+         printf("cmp %s\n", rdi_rax_larger(node));
          // TODO: is "andb 1 %al" required?
          puts("setg al");
          puts("movzx rax, al");
          break;
       case ND_ISMOREEQ:
-         puts("cmp rax, rdi");
+         printf("cmp %s\n", rax_rdi_larger(node));
          puts("setge al");
          puts("and al, 1");
          // should be eax instead of rax?
          puts("movzx rax, al");
          break;
       case ND_ISLESSEQ:
-         puts("cmp rax, rdi");
+         printf("cmp %s\n", rax_rdi_larger(node));
          puts("setle al");
          puts("and al, 1");
          puts("movzx eax, al");
@@ -1713,7 +1755,6 @@ Node *stmt() {
    }
    return node;
 }
-int i = 0;
 
 Node *node_if() {
    // Node** args) {
@@ -1899,6 +1940,7 @@ int split_type_ident() {
       return 0;
    }
    for (int j = 0; j < typedb->keys->len; j++) {
+      char* chr = typedb->keys->data[j];
       // for struct
       if (strcmp(token->input, typedb->keys->data[j]) == 0) {
          return typedb->vals->data[j]->ty;
@@ -1959,6 +2001,7 @@ void define_enum(int assign_name) {
 }
 
 void toplevel() {
+   int i = 0;
    // consume_node('{')
    // idents = new_map...
    // stmt....
@@ -1989,11 +2032,20 @@ void toplevel() {
          structuretype->ty = TY_STRUCT;
          structuretype->ptrof = NULL;
          int offset = 0;
+         int size = 0;
          while (!consume_node('}')) {
             char *name = NULL;
             Type *type = read_type(&name);
-            offset += type2size(type);
+            size = type2size(type);
+            if ((offset % size != 0)) {
+               offset += (size - offset % size);
+            }
+            fprintf(stderr, "#define new offset: %s on %d\n", name, offset);
+            //offset += type2size(type);
+            // all type should aligned with proper value.
+            // TODO assumption there are NO bytes over 8 bytes.
             type->offset = offset;
+            offset += size;
             expect_node(';');
             map_put(structuretype->structure, name, type);
          }
@@ -2061,7 +2113,8 @@ void toplevel() {
          program(code[i++]);
          continue;
       }
-      code[i++] = stmt();
+      i++;
+      code[i] = stmt();
    }
    code[i] = NULL;
 }
@@ -2071,6 +2124,10 @@ void test_map() {
    expect(__LINE__, 0, (int)map_get(map, "foo"));
    map_put(map, "foo", (void *)2);
    expect(__LINE__, 2, (int)map_get(map, "foo"));
+   if (map->keys->len != 1 || map->vals->len != 1) {
+      error("Error: Map does not work yet!");
+      exit(1);
+   }
 }
 
 void globalvar_gen() {
@@ -2080,6 +2137,7 @@ void globalvar_gen() {
       char *keydataj = (char *)global_vars->keys->data[j];
       if (valdataj->initval != 0) {
          printf(".type %s,@object\n", keydataj);
+         printf(".global %s\n", keydataj);
          printf(".size %s, 4\n", keydataj);
          printf("%s:\n", keydataj);
          printf(".long %d\n", valdataj->initval);
@@ -2097,7 +2155,7 @@ void globalvar_gen() {
 
 void preprocess(Vector *pre_tokens) {
    Map *defined = new_map();
-   for (int j = 0; j <= pre_tokens->len - 1; j++) {
+   for (int j = 0; j < pre_tokens->len; j++) {
       if (pre_tokens->data[j]->ty == '#') {
          // preprocessor begin
          j++;
@@ -2140,10 +2198,11 @@ void preprocess(Vector *pre_tokens) {
       if (pre_tokens->data[j]->ty == TK_SPACE)
          continue;
       int called = 0;
-      for (int k = 0; k <= defined->keys->len - 1; k++) {
-         if (strcmp(pre_tokens->data[j]->input, defined->keys->data[k]) == 0) {
+      for (int k = 0; k < defined->keys->len; k++) {
+         char* chr = defined->keys->data[k];
+         if (strcmp(pre_tokens->data[j]->input, chr) == 0) {
             called = 1;
-            fprintf(stderr, "#define changed: %s -> %d\n",
+            fprintf(stderr, "#define changed: %s -> %ld\n",
                     pre_tokens->data[j]->input,
                     defined->vals->data[k]->num_val);
             // pre_tokens->data[j] = defined->vals->data[k];
@@ -2226,9 +2285,12 @@ int main(int argc, char **argv) {
 
    test_map();
 
-   // Vector *vec = new_vector();
-   // vec_push(vec, 9);
-   // assert(1 == vec->len);
+   Vector *vec = new_vector();
+   vec_push(vec, 9);
+   if (vec->len != 1) {
+      error("Vector does not work yet!");
+      exit(1);
+   }
    init_typedb();
 
    toplevel();
@@ -2236,7 +2298,6 @@ int main(int argc, char **argv) {
    puts(".intel_syntax noprefix");
 
    puts(".align 4");
-   puts(".global main");
    // treat with global variables
    globalvar_gen();
 
