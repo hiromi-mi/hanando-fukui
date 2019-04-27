@@ -150,20 +150,14 @@ int cnt_size(Type *type) {
    int cnt = 0;
    switch (type->ty) {
       case TY_PTR:
-         cnt = 8;
-         break;
       case TY_INT:
-         cnt = 8;
-         break;
       case TY_CHAR:
-         cnt = 8; // tekitou
-         break;
       case TY_LONG:
-         cnt = 8; // tekitou
+         cnt = type2size(type);
          break;
       case TY_ARRAY:
          // TODO: should not be 8 in case of truct
-         cnt = type2size(type->ptrof) * type->array_size;
+         cnt = cnt_size(type->ptrof) * type->array_size;
          break;
       case TY_STRUCT:
          cnt = type->offset;
@@ -179,7 +173,12 @@ Node *new_ident_node_with_new_variable(char *name, Type *type) {
    node->ty = ND_IDENT;
    node->name = name;
    node->type = type;
-   env->rsp_offset += cnt_size(type);
+   int size = cnt_size(type);
+   // TODO : 8-based based alignment
+   if ((size % 8 != 0)) {
+      size += (8 - size % 8);
+   }
+   env->rsp_offset += size;
    type->offset = env->rsp_offset;
    // type->ptrof = NULL;
    // type->ty = TY_INT;
@@ -794,7 +793,7 @@ Node *node_increment() {
       expect_node(TK_IDENT);
       node = new_node(ND_INC, node, NULL);
       if (node->lhs->type->ty == TY_PTR) {
-         node->num_val = type2size(node->lhs->type->ptrof);
+         node->num_val = cnt_size(node->lhs->type->ptrof);
       }
       return node;
    } else if (consume_node(TK_SUBSUB)) {
@@ -802,7 +801,7 @@ Node *node_increment() {
       expect_node(TK_IDENT);
       node = new_node(ND_DEC, node, NULL);
       if (node->lhs->type->ty == TY_PTR) {
-         node->num_val = type2size(node->lhs->type->ptrof);
+         node->num_val = cnt_size(node->lhs->type->ptrof);
       }
       return node;
    } else if (consume_node('&')) {
@@ -901,11 +900,9 @@ Node *node_term() {
    }
    if (confirm_node(TK_NUM)) {
       Node *node = new_num_node(tokens->data[pos]->num_val);
-      fprintf(stderr, "ID: i: %d %d\n", pos, node->num_val);
       expect_node(TK_NUM);
       return node;
    }
-   fprintf(stderr, "Should NOT come here!\n");
    if (consume_node(TK_NULL)) {
       Node *node = new_num_node(0);
       node->type->ty = TY_PTR;
@@ -1100,8 +1097,7 @@ int type2size(Type *type) {
       case TY_CHAR:
          return 1;
       case TY_ARRAY:
-         // return //type->array_size *
-         return type2size(type->ptrof);
+         return cnt_size(type->ptrof);
       case TY_STRUCT: {
          int val = 0;
          for (int j = 0; j < type->structure->keys->len; j++) {
@@ -1410,6 +1406,10 @@ void gen(Node *node) {
 
    if (node->ty == ND_DEREF) {
       gen(node->lhs); // Compile as RVALUE
+      if (node->lhs->type->ptrof && node->lhs->type->ptrof->ty == TY_ARRAY) {
+         return;
+         // continuous array will be ignored.
+      }
       puts("#deref");
       puts("pop rax");
       // puts("mov rax, [rax]");
@@ -1703,17 +1703,28 @@ Type *read_type(char **input) {
    consume_node(TK_IDENT);
    // pos++;
    // array
-   while (consume_node('[')) {
-      // type->ty = TY_ARRAY;
-      // TODO: support NOT functioned type
-      // ex. int a[4+7];
-      Type *old_type = type;
+   if (consume_node('[')) {
+      Type *base_type = type;
       type = malloc(sizeof(Type));
       type->ty = TY_ARRAY;
       type->array_size = (int)tokens->data[pos]->num_val;
-      type->ptrof = old_type;
+      type->ptrof = base_type;
       expect_node(TK_NUM);
       expect_node(']');
+      Type *cur_ptr = type;
+      // support for multi-dimensional array
+      while (consume_node('[')) {
+         // type->ty = TY_ARRAY;
+         // TODO: support NOT functioned type
+         // ex. int a[4+7];
+         cur_ptr->ptrof = malloc(sizeof(Type));
+         cur_ptr->ptrof->ty = TY_ARRAY;
+         cur_ptr->ptrof->array_size = (int)tokens->data[pos]->num_val;
+         cur_ptr->ptrof->ptrof = base_type;
+         expect_node(TK_NUM);
+         expect_node(']');
+         cur_ptr = cur_ptr->ptrof;
+      }
    }
    return type;
 }
