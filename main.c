@@ -145,6 +145,23 @@ Node *new_deref_node(Node *lhs) {
    return node;
 }
 
+Node *new_addsub_node(NodeType ty, Node *lhs_node, Node *rhs_node) {
+   Node* lhs = lhs_node;
+   Node* rhs = rhs_node;
+   Node* node = NULL;
+   if (lhs->type->ty == TY_PTR || lhs->type->ty == TY_ARRAY) {
+      rhs = new_node('*', rhs, new_num_node(type2size(lhs->type)));
+   } else if (rhs->type->ty == TY_PTR || rhs->type->ty == TY_ARRAY) {
+      lhs = new_node('*', lhs, new_num_node(type2size(rhs->type)));
+   }
+   node = new_node(ty, lhs, rhs);
+   if (rhs->type->ty == TY_PTR || rhs->type->ty == TY_ARRAY) {
+      node->type = rhs->type;
+      // TY_PTR no matter when lhs->lhs is INT or PTR
+   }
+   return node;
+}
+
 int cnt_size(Type *type) {
    // TODO: should aligned as x86_64
    int cnt = 0;
@@ -749,29 +766,9 @@ Node *node_add() {
    Node *node = node_mul();
    while (1) {
       if (consume_node('+')) {
-         Node *rhs = node_mul();
-         if (node->type->ty == TY_PTR || node->type->ty == TY_ARRAY) {
-            rhs = new_node('*', rhs, new_num_node(type2size(node->type)));
-         } else if (rhs->type->ty == TY_PTR || rhs->type->ty == TY_ARRAY) {
-            node = new_node('*', node, new_num_node(type2size(rhs->type)));
-         }
-         node = new_node('+', node, rhs);
-         if (node->rhs->type->ty == TY_PTR || node->rhs->type->ty == TY_ARRAY) {
-            node->type = node->rhs->type;
-            // TY_PTR no matter when node->lhs is INT or PTR
-         }
+         node = new_addsub_node('+', node, node_mul());
       } else if (consume_node('-')) {
-         Node *rhs = node_mul();
-         if (node->type->ty == TY_PTR || node->type->ty == TY_ARRAY) {
-            rhs = new_node('*', rhs, new_num_node(type2size(node->type)));
-         } else if (rhs->type->ty == TY_PTR || rhs->type->ty == TY_ARRAY) {
-            node = new_node('*', node, new_num_node(type2size(rhs->type)));
-         }
-         node = new_node('-', node, rhs);
-         if (node->rhs->type->ty == TY_PTR || node->rhs->type->ty == TY_ARRAY) {
-            node->type = node->rhs->type;
-            // TY_PTR no matter when node->lhs is INT or PTR
-         }
+         node = new_addsub_node('-', node, node_mul());
       } else {
          return node;
       }
@@ -880,7 +877,7 @@ Node *read_complex_ident() {
 
    while (1) {
       if (consume_node('[')) {
-         node = new_deref_node(new_node('+', node, node_mathexpr()));
+         node = new_deref_node(new_addsub_node('+', node, node_mathexpr()));
          expect_node(']');
       } else if (consume_node('.')) {
          if (node->type->ty != TY_STRUCT) {

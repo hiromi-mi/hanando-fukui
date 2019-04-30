@@ -11,4 +11,4 @@ test:
 	./9
 	../hanando -f 10.c > 10.s
 	gcc 10.s -o 10
-	./10
+	./10 "aaa"
