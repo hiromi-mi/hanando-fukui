@@ -1070,6 +1070,8 @@ void gen_lval(Node *node) {
       } else {
          // treat as global variable.
          node->type = get_type(node);
+         // TODO
+         printf("xor rax, rax\n");
          printf("lea rax, dword ptr %s[rip]\n", node->name);
       }
       puts("push rax");
@@ -1148,6 +1150,8 @@ void gen(Node *node) {
       return;
    }
    if (node->ty == ND_STRING) {
+      // TODO
+      printf("xor rax, rax\n");
       printf("lea rax, dword ptr %s[rip]\n", node->name);
       puts("push rax");
       return;
@@ -1985,7 +1989,10 @@ char *expect_ident() {
       error("Error: Expected Ident but...");
       return NULL;
    }
-   return tokens->data[pos++]->input;
+   char* theinput;
+   theinput = tokens->data[pos]->input;
+   pos++;
+   return theinput;
 }
 
 void define_enum(int assign_name) {
@@ -2063,7 +2070,7 @@ void toplevel() {
             // all type should aligned with proper value.
             // TODO assumption there are NO bytes over 8 bytes.
             type->offset = offset;
-            offset += size;
+            offset += cnt_size(type);
             expect_node(';');
             map_put(structuretype->structure, name, type);
          }
@@ -2130,8 +2137,17 @@ void toplevel() {
          program(code[i++]);
          continue;
       }
-      i++;
       code[i] = stmt();
+      /**
+      fprintf(stderr, "%d\n", tokens->data+2);
+      fprintf(stderr, "%d\n", tokens->data+pos);
+      */
+      fprintf(stderr, "%d\n", *(tokens->data+2));
+      fprintf(stderr, "%d\n", *(tokens->data+pos));
+      fprintf(stderr, "%d\n", *(tokens->data));
+      fprintf(stderr, "%d\n", *((tokens->data)+2));
+      fprintf(stderr, "%d: %d: \n", pos, tokens->data[pos]->ty);
+      i++;
    }
    code[i] = NULL;
 }
@@ -2142,10 +2158,14 @@ void test_map() {
    hanando_fukui_compiled->ty = TK_NUM;
    hanando_fukui_compiled->pos = 0;
    hanando_fukui_compiled->num_val = 1;
-   hanando_fukui_compiled->input = "__HANANDO_FUKUI__";
+   hanando_fukui_compiled->input = "HANANDO_FUKUI";
    vec_push(vec, hanando_fukui_compiled);
    vec_push(vec, 9);
    if (vec->len != 2) {
+      error("Vector does not work yet!");
+      exit(1);
+   }
+   if (strcmp(vec->data[0]->input, "HANANDO_FUKUI") != 0) {
       error("Vector does not work yet!");
       exit(1);
    }
@@ -2355,7 +2375,7 @@ int main(int argc, char **argv) {
    // treat with global variables
    globalvar_gen();
 
-   int j;
+   int j = 0;
    for (j = 0; code[j] != NULL; j++) {
       gen(code[j]);
    }

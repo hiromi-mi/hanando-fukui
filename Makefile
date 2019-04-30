@@ -1,4 +1,4 @@
-CC = clang
+CC = gcc
 CFLAGS = -Wall -Wextra -Wpedantic -g
 LDFLAGS = -lm
 
@@ -13,7 +13,7 @@ $(objects): main.h
 
 self:
 	./hanando -f main.c > main.s
-	clang main.s -o main
+	$(CC) main.s -o main
 
 test:	test1 test2 test3 test4 \
    test5 test6 test7 test8 test9 \
