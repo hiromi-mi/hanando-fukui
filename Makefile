@@ -186,7 +186,8 @@ test24:
 	sh test.sh "-(-1);" 1
 
 test25:
-	sh test.sh "((int*)3)+1;" 7
+	sh test.sh "((int*)3)+1;" 11
+	sh test.sh "((char*)3)+1;" 11
 	sh test.sh "((int)3)+1;" 4
 
 test26:
