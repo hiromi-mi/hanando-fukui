@@ -1,5 +1,10 @@
 #include "../main.h"
-int main() {
+int main(int argc, char **argv) {
+   if (argc < 2) {
+      puts("Incorrect Arguments.\n");
+      return 0;
+   }
+   puts(argv[1]);
    Token *token = malloc(sizeof(Token));
    token->ty = TK_EOF;
    token->input = "";
