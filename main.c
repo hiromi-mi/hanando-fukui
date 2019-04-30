@@ -138,7 +138,7 @@ Node *new_num_node(long num_val) {
 Node *new_deref_node(Node *lhs) {
    Node *node = new_node(ND_DEREF, lhs, NULL);
    node->type = node->lhs->type->ptrof;
-   if (!node->type) {
+   if (node->type == NULL) {
       error("Error: Dereference on NOT pointered.");
       exit(1);
    }
@@ -746,14 +746,26 @@ Node *node_add() {
    Node *node = node_mul();
    while (1) {
       if (consume_node('+')) {
-         node = new_node('+', node, node_mul());
-         if (node->rhs->type->ty == TY_PTR) {
+         Node *rhs = node_mul();
+         if (node->type->ty == TY_PTR || node->type->ty == TY_ARRAY) {
+            rhs = new_node('*', rhs, new_num_node(type2size(node->type)));
+         } else if (rhs->type->ty == TY_PTR || rhs->type->ty == TY_ARRAY) {
+            node = new_node('*', node, new_num_node(type2size(rhs->type)));
+         }
+         node = new_node('+', node, rhs);
+         if (node->rhs->type->ty == TY_PTR || node->rhs->type->ty == TY_ARRAY) {
             node->type = node->rhs->type;
             // TY_PTR no matter when node->lhs is INT or PTR
          }
       } else if (consume_node('-')) {
-         node = new_node('-', node, node_mul());
-         if (node->rhs->type->ty == TY_PTR) {
+         Node *rhs = node_mul();
+         if (node->type->ty == TY_PTR || node->type->ty == TY_ARRAY) {
+            rhs = new_node('*', rhs, new_num_node(type2size(node->type)));
+         } else if (rhs->type->ty == TY_PTR || rhs->type->ty == TY_ARRAY) {
+            node = new_node('*', node, new_num_node(type2size(rhs->type)));
+         }
+         node = new_node('-', node, rhs);
+         if (node->rhs->type->ty == TY_PTR || node->rhs->type->ty == TY_ARRAY) {
             node->type = node->rhs->type;
             // TY_PTR no matter when node->lhs is INT or PTR
          }
@@ -841,7 +853,7 @@ Node *new_dot_node(Node *node) {
    node = new_node('.', node, NULL);
    node->name = tokens->data[pos]->input;
    node->type = (Type *)map_get(node->lhs->type->structure, node->name);
-   if (!node->type) {
+   if (node->type == NULL) {
       error("Error: structure not found.");
       exit(1);
    }
@@ -914,7 +926,7 @@ Node *node_term() {
          expect_node(TK_IDENT);
          expect_node('(');
          while (1) {
-            if (!consume_node(',') && consume_node(')')) {
+            if ((consume_node(',') == 0) && consume_node(')')) {
                break;
             }
             node->args[node->argc++] = node_mathexpr_without_comma();
@@ -928,13 +940,13 @@ Node *node_term() {
       if (consume_node(TK_PLUSPLUS)) {
          node = new_node(ND_FPLUSPLUS, node, NULL);
          node->num_val = 1;
-         if (node->lhs->type->ty == TY_PTR) {
+         if (node->lhs->type->ty == TY_PTR || node->lhs->type->ty == TY_ARRAY) {
             node->num_val = type2size(node->lhs->type->ptrof);
          }
       } else if (consume_node(TK_SUBSUB)) {
          node = new_node(ND_FSUBSUB, node, NULL);
          node->num_val = 1;
-         if (node->lhs->type->ty == TY_PTR) {
+         if (node->lhs->type->ty == TY_PTR || node->lhs->type->ty == TY_ARRAY) {
             node->num_val = type2size(node->lhs->type->ptrof);
          }
       }
@@ -951,7 +963,7 @@ Node *node_term() {
    // Parensis
    if (consume_node('(')) {
       Node *node = assign();
-      if (!consume_node(')')) {
+      if (consume_node(')') == 0) {
          error("Error: Incorrect Parensis.");
       }
       return node;
@@ -1176,7 +1188,7 @@ void gen(Node *node) {
    if (node->ty == ND_CASE || node->ty == ND_DEFAULT) {
       // just an def. of goto
       // saved with input
-      if (!node->name) {
+      if (node->name == NULL) {
          error("Error: case statement without switch\n");
          exit(1);
       }
@@ -1285,6 +1297,8 @@ void gen(Node *node) {
 
    if (node->ty == ND_FUNC) {
       // char registers[6][4] = {"rdi", "rsi", "rdx", "rcx", "r8", "r9"};
+            /*default:
+               error("Error: Not supported pointer eq.");*/
       char registers[6][4];
       strcpy(registers[0], "rdi");
       strcpy(registers[1], "rsi");
@@ -1514,6 +1528,7 @@ void gen(Node *node) {
    gen(node->lhs);
    gen(node->rhs);
 
+   /*
    if (node->lhs->type &&
        (node->lhs->type->ty == TY_ARRAY || node->lhs->type->ty == TY_PTR)) {
       puts("pop rax"); // rhs
@@ -1529,8 +1544,6 @@ void gen(Node *node) {
             puts("sub rax, rdi"); // stack
             puts("push rax");
             return;
-            /*default:
-               error("Error: Not supported pointer eq.");*/
       }
    }
    if (node->rhs->type &&
@@ -1550,12 +1563,9 @@ void gen(Node *node) {
             return;
          default:
             break;
-            /*
-         default:
-            error("Error: Not supported pointer eq.");
-            */
       }
    }
+   */
 
    puts("pop rdi"); // rhs
    puts("pop rax"); // lhs
@@ -1675,7 +1685,7 @@ Node *assign() {
 
 Type *read_type(char **input) {
    Type *type = read_fundamental_type();
-   if (!type) {
+   if (type == NULL) {
       error("Error: NOT a type when reading type.");
       return NULL;
    }
@@ -1757,7 +1767,8 @@ Node *stmt() {
    } else {
       node = assign();
    }
-   if (!consume_node(';')) {
+   if (consume_node(';') == 0) {
+      fprintf(stderr, "%d %d %d\n", ';', tokens->data[pos]->ty, ';' == tokens->data[pos]->ty);
       error("Error: Not token ;");
    }
    return node;
@@ -1799,7 +1810,7 @@ void program(Node *block_node) {
    Env *prev_env = env;
    env = block_node->env;
    // env = new_env(env);
-   while (!consume_node('}')) {
+   while (consume_node('}') == 0) {
       if (confirm_node('{')) {
          Node *new_block = new_block_node(env);
          program(new_block);
@@ -1845,11 +1856,11 @@ void program(Node *block_node) {
          for_node->args[0] = stmt();
          // expect_node(';');
          // TODO: to allow without lines
-         if (!consume_node(';')) {
+         if (consume_node(';') == 0) {
             for_node->args[1] = assign();
             expect_node(';');
          }
-         if (!consume_node(')')) {
+         if (consume_node(')') == 0) {
             for_node->args[2] = assign();
             expect_node(')');
          }
@@ -1985,7 +1996,7 @@ void define_enum(int assign_name) {
    enumtype->ty = TY_INT;
    enumtype->offset = 4;
    int cnt = 0;
-   while (!consume_node('}')) {
+   while (consume_node('}') == 0) {
       char *itemname = expect_ident();
       Node *itemnode = NULL;
       if (consume_node('=')) {
@@ -2040,7 +2051,7 @@ void toplevel() {
          structuretype->ptrof = NULL;
          int offset = 0;
          int size = 0;
-         while (!consume_node('}')) {
+         while (consume_node('}') == 0) {
             char *name = NULL;
             Type *type = read_type(&name);
             size = type2size(type);
@@ -2102,7 +2113,6 @@ void toplevel() {
             }
             continue;
          } else {
-            // global variable
             map_put(global_vars, name, type);
             // get initial value
             type->initval = 0;
@@ -2127,14 +2137,6 @@ void toplevel() {
 }
 
 void test_map() {
-   Map *map = new_map();
-   expect(__LINE__, 0, (int)map_get(map, "foo"));
-   map_put(map, "foo", (void *)2);
-   expect(__LINE__, 2, (int)map_get(map, "foo"));
-   if (map->keys->len != 1 || map->vals->len != 1) {
-      error("Error: Map does not work yet!");
-      exit(1);
-   }
    Vector *vec = new_vector();
    Token *hanando_fukui_compiled = malloc(sizeof(Token));
    hanando_fukui_compiled->ty = TK_NUM;
@@ -2145,6 +2147,15 @@ void test_map() {
    vec_push(vec, 9);
    if (vec->len != 2) {
       error("Vector does not work yet!");
+      exit(1);
+   }
+
+   Map *map = new_map();
+   //expect(__LINE__, 0, (int)map_get(map, "bar"));
+   map_put(map, "foo", (void *)3);
+   //expect(__LINE__, 3, (int)map_get(map, "foo"));
+   if (map->keys->len != 1 || map->vals->len != 1) {
+      error("Error: Map does not work yet!");
       exit(1);
    }
 }
@@ -2250,7 +2261,7 @@ void preprocess(Vector *pre_tokens) {
       int called = 0;
       for (int k = 0; k < defined->keys->len; k++) {
          char* chr = defined->keys->data[k];
-         if (strcmp(pre_tokens->data[j]->input, chr) == 0) {
+         if (pre_tokens->data[j]->ty == TK_IDENT && strcmp(pre_tokens->data[j]->input, chr) == 0) {
             called = 1;
             fprintf(stderr, "#define changed: %s -> %ld\n",
                     pre_tokens->data[j]->input,
@@ -2260,7 +2271,7 @@ void preprocess(Vector *pre_tokens) {
             continue;
          }
       }
-      if (!called) {
+      if (called == 0) {
          vec_push(tokens, pre_tokens->data[j]);
       }
    }
@@ -2344,7 +2355,8 @@ int main(int argc, char **argv) {
    // treat with global variables
    globalvar_gen();
 
-   for (int j = 0; code[j]; j++) {
+   int j;
+   for (j = 0; code[j] != NULL; j++) {
       gen(code[j]);
    }
 

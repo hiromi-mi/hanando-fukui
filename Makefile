@@ -10,6 +10,11 @@ target=hanando
 $(target): $(objects)
 	$(CC) $(objects) -o $(target) $(LDFLAGS)
 $(objects): main.h
+
+self:
+	./hanando -f main.c > main.s
+	clang main.s -o main
+
 test:	test1 test2 test3 test4 \
    test5 test6 test7 test8 test9 \
    test10 test11 test19 test12 test13 test14\
