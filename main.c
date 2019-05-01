@@ -196,25 +196,21 @@ Node *new_addsub_node(NodeType ty, Node *lhs_node, Node *rhs_node) {
 
 int cnt_size(Type *type) {
    // TODO: should aligned as x86_64
-   int cnt = 0;
    switch (type->ty) {
       case TY_PTR:
       case TY_INT:
       case TY_CHAR:
       case TY_LONG:
-         cnt = type2size(type);
-         break;
+         return type2size(type);
       case TY_ARRAY:
          // TODO: should not be 8 in case of truct
-         cnt = cnt_size(type->ptrof) * type->array_size;
-         break;
+         return cnt_size(type->ptrof) * type->array_size;
       case TY_STRUCT:
-         cnt = type->offset;
-         break;
+         return type->offset;
       default:
          error("Error: on void type error.");
+         return 0;
    }
-   return cnt;
 }
 
 Node *new_ident_node_with_new_variable(char *name, Type *type) {
@@ -1868,7 +1864,6 @@ Type *find_typed_db(char *input, Map *db) {
 
 Type *read_fundamental_type() {
    Token *token = tokens->data[pos];
-   int tyc = token->ty;
    // TODO: using token->data[pos] does not work yet!
    if (tokens->data[pos]->ty == TK_CONST) {
       expect_node(TK_CONST); // TODO : for ease skip
@@ -1897,7 +1892,6 @@ int split_type_ident() {
       return 0;
    }
    for (int j = 0; j < typedb->keys->len; j++) {
-      char *chr = typedb->keys->data[j];
       // for struct
       if (strcmp(token->input, typedb->keys->data[j]) == 0) {
          return typedb->vals->data[j]->ty;
