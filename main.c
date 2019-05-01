@@ -65,7 +65,8 @@ int map_put(Map *map, char *key, void *val) {
 
 void *map_get(Map *map, char *key) {
    for (int i = map->keys->len - 1; i >= 0; i--) {
-      if (strcmp((char *)map->keys->data[i], key) == 0) {
+      char *chr = map->keys->data[i];
+      if (strcmp(chr, key) == 0) {
          return map->vals->data[i];
       }
    }
@@ -1015,7 +1016,7 @@ Type *get_type_local(Node *node) {
    while (type == NULL && local_env != NULL) {
       type = map_get(local_env->idents, node->name);
       if (type != NULL) {
-         break;
+         return type;
       }
       local_env = local_env->env;
    }
@@ -1356,6 +1357,11 @@ void gen(Node *node) {
       // FIXME: alignment should be 64-bit
       puts("mov al, 0"); // TODO to preserve float
       printf("call %s\n", node->name);
+      // rax should be aligned with the size
+      // TODO extension
+      if (type2size(node->type) < 8) {
+         puts("cdqe");
+      }
       puts("push rax");
       return;
    }

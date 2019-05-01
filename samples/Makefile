@@ -19,3 +19,6 @@ test:
 	../hanando -f 13.c > 13.s
 	gcc 13.s -o 13
 	./13
+	../hanando -f 14.c > 14.s
+	gcc 14.s -o 14
+	./14

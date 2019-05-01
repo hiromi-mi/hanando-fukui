@@ -1,6 +1,11 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include "../main.h"
+#ifdef __HANANDO_FUKUI__
+FILE* fopen(char* name, char* type);
+void* malloc(int size);
+void* realloc(void* ptr, int size);
+#endif
 Vector *new_vector() {
    Vector *vec = malloc(sizeof(Vector));
    vec->capacity = 16;

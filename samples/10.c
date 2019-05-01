@@ -1,4 +1,9 @@
 #include "../main.h"
+#ifdef __HANANDO_FUKUI__
+FILE* fopen(char* name, char* type);
+void* malloc(int size);
+void* realloc(void* ptr, int size);
+#endif
 int main(int argc, char **argv) {
    if (argc < 2) {
       puts("Incorrect Arguments.\n");

@@ -1,3 +1,9 @@
+
+#ifdef __HANANDO_FUKUI__
+FILE* fopen(char* name, char* type);
+void* malloc(int size);
+void* realloc(void* ptr, int size);
+#endif
 int func2(char* input) {
    int k=0;
    for (k=0;input[k] != '\0';k++) {
