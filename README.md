@@ -1,13 +1,12 @@
 # hanando-fukui
 [EXPERIMENTAL] Compiler Prototype
 
-## Implemented
-* pointer
-* `++a` `--a`
-* `+=` `-=` and so on
-* global variable
+## How to test
 
-## Should be Implemented for Self-Hosting
-* `va_args` `va_start`
-* `int a, b=0`
-* #endif, #ifndef
+```
+$ make
+$ ./hanando -f main.c
+$ make self
+$ make test
+$ make selfselftest
+```
