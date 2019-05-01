@@ -859,18 +859,16 @@ Node *new_dot_node(Node *node) {
 }
 
 Node *read_complex_ident() {
-   char *input = tokens->data[pos]->input;
+   char *input = expect_ident();
    Node *node = NULL;
    for (int j = 0; j < consts->keys->len; j++) {
       // support for constant
       if (strcmp(consts->keys->data[j], input) == 0) {
          node = consts->vals->data[j];
-         expect_node(TK_IDENT);
          return node;
       }
    }
    node = new_ident_node(input);
-   expect_node(TK_IDENT);
 
    while (1) {
       if (consume_node('[')) {
