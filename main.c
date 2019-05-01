@@ -33,6 +33,7 @@ Vector *read_tokenize(char *fname);
 void define_enum(int use);
 char *expect_ident();
 void program(Node *block_node);
+Type *find_typed_db(char *input, Map *db);
 int env_for_while = 0;
 int env_for_while_switch = 0;
 Env *env;
@@ -47,6 +48,7 @@ Map *enum_typedb;
 #ifdef __HANANDO_FUKUI__
 FILE* fopen(char* name, char* type);
 void* malloc(int size);
+void* realloc(void* ptr, int size);
 #endif
 
 Map *new_map() {
@@ -82,6 +84,10 @@ int vec_push(Vector *vec, Token *element) {
    if (vec->capacity == vec->len) {
       vec->capacity *= 2;
       vec->data = realloc(vec->data, sizeof(Token *) * vec->capacity);
+      if (vec->data == NULL) {
+         fprintf(stderr, "Error: Realloc failed.\n");
+         exit(1);
+      }
    }
    vec->data[vec->len] = element;
    return vec->len++;
@@ -146,6 +152,17 @@ Node *new_num_node(long num_val) {
    node->type->offset = -1;
    return node;
 }
+Node *new_long_num_node(long num_val) {
+   Node *node = malloc(sizeof(Node));
+   node->ty = ND_NUM;
+   node->num_val = num_val;
+   node->type = malloc(sizeof(Type));
+   node->type->ty = TY_LONG;
+   node->type->ptrof = NULL;
+   node->type->array_size = -1;
+   node->type->offset = -1;
+   return node;
+}
 
 Node *new_deref_node(Node *lhs) {
    Node *node = new_node(ND_DEREF, lhs, NULL);
@@ -198,7 +215,6 @@ int cnt_size(Type *type) {
 }
 
 Node *new_ident_node_with_new_variable(char *name, Type *type) {
-   fprintf(stderr, "#define new env: %p %d %d\n", env, env->rsp_offset, env->rsp_offset_all);
    Node *node = malloc(sizeof(Node));
    node->ty = ND_IDENT;
    node->name = name;
@@ -568,7 +584,6 @@ Vector *tokenize(char *p) {
          } while (('a' <= *p && *p <= 'z') || ('0' <= *p && *p <= '9') ||
                   ('A' <= *p && *p <= 'Z') || *p == '_');
          token->input[j] = '\0';
-         fprintf(stderr, "New Token: %s on %d\n", token->input, pos);
 
          if (strcmp(token->input, "if") == 0) {
             token->ty = TK_IF;
@@ -731,12 +746,16 @@ Node *node_compare() {
    while (1) {
       if (consume_node('<')) {
          node = new_node('<', node, node_shift());
+         node->type = find_typed_db("char", typedb);
       } else if (consume_node('>')) {
          node = new_node('>', node, node_shift());
+         node->type = find_typed_db("char", typedb);
       } else if (consume_node(TK_ISLESSEQ)) {
          node = new_node(ND_ISLESSEQ, node, node_shift());
+         node->type = find_typed_db("char", typedb);
       } else if (consume_node(TK_ISMOREEQ)) {
          node = new_node(ND_ISMOREEQ, node, node_shift());
+         node->type = find_typed_db("char", typedb);
       } else {
          return node;
       }
@@ -748,8 +767,10 @@ Node *node_iseq() {
    while (1) {
       if (consume_node(TK_ISEQ)) {
          node = new_node(ND_ISEQ, node, node_compare());
+         node->type = find_typed_db("char", typedb);
       } else if (consume_node(TK_ISNOTEQ)) {
          node = new_node(ND_ISNOTEQ, node, node_compare());
+         node->type = find_typed_db("char", typedb);
       } else {
          return node;
       }
@@ -839,10 +860,10 @@ Node *node_increment() {
          // sizeof(int) read type without name
          Type *type = read_type(NULL);
          expect_node(')');
-         return new_num_node(type2size(type));
+         return new_long_num_node(type2size(type));
       }
       Node *node = node_mathexpr();
-      return new_num_node(type2size(node->type));
+      return new_long_num_node(type2size(node->type));
    } else {
       return node_term();
    }
@@ -1537,11 +1558,10 @@ void gen(Node *node) {
       return;
    }
    if (node->ty == '!') {
+      gen(node->lhs);
       puts("pop rax");
       printf("cmp %s, 0\n", _rax(node->lhs));
-      puts("setne al");
-      puts("xor al, -1");
-      puts("and al, 1");
+      puts("sete al");
       puts("movzx eax, al");
       puts("push rax");
       return;
@@ -1602,7 +1622,7 @@ void gen(Node *node) {
          printf("sub %s, %s\n", _rax(node), _rdi(node));
          break;
       case '*':
-         puts("mul rdi");
+         printf("mul rdi\n");
          break;
       case '/':
          puts("mov rdx, 0");
@@ -1965,11 +1985,6 @@ Type *read_fundamental_type() {
       char *input = expect_ident();
       return find_typed_db(input, struct_typedb);
    }
-   /*
-   if (token->ty != TK_IDENT) {
-      return NULL;
-   }
-   */
    char *input = expect_ident();
    return find_typed_db(input, typedb);
 }
@@ -2126,7 +2141,6 @@ void toplevel() {
                type->ty = TY_INT;
                type->ptrof = NULL;
                */
-               fprintf(stderr, "#define new env: %p %d %d\n", env, env->rsp_offset, env->rsp_offset_all);
                code[i]->args[code[i]->argc++] =
                    new_ident_node_with_new_variable(arg_name, arg_type);
                consume_node(',');
@@ -2157,15 +2171,6 @@ void toplevel() {
          continue;
       }
       code[i] = stmt();
-      /**
-      fprintf(stderr, "%d\n", tokens->data+2);
-      fprintf(stderr, "%d\n", tokens->data+pos);
-      */
-      fprintf(stderr, "%d\n", *(tokens->data+2));
-      fprintf(stderr, "%d\n", *(tokens->data+pos));
-      fprintf(stderr, "%d\n", *(tokens->data));
-      fprintf(stderr, "%d\n", *((tokens->data)+2));
-      fprintf(stderr, "%d: %d: \n", pos, tokens->data[pos]->ty);
       i++;
    }
    code[i] = NULL;

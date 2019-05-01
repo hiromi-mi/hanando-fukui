@@ -16,3 +16,6 @@ test:
 	gcc -g -S -masm=intel 12.c -o 12.s
 	gcc -g 12.s 11.s -o 11
 	./11
+	../hanando -f 13.c > 13.s
+	gcc 13.s -o 13
+	./13

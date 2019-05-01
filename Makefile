@@ -41,6 +41,9 @@ test3:
 	sh test.sh '3==4;' 0
 	sh test.sh '3!=3+8;' 1
 	sh test.sh "{3;}" 3
+	sh test.sh "!(2==2);" 0
+	sh test.sh "4==2;" 0
+	sh test.sh "!(4==2);" 1
 
 test4:
 	sh testfunccall.sh 'func(4);' OK4 4
