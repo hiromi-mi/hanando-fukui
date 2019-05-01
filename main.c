@@ -1276,7 +1276,12 @@ void gen(Node *node) {
             Node *curnode = node->code->data[j];
             gen(curnode->lhs);
             puts("pop rax");
-            break;
+            // TODO should fix break
+            puts("mov rsp, rbp");
+            puts("pop rbp");
+            puts("ret");
+            env = prev_env;
+            return;
          }
          // read inside functions.
          gen(node->code->data[j]);
@@ -1323,7 +1328,7 @@ void gen(Node *node) {
    }
 
    if (node->ty == ND_BREAK) {
-      printf("jmp .Lend%d\n", env_for_while_switch);
+      printf("jmp .Lend%d #break\n", env_for_while_switch);
       return;
    }
    if (node->ty == ND_CONTINUE) {
@@ -1390,6 +1395,7 @@ void gen(Node *node) {
       int prev_env_for_while = env_for_while;
       int prev_env_for_while_switch = env_for_while_switch;
       env_for_while = cur_if_cnt;
+      env_for_while_switch = cur_if_cnt;
 
       printf(".Lbegin%d:\n", cur_if_cnt);
       gen(node->lhs);
@@ -1409,6 +1415,7 @@ void gen(Node *node) {
       int prev_env_for_while = env_for_while;
       int prev_env_for_while_switch = env_for_while_switch;
       env_for_while = cur_if_cnt;
+      env_for_while_switch = cur_if_cnt;
       printf(".Lbegin%d:\n", cur_if_cnt);
       gen(node->rhs);
       gen(node->lhs);
@@ -1426,6 +1433,7 @@ void gen(Node *node) {
       int prev_env_for_while = env_for_while;
       int prev_env_for_while_switch = env_for_while_switch;
       env_for_while = cur_if_cnt;
+      env_for_while_switch = cur_if_cnt;
       gen(node->args[0]);
       printf("jmp .Lcondition%d\n", cur_if_cnt);
       printf(".Lbeginwork%d:\n", cur_if_cnt);
