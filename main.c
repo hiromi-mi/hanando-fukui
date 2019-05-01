@@ -963,7 +963,7 @@ Node *node_term() {
          expect_node('(');
          while (1) {
             if ((consume_node(',') == 0) && consume_node(')')) {
-               break;
+               return node;
             }
             node->args[node->argc++] = node_mathexpr_without_comma();
          }
@@ -1816,7 +1816,6 @@ Node *stmt() {
       node = assign();
    }
    if (consume_node(';') == 0) {
-      fprintf(stderr, "%d %d %d\n", ';', tokens->data[pos]->ty, ';' == tokens->data[pos]->ty);
       error("Error: Not token ;");
    }
    return node;
