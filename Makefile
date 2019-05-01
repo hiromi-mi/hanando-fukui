@@ -232,6 +232,6 @@ test30:
 	sh test.sh "char a;a='h';('a'<=a&&a<='z')||('0'<=a&&a<='9');" 1
 
 clean:
-	$(RM) -f $(target) $(objects)
+	$(RM) -f $(target) $(objects) main.s main2.s main3.s main2 main3
 
 .PHONY:	clean test
