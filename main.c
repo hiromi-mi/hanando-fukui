@@ -555,6 +555,7 @@ Vector *tokenize(char *p) {
          } while (('a' <= *p && *p <= 'z') || ('0' <= *p && *p <= '9') ||
                   ('A' <= *p && *p <= 'Z') || *p == '_');
          token->input[j] = '\0';
+         fprintf(stderr, "New Token: %s on %d\n", token->input, pos);
 
          if (strcmp(token->input, "if") == 0) {
             token->ty = TK_IF;
@@ -1010,7 +1011,7 @@ int get_lval_offset(Node *node) {
    return offset;
 }
 
-char *rax(Node *node) {
+char *_rax(Node *node) {
    if (node->type->ty == TY_CHAR) {
       return "al";
    } else if (node->type->ty == TY_INT) {
@@ -1020,7 +1021,7 @@ char *rax(Node *node) {
    }
 }
 
-char *rdi(Node *node) {
+char *_rdi(Node *node) {
    if (node->type->ty == TY_CHAR) {
       return "dil";
    } else if (node->type->ty == TY_INT) {
@@ -1036,9 +1037,9 @@ char* rdi_rax_larger(Node *node) {
    char *str = malloc(sizeof(char) * 24);
    if (type2size(lhs->type) < type2size(rhs->type)) {
       // rdi, rax
-      snprintf(str, 24, "%s, %s", rdi(rhs), rax(rhs));
+      snprintf(str, 24, "%s, %s", _rdi(rhs), _rax(rhs));
    } else {
-      snprintf(str, 24, "%s, %s", rdi(lhs), rax(lhs));
+      snprintf(str, 24, "%s, %s", _rdi(lhs), _rax(lhs));
    }
    return str;
 }
@@ -1049,9 +1050,9 @@ char* rax_rdi_larger(Node *node) {
    char *str = malloc(sizeof(char) * 24);
    if (type2size(lhs->type) < type2size(rhs->type)) {
       // rdi, rax
-      snprintf(str, 24, "%s, %s", rax(rhs), rdi(rhs));
+      snprintf(str, 24, "%s, %s", _rax(rhs), _rdi(rhs));
    } else {
-      snprintf(str, 24, "%s, %s", rax(rhs), rdi(rhs));
+      snprintf(str, 24, "%s, %s", _rax(rhs), _rdi(rhs));
    }
    return str;
 }
@@ -1129,7 +1130,7 @@ char *type2string(Node *node) {
       case TY_INT:
          return "";
       case TY_CHAR:
-         return "byte ptr ";
+         return "word ptr ";
       case TY_ARRAY:
          return "";
       case TY_STRUCT:
@@ -1257,11 +1258,11 @@ void gen(Node *node) {
       int cur_if_cnt = if_cnt++;
       gen(node->lhs);
       printf("pop rdi\n");
-      printf("cmp %s, 0\n", rdi(node->lhs));
+      printf("cmp %s, 0\n", _rdi(node->lhs));
       printf("jne .Lorend%d\n", cur_if_cnt);
       gen(node->rhs);
       puts("pop rdi");
-      printf("cmp %s, 0\n", rdi(node->rhs));
+      printf("cmp %s, 0\n", _rdi(node->rhs));
       puts("setne al");
       puts("movzx rax, al");
       printf(".Lorend%d:\n", cur_if_cnt);
@@ -1274,11 +1275,11 @@ void gen(Node *node) {
       int cur_if_cnt = if_cnt++;
       gen(node->lhs);
       puts("pop rdi");
-      printf("cmp %s, 0\n", rdi(node->lhs));
+      printf("cmp %s, 0\n", _rdi(node->lhs));
       printf("je .Lorend%d\n", cur_if_cnt);
       gen(node->rhs);
       puts("pop rdi");
-      printf("cmp %s, 0\n", rdi(node->rhs));
+      printf("cmp %s, 0\n", _rdi(node->rhs));
       printf(".Lorend%d:\n", cur_if_cnt);
       puts("setne al");
       puts("movzx rax, al");
@@ -1328,7 +1329,7 @@ void gen(Node *node) {
    if (node->ty == ND_IF) {
       gen(node->args[0]);
       puts("pop rax");
-      printf("cmp %s, 0\n", rax(node->args[0]));
+      printf("cmp %s, 0\n", _rax(node->args[0]));
       int cur_if_cnt = if_cnt++;
       printf("je .Lendif%d\n", cur_if_cnt);
       gen(node->lhs);
@@ -1353,7 +1354,7 @@ void gen(Node *node) {
       printf(".Lbegin%d:\n", cur_if_cnt);
       gen(node->lhs);
       puts("pop rax");
-      printf("cmp %s, 0\n", rax(node->lhs));
+      printf("cmp %s, 0\n", _rax(node->lhs));
       printf("je .Lend%d\n", cur_if_cnt);
       gen(node->rhs);
       printf("jmp .Lbegin%d\n", cur_if_cnt);
@@ -1372,7 +1373,7 @@ void gen(Node *node) {
       gen(node->rhs);
       gen(node->lhs);
       puts("pop rax");
-      printf("cmp %s, 0\n", rax(node->lhs));
+      printf("cmp %s, 0\n", _rax(node->lhs));
       printf("jne .Lbegin%d\n", cur_if_cnt);
       printf(".Lend%d:\n", cur_if_cnt);
       env_for_while = prev_env_for_while;
@@ -1396,7 +1397,7 @@ void gen(Node *node) {
 
       // condition
       puts("pop rax");
-      printf("cmp %s, 0\n", rax(node->args[1]));
+      printf("cmp %s, 0\n", _rax(node->args[1]));
       printf("jne .Lbeginwork%d\n", cur_if_cnt);
       printf(".Lend%d:\n", cur_if_cnt);
       env_for_while = prev_env_for_while;
@@ -1410,7 +1411,10 @@ void gen(Node *node) {
       if (node->type->ty != TY_ARRAY) {
          puts("pop rax");
          puts("mov rax, [rax]");
-         // printf("mov %s,%s [rax]\n", rax(node),type2string(node));
+         if (node->type->ty == TY_CHAR) {
+            // TODO: extension: unsingned char.
+            puts("movzx rax, al");
+         }
          puts("push rax");
       }
       return;
@@ -1425,7 +1429,7 @@ void gen(Node *node) {
       puts("#deref");
       puts("pop rax");
       // puts("mov rax, [rax]");
-      printf("mov %s, [rax]\n", rax(node));
+      printf("mov %s, [rax]\n", _rax(node));
       if (node->type->ty == TY_CHAR) {
          printf("movzx rax, al\n");
       }
@@ -1437,7 +1441,7 @@ void gen(Node *node) {
    if (node->ty == ND_NEG) {
       gen(node->lhs);
       puts("pop rax");
-      printf("neg %s\n", rax(node));
+      printf("neg %s\n", _rax(node));
       puts("push rax");
       return;
    }
@@ -1520,7 +1524,7 @@ void gen(Node *node) {
    }
    if (node->ty == '!') {
       puts("pop rax");
-      printf("cmp %s, 0\n", rax(node->lhs));
+      printf("cmp %s, 0\n", _rax(node->lhs));
       puts("setne al");
       puts("xor al, -1");
       puts("and al, 1");
@@ -1578,10 +1582,10 @@ void gen(Node *node) {
          puts("mov rax, rdi");
          break;
       case '+':
-         printf("add %s, %s\n", rax(node), rdi(node));
+         printf("add %s, %s\n", _rax(node), _rdi(node));
          break;
       case '-':
-         printf("sub %s, %s\n", rax(node), rdi(node));
+         printf("sub %s, %s\n", _rax(node), _rdi(node));
          break;
       case '*':
          puts("mul rdi");
@@ -1597,15 +1601,15 @@ void gen(Node *node) {
          puts("mov rax, rdx");
          break;
       case '^':
-         printf("xor %s, %s\n", rax(node), rdi(node));
+         printf("xor %s, %s\n", _rax(node), _rdi(node));
          // puts("xor rax, rdi");
          break;
       case '&':
-         printf("and %s, %s\n", rax(node), rdi(node));
+         printf("and %s, %s\n", _rax(node), _rdi(node));
          // puts("and rax, rdi");
          break;
       case '|':
-         printf("or %s, %s\n", rax(node), rdi(node));
+         printf("or %s, %s\n", _rax(node), _rdi(node));
          // puts("or rax, rdi");
          break;
       case ND_RSHIFT:
@@ -2172,11 +2176,18 @@ void test_map() {
 
    Map *map = new_map();
    //expect(__LINE__, 0, (int)map_get(map, "bar"));
-   map_put(map, "foo", (void *)3);
+   map_put(map, "foo", hanando_fukui_compiled);
    //expect(__LINE__, 3, (int)map_get(map, "foo"));
    if (map->keys->len != 1 || map->vals->len != 1) {
       error("Error: Map does not work yet!");
       exit(1);
+   }
+   if ((int)map_get(map, "bar") != 0) {
+      error("Error: Map does not work yet! on 3");
+   }
+   Token* te = map_get(map, "foo");
+   if (strcmp(te->input, "HANANDO_FUKUI") != 0) {
+      error("Error: Map does not work yet! on 3a");
    }
 }
 
