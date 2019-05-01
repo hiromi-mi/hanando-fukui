@@ -99,7 +99,7 @@ int vec_push(Vector *vec, Token *element) {
    if (vec->capacity == vec->len) {
       vec->capacity *= 2;
       vec->data = realloc(vec->data, sizeof(Token *) * vec->capacity);
-      if (vec->data == NULL) {
+      if (!vec->data) {
          fprintf(stderr, "Error: Realloc failed.%ld, %ld", vec->capacity,
                  sizeof(Token *) * vec->capacity);
          exit(1);
@@ -138,7 +138,7 @@ Node *new_node(NodeType ty, Node *lhs, Node *rhs) {
    node->ty = ty;
    node->lhs = lhs;
    node->rhs = rhs;
-   if (lhs != NULL) {
+   if (lhs) {
       // TODO
       node->type = node->lhs->type;
    }
@@ -171,7 +171,7 @@ Node *new_long_num_node(long num_val) {
 Node *new_deref_node(Node *lhs) {
    Node *node = new_node(ND_DEREF, lhs, NULL);
    node->type = node->lhs->type->ptrof;
-   if (node->type == NULL) {
+   if (!node->type) {
       error("Error: Dereference on NOT pointered.");
    }
    return node;
@@ -247,7 +247,7 @@ Node *new_ident_node(char *name) {
       return node;
    }
    node->type = get_type(node);
-   if (node->type == NULL) {
+   if (!node->type) {
       error("Error: New Variable Definition.");
    }
    return node;
@@ -873,7 +873,7 @@ Node *new_dot_node(Node *node) {
    node = new_node('.', node, NULL);
    node->name = tokens->data[pos]->input;
    node->type = (Type *)map_get(node->lhs->type->structure, node->name);
-   if (node->type == NULL) {
+   if (!node->type) {
       error("Error: structure not found.");
    }
    expect_node(TK_IDENT);
@@ -997,7 +997,7 @@ Type *get_type_local(Node *node) {
    Type *type = NULL;
    while (type == NULL && local_env != NULL) {
       type = map_get(local_env->idents, node->name);
-      if (type != NULL) {
+      if (type) {
          return type;
       }
       local_env = local_env->env;
@@ -1007,7 +1007,7 @@ Type *get_type_local(Node *node) {
 
 Type *get_type(Node *node) {
    Type *type = get_type_local(node);
-   if (type == NULL) {
+   if (!type) {
       type = map_get(global_vars, node->name);
    }
    return type;
@@ -1020,7 +1020,7 @@ int get_lval_offset(Node *node) {
    Env *local_env = env;
    while (offset == (int)NULL && local_env != NULL) {
       node->type = map_get(local_env->idents, node->name);
-      if (node->type != NULL) {
+      if (node->type) {
          offset = local_env->rsp_offset_all + node->type->offset;
       }
       local_env = local_env->env;
@@ -1111,7 +1111,7 @@ void gen_lval(Node *node) {
 }
 
 int type2size(Type *type) {
-   if (type == NULL) {
+   if (!type) {
       return 0;
    }
    switch (type->ty) {
@@ -1134,7 +1134,7 @@ int type2size(Type *type) {
 }
 
 void gen(Node *node) {
-   if (node == NULL) {
+   if (!node) {
       return;
    }
    if (node->ty == ND_NUM) {
@@ -1156,7 +1156,7 @@ void gen(Node *node) {
       gen(node->lhs);
       puts("pop r9");
       // find CASE Labels and lookup into args[0]->code->data
-      for (int j = 0; node->rhs->code->data[j] != NULL; j++) {
+      for (int j = 0; node->rhs->code->data[j]; j++) {
          Node *curnode = (Node *)node->rhs->code->data[j];
          if (curnode->ty == ND_CASE) {
             char *input = malloc(sizeof(char) * 256);
@@ -1184,7 +1184,7 @@ void gen(Node *node) {
    if (node->ty == ND_CASE || node->ty == ND_DEFAULT) {
       // just an def. of goto
       // saved with input
-      if (node->name == NULL) {
+      if (!node->name) {
          error("Error: case statement without switch\n");
       }
       printf("%s:\n", node->name);
@@ -1194,7 +1194,7 @@ void gen(Node *node) {
    if (node->ty == ND_BLOCK) {
       Env *prev_env = env;
       env = node->env;
-      for (int j = 0; node->code->data[j] != NULL; j++) {
+      for (int j = 0; node->code->data[j]; j++) {
          gen(node->code->data[j]);
       }
       env = prev_env;
@@ -1225,7 +1225,7 @@ void gen(Node *node) {
          printf("mov [rax], %s\n", registers[j]);
          puts("push rax");
       }
-      for (int j = 0; node->code->data[j] != NULL; j++) {
+      for (int j = 0; node->code->data[j]; j++) {
          if (node->code->data[j]->ty == ND_RETURN) {
             Node *curnode = node->code->data[j];
             gen(curnode->lhs);
@@ -1645,7 +1645,7 @@ Node *assign() {
 
 Type *read_type(char **input) {
    Type *type = read_fundamental_type();
-   if (type == NULL) {
+   if (!type) {
       error("Error: NOT a type when reading type.");
       return NULL;
    }
@@ -1658,7 +1658,7 @@ Type *read_type(char **input) {
       type->ptrof = old_type;
    }
    // There are input: there are ident names
-   if (input != NULL) {
+   if (input) {
       *input = tokens->data[pos]->input;
    } else {
       input = &tokens->data[pos]->input;
@@ -1886,11 +1886,9 @@ Type *read_fundamental_type() {
    if (tokens->data[pos]->ty == TK_STRUCT) {
       // TODO: for ease
       expect_node(TK_STRUCT);
-      char *input = expect_ident();
-      return find_typed_db(input, struct_typedb);
+      return find_typed_db(expect_ident(), struct_typedb);
    }
-   char *input = expect_ident();
-   return find_typed_db(input, typedb);
+   return find_typed_db(expect_ident(), typedb);
 }
 
 int split_type_ident() {
@@ -1926,10 +1924,7 @@ char *expect_ident() {
       error("Error: Expected Ident but...");
       return NULL;
    }
-   char *theinput;
-   theinput = tokens->data[pos]->input;
-   pos++;
-   return theinput;
+   return tokens->data[pos++]->input;
 }
 
 void define_enum(int assign_name) {
@@ -1973,6 +1968,7 @@ void toplevel() {
    consts = new_map();
    strs = new_vector();
    env = new_env(NULL);
+
    while (tokens->data[pos]->ty != TK_EOF) {
       // definition of struct
       if (consume_node(TK_TYPEDEF)) {
@@ -1985,8 +1981,7 @@ void toplevel() {
          Type *structuretype = malloc(sizeof(Type));
          if (consume_node(TK_STRUCT)) {
             if (confirm_node(TK_IDENT)) {
-               char *name = expect_ident();
-               map_put(struct_typedb, name, structuretype);
+               map_put(struct_typedb, expect_ident(), structuretype);
             }
          }
          expect_node('{');
@@ -2141,7 +2136,7 @@ void preprocess(Vector *pre_tokens) {
          // preprocessor begin
          j++;
          if (strcmp(pre_tokens->data[j]->input, "ifndef") == 0) {
-            if (map_get(defined, pre_tokens->data[j + 2]->input) != NULL) {
+            if (map_get(defined, pre_tokens->data[j + 2]->input)) {
                skipped = 1;
                // TODO skip until #endif
                // read because of defined.
@@ -2154,7 +2149,7 @@ void preprocess(Vector *pre_tokens) {
             continue;
          }
          if (strcmp(pre_tokens->data[j]->input, "ifdef") == 0) {
-            if (map_get(defined, pre_tokens->data[j + 2]->input) == NULL) {
+            if (!map_get(defined, pre_tokens->data[j + 2]->input)) {
                skipped = 1;
                // TODO skip until #endif
                // read because of defined.
@@ -2260,7 +2255,7 @@ void init_typedb() {
 Vector *read_tokenize(char *fname) {
    FILE *fp;
    fp = fopen(fname, "r");
-   if (fp == NULL) {
+   if (!fp) {
       fprintf(stderr, "No file found: %s\n", fname);
       exit(1);
    }
@@ -2295,7 +2290,7 @@ int main(int argc, char **argv) {
    // treat with global variables
    globalvar_gen();
 
-   for (int j = 0; code[j] != NULL; j++) {
+   for (int j = 0; code[j]; j++) {
       gen(code[j]);
    }
 
