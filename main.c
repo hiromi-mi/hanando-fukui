@@ -61,9 +61,9 @@ Map *enum_typedb;
 
 // FOR SELFHOST
 #ifdef __HANANDO_FUKUI__
-FILE* fopen(char* name, char* type);
-void* malloc(int size);
-void* realloc(void* ptr, int size);
+FILE *fopen(char *name, char *type);
+void *malloc(int size);
+void *realloc(void *ptr, int size);
 #endif
 
 Map *new_map() {
@@ -101,7 +101,8 @@ int vec_push(Vector *vec, Token *element) {
       vec->capacity *= 2;
       vec->data = realloc(vec->data, sizeof(Token *) * vec->capacity);
       if (vec->data == NULL) {
-         fprintf(stderr, "Error: Realloc failed.%ld, %ld", vec->capacity, sizeof(Token*) * vec->capacity);
+         fprintf(stderr, "Error: Realloc failed.%ld, %ld", vec->capacity,
+                 sizeof(Token *) * vec->capacity);
          exit(1);
       }
    }
@@ -191,9 +192,9 @@ Node *new_deref_node(Node *lhs) {
 }
 
 Node *new_addsub_node(NodeType ty, Node *lhs_node, Node *rhs_node) {
-   Node* lhs = lhs_node;
-   Node* rhs = rhs_node;
-   Node* node = NULL;
+   Node *lhs = lhs_node;
+   Node *rhs = rhs_node;
+   Node *node = NULL;
    if (lhs->type->ty == TY_PTR || lhs->type->ty == TY_ARRAY) {
       rhs = new_node('*', rhs, new_char_node(cnt_size(lhs->type->ptrof)));
    } else if (rhs->type->ty == TY_PTR || rhs->type->ty == TY_ARRAY) {
@@ -241,9 +242,7 @@ Node *new_ident_node_with_new_variable(char *name, Type *type) {
    }
    env->rsp_offset += size;
    type->offset = env->rsp_offset;
-   // type->ptrof = NULL;
-   // type->ty = TY_INT;
-   fprintf(stderr, "#define: %s on %d\n", name, env->rsp_offset);
+   printf("#define: %s on %d\n", name, env->rsp_offset);
    map_put(env->idents, name, type);
    return node;
 }
@@ -317,7 +316,6 @@ Node *new_fdef_node(char *name, Env *prev_env, Type *type) {
 Node *new_block_node(Env *prev_env) {
    Node *node = malloc(sizeof(Node));
    node->ty = ND_BLOCK;
-   // node->name = name;
    node->lhs = NULL;
    node->rhs = NULL;
    node->argc = 0;
@@ -388,8 +386,6 @@ Vector *tokenize(char *p) {
          token->ty = TK_SPACE;
          vec_push(pre_tokens, token);
          while (isspace(*p) && *p != '\0') {
-            // fprintf(stderr, "Skip %c, %d, %d\n", *p, isspace(*p), *p !=
-            // '\0');
             p++;
          }
          continue;
@@ -444,11 +440,6 @@ Vector *tokenize(char *p) {
                default:
                   error("Error: Error On this escape sequence.");
             }
-            /*
-      char str[16];
-      snprintf(str, 16, "%s", p+1);
-      token->num_val = str[0];
-      */
             p++;
          }
          vec_push(pre_tokens, token);
@@ -666,13 +657,6 @@ Vector *tokenize(char *p) {
 
       fprintf(stderr, "Cannot Tokenize: %s\n", p);
       exit(1);
-      // DEBUG
-      /*
-      for (int j=0;j<=pre_tokens->len-1;j++) {
-         fprintf(stderr, "%c %d %s\n", pre_tokens->data[j]->ty,
-      pre_tokens->data[j]->ty, pre_tokens->data[j]->input);
-      }
-      */
    }
 
    Token *token = malloc(sizeof(Token));
@@ -702,6 +686,7 @@ Node *node_mathexpr_without_comma() { return node_lor(); }
 Node *node_mathexpr() {
    Node *node = node_lor();
    while (1) {
+      // TODO: support 1, 2 -> 2
       /*
       if (consume_node(',')) {
          node = new_node(',', node, node_lor());
@@ -966,7 +951,7 @@ Node *node_term() {
       Node *node = new_num_node(0);
       node->type->ty = TY_PTR;
       return node;
-      // zatu
+      // TODO  zatu
    }
    if (confirm_ident()) {
       Node *node;
@@ -1081,9 +1066,9 @@ char *_rdi(Node *node) {
    }
 }
 
-char* rdi_rax_larger(Node *node) {
-   Node* lhs = node->lhs;
-   Node* rhs = node->rhs;
+char *rdi_rax_larger(Node *node) {
+   Node *lhs = node->lhs;
+   Node *rhs = node->rhs;
    char *str = malloc(sizeof(char) * 24);
    if (type2size(lhs->type) < type2size(rhs->type)) {
       // rdi, rax
@@ -1094,9 +1079,9 @@ char* rdi_rax_larger(Node *node) {
    return str;
 }
 
-char* rax_rdi_larger(Node *node) {
-   Node* lhs = node->lhs;
-   Node* rhs = node->rhs;
+char *rax_rdi_larger(Node *node) {
+   Node *lhs = node->lhs;
+   Node *rhs = node->rhs;
    char *str = malloc(sizeof(char) * 24);
    if (type2size(lhs->type) < type2size(rhs->type)) {
       // rdi, rax
@@ -1135,7 +1120,6 @@ void gen_lval(Node *node) {
    if (node->ty == '.') {
       gen_lval(node->lhs);
       puts("pop rax");
-      // puts("mov rax, rbp");
       printf("add rax, %d\n", node->type->offset);
       puts("push rax");
       return;
@@ -1193,7 +1177,6 @@ char *type2string(Node *node) {
 
 void gen(Node *node) {
    if (node == NULL) {
-      fprintf(stderr, "node == NULL: skip\n");
       return;
    }
    if (node->ty == ND_NUM) {
@@ -1254,7 +1237,6 @@ void gen(Node *node) {
    if (node->ty == ND_BLOCK) {
       Env *prev_env = env;
       env = node->env;
-      // printf("%s:\n", node->name);
       for (int j = 0; node->code->data[j] != NULL; j++) {
          gen(node->code->data[j]);
       }
@@ -1356,9 +1338,8 @@ void gen(Node *node) {
    }
 
    if (node->ty == ND_FUNC) {
+      // TODO: support this kind
       // char registers[6][4] = {"rdi", "rsi", "rdx", "rcx", "r8", "r9"};
-            /*default:
-               error("Error: Not supported pointer eq.");*/
       char registers[6][4];
       strcpy(registers[0], "rdi");
       strcpy(registers[1], "rsi");
@@ -1491,7 +1472,6 @@ void gen(Node *node) {
       }
       puts("#deref");
       puts("pop rax");
-      // puts("mov rax, [rax]");
       printf("mov %s, [rax]\n", _rax(node));
       // TODO : when reading char, we should read just 1 byte
       if (node->type->ty == TY_CHAR) {
@@ -1538,13 +1518,7 @@ void gen(Node *node) {
       puts("pop rdi");
       puts("pop rax");
       // TODO See samples/2.c
-      /*
-      if (node->type->ty == TY_CHAR) {
-         puts("movzx rax, dil");
-      } else {
-      */
       puts("mov [rax], rdi");
-      // }
       puts("push rdi");
       return;
    }
@@ -1626,15 +1600,12 @@ void gen(Node *node) {
          break;
       case '^':
          printf("xor %s, %s\n", _rax(node), _rdi(node));
-         // puts("xor rax, rdi");
          break;
       case '&':
          printf("and %s, %s\n", _rax(node), _rdi(node));
-         // puts("and rax, rdi");
          break;
       case '|':
          printf("or %s, %s\n", _rax(node), _rdi(node));
-         // puts("or rax, rdi");
          break;
       case ND_RSHIFT:
          // FIXME: for signed int (Arthmetric)
@@ -1737,7 +1708,6 @@ Type *read_type(char **input) {
    }
    // skip the name  of position.
    consume_node(TK_IDENT);
-   // pos++;
    // array
    if (consume_node('[')) {
       Type *base_type = type;
@@ -1750,7 +1720,6 @@ Type *read_type(char **input) {
       Type *cur_ptr = type;
       // support for multi-dimensional array
       while (consume_node('[')) {
-         // type->ty = TY_ARRAY;
          // TODO: support NOT functioned type
          // ex. int a[4+7];
          cur_ptr->ptrof = malloc(sizeof(Type));
@@ -1771,7 +1740,6 @@ Node *stmt() {
       char *input = NULL;
       Type *type = read_type(&input);
       node = new_ident_node_with_new_variable(input, type);
-      // new_ident_node_with_new_variable(input, type);
       // if there is int a =1;
       if (consume_node('=')) {
          if (consume_node('{')) {
@@ -1806,7 +1774,6 @@ Node *stmt() {
 }
 
 Node *node_if() {
-   // Node** args) {
    Node *node;
    node = new_node(ND_IF, NULL, NULL);
    node->argc = 1;
@@ -1836,26 +1803,19 @@ Node *node_if() {
 
 void program(Node *block_node) {
    expect_node('{');
-   // Node **args = block_node->code;
    Vector *args = block_node->code;
    Env *prev_env = env;
    env = block_node->env;
-   // env = new_env(env);
    while (consume_node('}') == 0) {
       if (confirm_node('{')) {
          Node *new_block = new_block_node(env);
          program(new_block);
          vec_push(args, new_block);
-         // args[0] = new_block_node(env);
-         // program(args[0]);
-         // args++;
          continue;
       }
 
       if (consume_node(TK_IF)) {
          vec_push(args, node_if());
-         // args[0] = node_if();
-         // args++;
          continue;
       }
       if (consume_node(TK_WHILE)) {
@@ -1875,7 +1835,6 @@ void program(Node *block_node) {
          program(do_node->rhs);
          expect_node(TK_WHILE);
          do_node->lhs = node_mathexpr();
-         // args++;
          expect_node(';');
          vec_push(args, do_node);
          continue;
@@ -1898,7 +1857,6 @@ void program(Node *block_node) {
          for_node->rhs = new_block_node(env);
          program(for_node->rhs);
          vec_push(args, for_node);
-         // args++;
          continue;
       }
 
@@ -1923,7 +1881,6 @@ void program(Node *block_node) {
          continue;
       }
       vec_push(args, stmt());
-      // args[i++] = stmt();
    }
    vec_push(args, NULL);
 
@@ -1937,7 +1894,6 @@ Type *find_typed_db(char *input, Map *db) {
    for (int j = 0; j < db->keys->len; j++) {
       // for struct
       if (strcmp(input, db->keys->data[j]) == 0) {
-         // pos++;
          // copy type
          Type *type = malloc(sizeof(Type));
          Type *old_type = (Type *)db->vals->data[j];
@@ -1986,7 +1942,7 @@ int split_type_ident() {
       return 0;
    }
    for (int j = 0; j < typedb->keys->len; j++) {
-      char* chr = typedb->keys->data[j];
+      char *chr = typedb->keys->data[j];
       // for struct
       if (strcmp(token->input, typedb->keys->data[j]) == 0) {
          return typedb->vals->data[j]->ty;
@@ -2013,7 +1969,7 @@ char *expect_ident() {
       error("Error: Expected Ident but...");
       return NULL;
    }
-   char* theinput;
+   char *theinput;
    theinput = tokens->data[pos]->input;
    pos++;
    return theinput;
@@ -2044,7 +2000,7 @@ void define_enum(int assign_name) {
    // to support anonymous enum
    if (assign_name && confirm_ident()) {
       char *name = expect_ident();
-      fprintf(stderr, "#define new enum: %s\n", name);
+      printf("#define new enum: %s\n", name);
       map_put(typedb, name, enumtype);
    }
 }
@@ -2089,8 +2045,7 @@ void toplevel() {
             if ((offset % size != 0)) {
                offset += (size - offset % size);
             }
-            fprintf(stderr, "#define new offset: %s on %d\n", name, offset);
-            //offset += type2size(type);
+            printf("#define new offset: %s on %d\n", name, offset);
             // all type should aligned with proper value.
             // TODO assumption there are NO bytes over 8 bytes.
             type->offset = offset;
@@ -2101,7 +2056,7 @@ void toplevel() {
          structuretype->offset = offset;
          char *name = expect_ident();
          expect_node(';');
-         fprintf(stderr, "#define new struct: %s\n", name);
+         printf("#define new struct: %s\n", name);
          map_put(typedb, name, structuretype);
          continue;
       }
@@ -2112,7 +2067,7 @@ void toplevel() {
          char *name = expect_ident();
          Type *structuretype = malloc(sizeof(Type));
          expect_node(';');
-         fprintf(stderr, "#define new enum: %s\n", name);
+         printf("#define new enum: %s\n", name);
          map_put(typedb, name, structuretype);
       }
 
@@ -2126,12 +2081,6 @@ void toplevel() {
             for (code[i]->argc = 0; code[i]->argc <= 6 && !consume_node(')');) {
                char *arg_name = NULL;
                Type *arg_type = read_type(&arg_name);
-               // expect_node(TK_TYPE);
-               /*
-               Type *type = malloc(sizeof(Type));
-               type->ty = TY_INT;
-               type->ptrof = NULL;
-               */
                code[i]->args[code[i]->argc++] =
                    new_ident_node_with_new_variable(arg_name, arg_type);
                consume_node(',');
@@ -2186,9 +2135,7 @@ void test_map() {
    }
 
    Map *map = new_map();
-   //expect(__LINE__, 0, (int)map_get(map, "bar"));
    map_put(map, "foo", hanando_fukui_compiled);
-   //expect(__LINE__, 3, (int)map_get(map, "foo"));
    if (map->keys->len != 1 || map->vals->len != 1) {
       error("Error: Map does not work yet!");
       exit(1);
@@ -2196,7 +2143,7 @@ void test_map() {
    if ((int)map_get(map, "bar") != 0) {
       error("Error: Map does not work yet! on 3");
    }
-   Token* te = map_get(map, "foo");
+   Token *te = map_get(map, "foo");
    if (strcmp(te->input, "HANANDO_FUKUI") != 0) {
       error("Error: Map does not work yet! on 3a");
    }
@@ -2214,7 +2161,6 @@ void globalvar_gen() {
          printf("%s:\n", keydataj);
          printf(".long %d\n", valdataj->initval);
          puts(".text");
-         // global_vars->vals->data[j];
       } else {
          printf(".comm %s, %d\n", keydataj, cnt_size(valdataj));
       }
@@ -2247,7 +2193,7 @@ void preprocess(Vector *pre_tokens) {
                // read because of defined.
             } else {
                while (pre_tokens->data[j]->ty != TK_NEWLINE &&
-                     pre_tokens->data[j]->ty != TK_EOF) {
+                      pre_tokens->data[j]->ty != TK_EOF) {
                   j++;
                }
             }
@@ -2260,7 +2206,7 @@ void preprocess(Vector *pre_tokens) {
                // read because of defined.
             } else {
                while (pre_tokens->data[j]->ty != TK_NEWLINE &&
-                     pre_tokens->data[j]->ty != TK_EOF) {
+                      pre_tokens->data[j]->ty != TK_EOF) {
                   j++;
                }
             }
@@ -2308,13 +2254,12 @@ void preprocess(Vector *pre_tokens) {
          continue;
       int called = 0;
       for (int k = 0; k < defined->keys->len; k++) {
-         char* chr = defined->keys->data[k];
-         if (pre_tokens->data[j]->ty == TK_IDENT && strcmp(pre_tokens->data[j]->input, chr) == 0) {
+         char *chr = defined->keys->data[k];
+         if (pre_tokens->data[j]->ty == TK_IDENT &&
+             strcmp(pre_tokens->data[j]->input, chr) == 0) {
             called = 1;
-            fprintf(stderr, "#define changed: %s -> %ld\n",
-                    pre_tokens->data[j]->input,
-                    defined->vals->data[k]->num_val);
-            // pre_tokens->data[j] = defined->vals->data[k];
+            printf("#define changed: %s -> %ld\n", pre_tokens->data[j]->input,
+                   defined->vals->data[k]->num_val);
             vec_push(tokens, defined->vals->data[k]);
             continue;
          }
@@ -2370,7 +2315,6 @@ Vector *read_tokenize(char *fname) {
    fseek(fp, 0, SEEK_SET);
    char *buf = malloc(sizeof(char) * (length + 5));
    fread(buf, length + 5, sizeof(char), fp);
-   // fgets(buf, length+5, fp);
    fclose(fp);
    return tokenize(buf);
 }
