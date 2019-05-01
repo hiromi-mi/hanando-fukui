@@ -80,8 +80,7 @@ int map_put(Map *map, char *key, void *val) {
 
 void *map_get(Map *map, char *key) {
    for (int i = map->keys->len - 1; i >= 0; i--) {
-      char *chr = map->keys->data[i];
-      if (strcmp(chr, key) == 0) {
+      if (strcmp(map->keys->data[i], key) == 0) {
          return map->vals->data[i];
       }
    }
@@ -150,11 +149,7 @@ Node *new_char_node(long num_val) {
    Node *node = malloc(sizeof(Node));
    node->ty = ND_NUM;
    node->num_val = num_val;
-   node->type = malloc(sizeof(Type));
-   node->type->ty = TY_CHAR;
-   node->type->ptrof = NULL;
-   node->type->array_size = -1;
-   node->type->offset = -1;
+   node->type = find_typed_db("char", typedb);
    return node;
 }
 
@@ -162,22 +157,14 @@ Node *new_num_node(long num_val) {
    Node *node = malloc(sizeof(Node));
    node->ty = ND_NUM;
    node->num_val = num_val;
-   node->type = malloc(sizeof(Type));
-   node->type->ty = TY_INT;
-   node->type->ptrof = NULL;
-   node->type->array_size = -1;
-   node->type->offset = -1;
+   node->type = find_typed_db("int", typedb);
    return node;
 }
 Node *new_long_num_node(long num_val) {
    Node *node = malloc(sizeof(Node));
    node->ty = ND_NUM;
    node->num_val = num_val;
-   node->type = malloc(sizeof(Type));
-   node->type->ty = TY_LONG;
-   node->type->ptrof = NULL;
-   node->type->array_size = -1;
-   node->type->offset = -1;
+   node->type = find_typed_db("long", typedb);
    return node;
 }
 
@@ -186,7 +173,6 @@ Node *new_deref_node(Node *lhs) {
    node->type = node->lhs->type->ptrof;
    if (node->type == NULL) {
       error("Error: Dereference on NOT pointered.");
-      exit(1);
    }
    return node;
 }
@@ -889,7 +875,6 @@ Node *new_dot_node(Node *node) {
    node->type = (Type *)map_get(node->lhs->type->structure, node->name);
    if (node->type == NULL) {
       error("Error: structure not found.");
-      exit(1);
    }
    expect_node(TK_IDENT);
    return node;
@@ -916,7 +901,6 @@ Node *read_complex_ident() {
       } else if (consume_node('.')) {
          if (node->type->ty != TY_STRUCT) {
             error("Error: dot operator to NOT struct");
-            exit(1);
          }
          node = new_dot_node(node);
       } else if (consume_node(TK_ARROW)) {
@@ -1202,7 +1186,6 @@ void gen(Node *node) {
       // saved with input
       if (node->name == NULL) {
          error("Error: case statement without switch\n");
-         exit(1);
       }
       printf("%s:\n", node->name);
       return;
@@ -2101,18 +2084,15 @@ void test_map() {
    vec_push(vec, 9);
    if (vec->len != 2) {
       error("Vector does not work yet!");
-      exit(1);
    }
    if (strcmp(vec->data[0]->input, "HANANDO_FUKUI") != 0) {
       error("Vector does not work yet!");
-      exit(1);
    }
 
    Map *map = new_map();
    map_put(map, "foo", hanando_fukui_compiled);
    if (map->keys->len != 1 || map->vals->len != 1) {
       error("Error: Map does not work yet!");
-      exit(1);
    }
    if ((int)map_get(map, "bar") != 0) {
       error("Error: Map does not work yet! on 3");
@@ -2296,7 +2276,6 @@ Vector *read_tokenize(char *fname) {
 int main(int argc, char **argv) {
    if (argc < 2) {
       error("Incorrect Arguments");
-      exit(1);
    }
    test_map();
 
@@ -2306,23 +2285,17 @@ int main(int argc, char **argv) {
    } else {
       preprocess(tokenize(argv[1]));
    }
-   Token *token = malloc(sizeof(Token));
-   token->ty = TK_EOF;
-   token->input = "";
-   vec_push(tokens, token);
 
    init_typedb();
 
    toplevel();
 
    puts(".intel_syntax noprefix");
-
    puts(".align 4");
    // treat with global variables
    globalvar_gen();
 
-   int j = 0;
-   for (j = 0; code[j] != NULL; j++) {
+   for (int j = 0; code[j] != NULL; j++) {
       gen(code[j]);
    }
 
