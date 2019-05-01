@@ -15,6 +15,14 @@ self:
 	./hanando -f main.c > main.s
 	$(CC) main.s -o main
 
+selfselftest:
+	./main -f main.c > main2.s
+	$(CC) main2.s -o main2
+	./main2 -f main.c > main3.s
+	$(CC) main3.s -o main3
+	diff -c main2.s main3.s
+	diff -c main.s main2.s
+
 test:	test1 test2 test3 test4 \
    test5 test6 test7 test8 test9 \
    test10 test11 test19 test12 test13 test14\

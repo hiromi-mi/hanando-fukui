@@ -1364,7 +1364,7 @@ void gen(Node *node) {
       printf("call %s\n", node->name);
       // rax should be aligned with the size
       // TODO extension
-      if (type2size(node->type) < 8) {
+      if (node->type->ty == TY_INT) {
          puts("cdqe");
       }
       puts("push rax");
@@ -1583,45 +1583,6 @@ void gen(Node *node) {
 
    gen(node->lhs);
    gen(node->rhs);
-
-   /*
-   if (node->lhs->type &&
-       (node->lhs->type->ty == TY_ARRAY || node->lhs->type->ty == TY_PTR)) {
-      puts("pop rax"); // rhs
-      puts("pop rdi"); // lhs because of mul
-      printf("mov r10, %d\n", type2size(node->lhs->type->ptrof));
-      puts("mul r10");
-      switch (node->ty) {
-         case '+':
-            puts("add rax, rdi");
-            puts("push rax");
-            return;
-         case '-':
-            puts("sub rax, rdi"); // stack
-            puts("push rax");
-            return;
-      }
-   }
-   if (node->rhs->type &&
-       (node->rhs->type->ty == TY_ARRAY || node->rhs->type->ty == TY_PTR)) {
-      puts("pop rdi"); // rhs
-      puts("pop rax"); // lhs
-      printf("mov r10, %d\n", type2size(node->rhs->type->ptrof));
-      puts("mul r10");
-      switch (node->ty) {
-         case '+':
-            puts("add rax, rdi");
-            puts("push rax");
-            return;
-         case '-':
-            puts("sub rax, rdi"); // stack
-            puts("push rax");
-            return;
-         default:
-            break;
-      }
-   }
-   */
 
    puts("pop rdi"); // rhs
    puts("pop rax"); // lhs
@@ -1979,11 +1940,13 @@ Type *find_typed_db(char *input, Map *db) {
 
 Type *read_fundamental_type() {
    Token *token = tokens->data[pos];
-   if (token->ty == TK_CONST) {
+   int tyc = token->ty;
+   // TODO: using token->data[pos] does not work yet!
+   if (tokens->data[pos]->ty == TK_CONST) {
       expect_node(TK_CONST); // TODO : for ease skip
       token = tokens->data[pos];
    }
-   if (token->ty == TK_ENUM) {
+   if (tokens->data[pos]->ty == TK_ENUM) {
       // treat as anonymous enum
       expect_node(TK_ENUM);
       define_enum(0);
@@ -1992,7 +1955,7 @@ Type *read_fundamental_type() {
       type->ptrof = NULL;
       return type;
    }
-   if (token->ty == TK_STRUCT) {
+   if (tokens->data[pos]->ty == TK_STRUCT) {
       // TODO: for ease
       expect_node(TK_STRUCT);
       char *input = expect_ident();

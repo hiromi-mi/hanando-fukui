@@ -6,7 +6,8 @@ tmprun=$(mktemp --tmpdir XXXXXX.run)
 naiyou=$1
 naiyou2="int main(){$naiyou}"
 echo $naiyou2
-./hanando "$naiyou2" > $tmps
+#./hanando "$naiyou2" > $tmps
+./main "$naiyou2" > $tmps
 clang $tmps -g -o $tmprun
 $tmprun
 actual="$?"
