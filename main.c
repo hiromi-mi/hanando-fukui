@@ -60,6 +60,22 @@ int get_lval_offset(Node *node);
 Type *get_type(Node *node);
 void gen(Node *node);
 
+Node *node_mul();
+Node *node_term();
+Node *node_mathexpr();
+Node *node_mathexpr_without_comma();
+Node *node_land();
+Node *node_or();
+Node *node_lor();
+Node *node_and();
+Node *node_xor();
+Node *node_shift();
+Node *node_add();
+Node *node_cast();
+Node *node_increment();
+Node *assign();
+
+
 // FOR SELFHOST
 #ifdef __HANANDO_FUKUI__
 FILE *fopen(char *name, char *type);
@@ -575,59 +591,41 @@ Vector *tokenize(char *p) {
 
          if (strcmp(token->input, "if") == 0) {
             token->ty = TK_IF;
-         }
-         if (strcmp(token->input, "else") == 0) {
+         } else if (strcmp(token->input, "else") == 0) {
             token->ty = TK_ELSE;
-         }
-         if (strcmp(token->input, "do") == 0) {
+         } else if (strcmp(token->input, "do") == 0) {
             token->ty = TK_DO;
-         }
-         if (strcmp(token->input, "while") == 0) {
+         } else if (strcmp(token->input, "while") == 0) {
             token->ty = TK_WHILE;
-         }
-         if (strcmp(token->input, "for") == 0) {
+         } else if (strcmp(token->input, "for") == 0) {
             token->ty = TK_FOR;
-         }
-         if (strcmp(token->input, "return") == 0) {
+         } else if (strcmp(token->input, "return") == 0) {
             token->ty = TK_RETURN;
-         }
-         if (strcmp(token->input, "sizeof") == 0) {
+         } else if (strcmp(token->input, "sizeof") == 0) {
             token->ty = TK_SIZEOF;
-         }
-         if (strcmp(token->input, "goto") == 0) {
+         } else if (strcmp(token->input, "goto") == 0) {
             token->ty = TK_GOTO;
-         }
-         if (strcmp(token->input, "struct") == 0) {
+         } else if (strcmp(token->input, "struct") == 0) {
             token->ty = TK_STRUCT;
-         }
-         if (strcmp(token->input, "typedef") == 0) {
+         } else if (strcmp(token->input, "typedef") == 0) {
             token->ty = TK_TYPEDEF;
-         }
-         if (strcmp(token->input, "break") == 0) {
+         } else if (strcmp(token->input, "break") == 0) {
             token->ty = TK_BREAK;
-         }
-         if (strcmp(token->input, "continue") == 0) {
+         } else if (strcmp(token->input, "continue") == 0) {
             token->ty = TK_CONTINUE;
-         }
-         if (strcmp(token->input, "const") == 0) {
+         } else if (strcmp(token->input, "const") == 0) {
             token->ty = TK_CONST;
-         }
-         if (strcmp(token->input, "NULL") == 0) {
+         } else if (strcmp(token->input, "NULL") == 0) {
             token->ty = TK_NULL;
-         }
-         if (strcmp(token->input, "switch") == 0) {
+         } else if (strcmp(token->input, "switch") == 0) {
             token->ty = TK_SWITCH;
-         }
-         if (strcmp(token->input, "case") == 0) {
+         } else if (strcmp(token->input, "case") == 0) {
             token->ty = TK_CASE;
-         }
-         if (strcmp(token->input, "default") == 0) {
+         } else if (strcmp(token->input, "default") == 0) {
             token->ty = TK_DEFAULT;
-         }
-         if (strcmp(token->input, "enum") == 0) {
+         } else if (strcmp(token->input, "enum") == 0) {
             token->ty = TK_ENUM;
-         }
-         if (strcmp(token->input, "__LINE__") == 0) {
+         } else if (strcmp(token->input, "__LINE__") == 0) {
             token->ty = TK_NUM;
             token->num_val = pline;
          }
@@ -646,21 +644,6 @@ Vector *tokenize(char *p) {
    vec_push(pre_tokens, token);
    return pre_tokens;
 }
-
-Node *node_mul();
-Node *node_term();
-Node *node_mathexpr();
-Node *node_mathexpr_without_comma();
-Node *node_land();
-Node *node_or();
-Node *node_lor();
-Node *node_and();
-Node *node_xor();
-Node *node_shift();
-Node *node_add();
-Node *node_cast();
-Node *node_increment();
-Node *assign();
 
 Node *node_mathexpr_without_comma() { return node_lor(); }
 
