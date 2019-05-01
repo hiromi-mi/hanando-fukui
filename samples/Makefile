@@ -12,3 +12,7 @@ test:
 	../hanando -f 10.c > 10.s
 	gcc 10.s -o 10
 	./10 "aaa"
+	../hanando -f 11.c > 11.s
+	gcc -g -S -masm=intel 12.c -o 12.s
+	gcc -g 12.s 11.s -o 11
+	./11

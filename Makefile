@@ -20,7 +20,7 @@ test:	test1 test2 test3 test4 \
    test10 test11 test19 test12 test13 test14\
    test15 test16 test17 test18 test20 test21\
    test22 test23 test24 test25 test26 test27\
-   test28
+   test28 test30 test29
 
 test1:
 	sh test.sh '1;' 1
@@ -186,8 +186,9 @@ test24:
 	sh test.sh "-(-1);" 1
 
 test25:
-	sh test.sh "((int*)3)+1;" 11
-	sh test.sh "((char*)3)+1;" 11
+	sh test.sh "((int*)3)+1;" 7
+	sh test.sh "((int**)3)+1;" 11
+	sh test.sh "((char*)3)+1;" 4
 	sh test.sh "((int)3)+1;" 4
 
 test26:
@@ -213,6 +214,11 @@ test29:
 	sh test.sh "char a[3]; a[0]='a'; a[1]='b';a[2]='\0';puts(a);printf(\"%c%c\", *a, *(a+1));" 2
 	sh test.sh "int a[3]; a[0]=8; a[1]=2;a[2]=4;puts(a);printf(\"%d%d\", *a, *(a+1));" 2
 	sh test.sh "char a[12]; a[0]='a'; a[1]='c';a[2]='d';a[3]='g';a[4]='h';a[5]='f';a[6]='k';a[7]='p';a[8]='l';a[9]='\0';puts(a);strcmp(a, \"acdghfkpl\");" 0
+
+test30:
+	sh test.sh "char a;a='h';('a'<=a&&a<='z');" 1
+	sh test.sh "char a;a='h';('a'<=a&&a<='z')||('0'<=a&&a<='9')||('A'<=a&&a<='Z')||a=='_';" 1
+	sh test.sh "char a;a='h';('a'<=a&&a<='z')||('0'<=a&&a<='9');" 1
 
 clean:
 	$(RM) -f $(target) $(objects)

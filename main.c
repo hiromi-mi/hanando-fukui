@@ -123,6 +123,18 @@ Node *new_node(NodeType ty, Node *lhs, Node *rhs) {
    return node;
 }
 
+Node *new_char_node(long num_val) {
+   Node *node = malloc(sizeof(Node));
+   node->ty = ND_NUM;
+   node->num_val = num_val;
+   node->type = malloc(sizeof(Type));
+   node->type->ty = TY_CHAR;
+   node->type->ptrof = NULL;
+   node->type->array_size = -1;
+   node->type->offset = -1;
+   return node;
+}
+
 Node *new_num_node(long num_val) {
    Node *node = malloc(sizeof(Node));
    node->ty = ND_NUM;
@@ -150,9 +162,9 @@ Node *new_addsub_node(NodeType ty, Node *lhs_node, Node *rhs_node) {
    Node* rhs = rhs_node;
    Node* node = NULL;
    if (lhs->type->ty == TY_PTR || lhs->type->ty == TY_ARRAY) {
-      rhs = new_node('*', rhs, new_num_node(type2size(lhs->type)));
+      rhs = new_node('*', rhs, new_char_node(cnt_size(lhs->type->ptrof)));
    } else if (rhs->type->ty == TY_PTR || rhs->type->ty == TY_ARRAY) {
-      lhs = new_node('*', lhs, new_num_node(type2size(rhs->type)));
+      lhs = new_node('*', lhs, new_char_node(cnt_size(rhs->type->ptrof)));
    }
    node = new_node(ty, lhs, rhs);
    if (rhs->type->ty == TY_PTR || rhs->type->ty == TY_ARRAY) {
@@ -186,6 +198,7 @@ int cnt_size(Type *type) {
 }
 
 Node *new_ident_node_with_new_variable(char *name, Type *type) {
+   fprintf(stderr, "#define new env: %p %d %d\n", env, env->rsp_offset, env->rsp_offset_all);
    Node *node = malloc(sizeof(Node));
    node->ty = ND_IDENT;
    node->name = name;
@@ -243,16 +256,16 @@ Node *new_func_node(char *name) {
 }
 
 Env *new_env(Env *prev_env) {
-   Env *env = malloc(sizeof(Env));
-   env->env = prev_env;
-   env->idents = new_map();
-   env->rsp_offset = 0;
+   Env *_env = malloc(sizeof(Env));
+   _env->env = prev_env;
+   _env->idents = new_map();
+   _env->rsp_offset = 0;
    if (prev_env) {
-      env->rsp_offset_all = prev_env->rsp_offset_all + prev_env->rsp_offset;
+      _env->rsp_offset_all = prev_env->rsp_offset_all + prev_env->rsp_offset;
    } else {
-      env->rsp_offset_all = 0;
+      _env->rsp_offset_all = 0;
    }
-   return env;
+   return _env;
 }
 
 Node *new_fdef_node(char *name, Env *prev_env, Type *type) {
@@ -1430,6 +1443,7 @@ void gen(Node *node) {
       puts("pop rax");
       // puts("mov rax, [rax]");
       printf("mov %s, [rax]\n", _rax(node));
+      // TODO : when reading char, we should read just 1 byte
       if (node->type->ty == TY_CHAR) {
          printf("movzx rax, al\n");
       }
@@ -2112,6 +2126,7 @@ void toplevel() {
                type->ty = TY_INT;
                type->ptrof = NULL;
                */
+               fprintf(stderr, "#define new env: %p %d %d\n", env, env->rsp_offset, env->rsp_offset_all);
                code[i]->args[code[i]->argc++] =
                    new_ident_node_with_new_variable(arg_name, arg_type);
                consume_node(',');
