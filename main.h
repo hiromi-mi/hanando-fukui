@@ -152,7 +152,6 @@ typedef struct Node {
    struct Node *lhs;
    struct Node *rhs;
    struct Node *args[6];
-   //struct Node *code[100];
    Vector *code;
    long argc;
    long num_val;

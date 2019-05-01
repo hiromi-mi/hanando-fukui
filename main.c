@@ -30,13 +30,19 @@ limitations under the License.
 Vector *tokens;
 int pos = 0;
 Node *code[300];
-int get_lval_offset(Node *node);
-Type *get_type(Node *node);
-void gen(Node *node);
 Map *global_vars;
 Map *funcdefs;
 Map *consts;
 Vector *strs;
+Map *typedb;
+Map *struct_typedb;
+Map *enum_typedb;
+
+int env_for_while = 0;
+int env_for_while_switch = 0;
+Env *env;
+int if_cnt = 0;
+int for_while_cnt = 0;
 
 int type2size(Type *type);
 Type *read_type(char **input);
@@ -50,16 +56,9 @@ char *expect_ident();
 void program(Node *block_node);
 Type *find_typed_db(char *input, Map *db);
 int cnt_size(Type *type);
-
-int env_for_while = 0;
-int env_for_while_switch = 0;
-Env *env;
-int if_cnt = 0;
-int for_while_cnt = 0;
-
-Map *typedb;
-Map *struct_typedb;
-Map *enum_typedb;
+int get_lval_offset(Node *node);
+Type *get_type(Node *node);
+void gen(Node *node);
 
 // FOR SELFHOST
 #ifdef __HANANDO_FUKUI__
@@ -258,7 +257,6 @@ Node *new_func_node(char *name) {
    node->rhs = NULL;
    node->type = NULL;
    node->argc = 0;
-   // should support long?
    Node *result = map_get(funcdefs, name);
    if (result) {
       node->type = result->type;
@@ -1045,19 +1043,6 @@ char *_rdi(Node *node) {
    }
 }
 
-char *rdi_rax_larger(Node *node) {
-   Node *lhs = node->lhs;
-   Node *rhs = node->rhs;
-   char *str = malloc(sizeof(char) * 24);
-   if (type2size(lhs->type) < type2size(rhs->type)) {
-      // rdi, rax
-      snprintf(str, 24, "%s, %s", _rdi(rhs), _rax(rhs));
-   } else {
-      snprintf(str, 24, "%s, %s", _rdi(lhs), _rax(lhs));
-   }
-   return str;
-}
-
 char *rax_rdi_larger(Node *node) {
    Node *lhs = node->lhs;
    Node *rhs = node->rhs;
@@ -1572,25 +1557,25 @@ void gen(Node *node) {
          puts("sal rax, cl");
          break;
       case ND_ISEQ:
-         printf("cmp %s\n", rdi_rax_larger(node));
+         printf("cmp %s\n", rax_rdi_larger(node));
          puts("sete al");
          puts("movzx rax, al");
          break;
       case ND_ISNOTEQ:
-         printf("cmp %s\n", rdi_rax_larger(node));
+         printf("cmp %s\n", rax_rdi_larger(node));
          puts("setne al");
          puts("movzx rax, al");
          break;
       case '>':
-         printf("cmp %s\n", rdi_rax_larger(node));
-         puts("setl al");
+         printf("cmp %s\n", rax_rdi_larger(node));
+         puts("setg al");
          puts("movzx rax, al");
          break;
       case '<':
          // reverse of < and >
-         printf("cmp %s\n", rdi_rax_larger(node));
+         printf("cmp %s\n", rax_rdi_larger(node));
          // TODO: is "andb 1 %al" required?
-         puts("setg al");
+         puts("setl al");
          puts("movzx rax, al");
          break;
       case ND_ISMOREEQ:
