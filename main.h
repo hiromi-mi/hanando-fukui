@@ -105,8 +105,8 @@ typedef struct {
 
 typedef struct {
    Token **data;
-   int capacity;
-   int len;
+   long capacity;
+   long len;
 } Vector;
 
 typedef struct {
@@ -137,7 +137,7 @@ typedef struct Node {
    struct Node *args[6];
    //struct Node *code[100];
    Vector *code;
-   int argc;
+   long argc;
    long num_val;
    char *name;
    Env *env;

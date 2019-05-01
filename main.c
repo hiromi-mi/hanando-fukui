@@ -85,7 +85,7 @@ int vec_push(Vector *vec, Token *element) {
       vec->capacity *= 2;
       vec->data = realloc(vec->data, sizeof(Token *) * vec->capacity);
       if (vec->data == NULL) {
-         fprintf(stderr, "Error: Realloc failed.\n");
+         fprintf(stderr, "Error: Realloc failed.%ld, %ld", vec->capacity, sizeof(Token*) * vec->capacity);
          exit(1);
       }
    }
