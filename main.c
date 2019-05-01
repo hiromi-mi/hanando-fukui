@@ -1151,30 +1151,6 @@ int type2size(Type *type) {
    }
 }
 
-char *type2string(Node *node) {
-   Type *type = node->type;
-   if (type == NULL) {
-      return 0;
-   }
-   switch (type->ty) {
-      case TY_PTR:
-         return "";
-      case TY_LONG:
-         return "";
-      case TY_INT:
-         return "";
-      case TY_CHAR:
-         return "word ptr ";
-      case TY_ARRAY:
-         return "";
-      case TY_STRUCT:
-         return "";
-      default:
-         error("Error: NOT a type");
-         return "";
-   }
-}
-
 void gen(Node *node) {
    if (node == NULL) {
       return;
