@@ -687,14 +687,12 @@ Node *node_mathexpr() {
    Node *node = node_lor();
    while (1) {
       // TODO: support 1, 2 -> 2
-      /*
       if (consume_node(',')) {
          node = new_node(',', node, node_lor());
          node->type = node->rhs->type;
       } else {
-      */
-      return node;
-      //}
+         return node;
+      }
    }
 }
 
