@@ -2241,16 +2241,22 @@ void preprocess(Vector *pre_tokens) {
          // preprocessor begin
          j++;
          if (strcmp(pre_tokens->data[j]->input, "ifndef") == 0) {
-            while (pre_tokens->data[j]->ty != TK_NEWLINE &&
-                   pre_tokens->data[j]->ty != TK_EOF) {
-               j++;
+            if (map_get(defined, pre_tokens->data[j + 2]->input) != NULL) {
+               skipped = 1;
+               // TODO skip until #endif
+               // read because of defined.
+            } else {
+               while (pre_tokens->data[j]->ty != TK_NEWLINE &&
+                     pre_tokens->data[j]->ty != TK_EOF) {
+                  j++;
+               }
             }
             continue;
          }
          if (strcmp(pre_tokens->data[j]->input, "ifdef") == 0) {
             if (map_get(defined, pre_tokens->data[j + 2]->input) == NULL) {
                skipped = 1;
-               // skip until #endif
+               // TODO skip until #endif
                // read because of defined.
             } else {
                while (pre_tokens->data[j]->ty != TK_NEWLINE &&
