@@ -799,18 +799,12 @@ Node *node_increment() {
    if (consume_node(TK_PLUSPLUS)) {
       Node *node = new_ident_node(tokens->data[pos]->input);
       expect_node(TK_IDENT);
-      node = new_node(ND_INC, node, NULL);
-      if (node->lhs->type->ty == TY_PTR) {
-         node->num_val = cnt_size(node->lhs->type->ptrof);
-      }
+      node = new_node('=', node, new_addsub_node('+', node, new_num_node(1)));
       return node;
    } else if (consume_node(TK_SUBSUB)) {
       Node *node = new_ident_node(tokens->data[pos]->input);
       expect_node(TK_IDENT);
-      node = new_node(ND_DEC, node, NULL);
-      if (node->lhs->type->ty == TY_PTR) {
-         node->num_val = cnt_size(node->lhs->type->ptrof);
-      }
+      node = new_node('=', node, new_addsub_node('-', node, new_num_node(1)));
       return node;
    } else if (consume_node('&')) {
       Node *node = new_node(ND_ADDRESS, node_increment(), NULL);
@@ -1443,6 +1437,7 @@ void gen(Node *node) {
       puts("pop rax");
       // TODO See samples/2.c
       puts("mov [rax], rdi");
+      // this should be rdi instead of edi
       puts("push rdi");
       return;
    }
