@@ -1461,24 +1461,6 @@ void gen(Node *node) {
       return;
    }
 
-   if (node->ty == ND_INC) {
-      gen_lval(node->lhs);
-      puts("pop rax");
-      puts("mov rdi, [rax]");
-      puts("add rdi, 1");
-      puts("mov [rax], rdi");
-      puts("push rdi");
-      return;
-   }
-   if (node->ty == ND_DEC) {
-      gen_lval(node->lhs);
-      puts("pop rax");
-      puts("mov rdi, [rax]");
-      puts("sub rdi, 1");
-      puts("mov [rax], rdi");
-      puts("push rdi");
-      return;
-   }
    if (node->ty == '!') {
       gen(node->lhs);
       puts("pop rax");
@@ -1686,7 +1668,7 @@ Node *stmt() {
    } else {
       node = assign();
    }
-   if (consume_node(';') == 0) {
+   if (!consume_node(';')) {
       error("Error: Not token ;");
    }
    return node;
@@ -1725,7 +1707,7 @@ void program(Node *block_node) {
    Vector *args = block_node->code;
    Env *prev_env = env;
    env = block_node->env;
-   while (consume_node('}') == 0) {
+   while (!consume_node('}')) {
       if (confirm_node('{')) {
          Node *new_block = new_block_node(env);
          program(new_block);
@@ -1765,11 +1747,11 @@ void program(Node *block_node) {
          for_node->args[0] = stmt();
          // expect_node(';');
          // TODO: to allow without lines
-         if (consume_node(';') == 0) {
+         if (!consume_node(';')) {
             for_node->args[1] = assign();
             expect_node(';');
          }
-         if (consume_node(')') == 0) {
+         if (!consume_node(')')) {
             for_node->args[2] = assign();
             expect_node(')');
          }
@@ -1895,7 +1877,7 @@ void define_enum(int assign_name) {
    enumtype->ty = TY_INT;
    enumtype->offset = 4;
    int cnt = 0;
-   while (consume_node('}') == 0) {
+   while (!consume_node('}')) {
       char *itemname = expect_ident();
       Node *itemnode = NULL;
       if (consume_node('=')) {
@@ -1958,7 +1940,7 @@ void toplevel() {
          structuretype->ptrof = NULL;
          int offset = 0;
          int size = 0;
-         while (consume_node('}') == 0) {
+         while (!consume_node('}')) {
             char *name = NULL;
             Type *type = read_type(&name);
             size = type2size(type);
@@ -2186,7 +2168,7 @@ void preprocess(Vector *pre_tokens) {
             continue;
          }
       }
-      if (called == 0) {
+      if (!called) {
          vec_push(tokens, pre_tokens->data[j]);
       }
    }
