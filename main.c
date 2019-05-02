@@ -30,13 +30,19 @@ limitations under the License.
 Vector *tokens;
 int pos = 0;
 Node *code[300];
-int get_lval_offset(Node *node);
-Type *get_type(Node *node);
-void gen(Node *node);
 Map *global_vars;
 Map *funcdefs;
 Map *consts;
 Vector *strs;
+Map *typedb;
+Map *struct_typedb;
+Map *enum_typedb;
+
+int env_for_while = 0;
+int env_for_while_switch = 0;
+Env *env;
+int if_cnt = 0;
+int for_while_cnt = 0;
 
 int type2size(Type *type);
 Type *read_type(char **input);
@@ -50,16 +56,25 @@ char *expect_ident();
 void program(Node *block_node);
 Type *find_typed_db(char *input, Map *db);
 int cnt_size(Type *type);
+int get_lval_offset(Node *node);
+Type *get_type(Node *node);
+void gen(Node *node);
 
-int env_for_while = 0;
-int env_for_while_switch = 0;
-Env *env;
-int if_cnt = 0;
-int for_while_cnt = 0;
+Node *node_mul();
+Node *node_term();
+Node *node_mathexpr();
+Node *node_mathexpr_without_comma();
+Node *node_land();
+Node *node_or();
+Node *node_lor();
+Node *node_and();
+Node *node_xor();
+Node *node_shift();
+Node *node_add();
+Node *node_cast();
+Node *node_increment();
+Node *assign();
 
-Map *typedb;
-Map *struct_typedb;
-Map *enum_typedb;
 
 // FOR SELFHOST
 #ifdef __HANANDO_FUKUI__
@@ -258,7 +273,6 @@ Node *new_func_node(char *name) {
    node->rhs = NULL;
    node->type = NULL;
    node->argc = 0;
-   // should support long?
    Node *result = map_get(funcdefs, name);
    if (result) {
       node->type = result->type;
@@ -577,59 +591,41 @@ Vector *tokenize(char *p) {
 
          if (strcmp(token->input, "if") == 0) {
             token->ty = TK_IF;
-         }
-         if (strcmp(token->input, "else") == 0) {
+         } else if (strcmp(token->input, "else") == 0) {
             token->ty = TK_ELSE;
-         }
-         if (strcmp(token->input, "do") == 0) {
+         } else if (strcmp(token->input, "do") == 0) {
             token->ty = TK_DO;
-         }
-         if (strcmp(token->input, "while") == 0) {
+         } else if (strcmp(token->input, "while") == 0) {
             token->ty = TK_WHILE;
-         }
-         if (strcmp(token->input, "for") == 0) {
+         } else if (strcmp(token->input, "for") == 0) {
             token->ty = TK_FOR;
-         }
-         if (strcmp(token->input, "return") == 0) {
+         } else if (strcmp(token->input, "return") == 0) {
             token->ty = TK_RETURN;
-         }
-         if (strcmp(token->input, "sizeof") == 0) {
+         } else if (strcmp(token->input, "sizeof") == 0) {
             token->ty = TK_SIZEOF;
-         }
-         if (strcmp(token->input, "goto") == 0) {
+         } else if (strcmp(token->input, "goto") == 0) {
             token->ty = TK_GOTO;
-         }
-         if (strcmp(token->input, "struct") == 0) {
+         } else if (strcmp(token->input, "struct") == 0) {
             token->ty = TK_STRUCT;
-         }
-         if (strcmp(token->input, "typedef") == 0) {
+         } else if (strcmp(token->input, "typedef") == 0) {
             token->ty = TK_TYPEDEF;
-         }
-         if (strcmp(token->input, "break") == 0) {
+         } else if (strcmp(token->input, "break") == 0) {
             token->ty = TK_BREAK;
-         }
-         if (strcmp(token->input, "continue") == 0) {
+         } else if (strcmp(token->input, "continue") == 0) {
             token->ty = TK_CONTINUE;
-         }
-         if (strcmp(token->input, "const") == 0) {
+         } else if (strcmp(token->input, "const") == 0) {
             token->ty = TK_CONST;
-         }
-         if (strcmp(token->input, "NULL") == 0) {
+         } else if (strcmp(token->input, "NULL") == 0) {
             token->ty = TK_NULL;
-         }
-         if (strcmp(token->input, "switch") == 0) {
+         } else if (strcmp(token->input, "switch") == 0) {
             token->ty = TK_SWITCH;
-         }
-         if (strcmp(token->input, "case") == 0) {
+         } else if (strcmp(token->input, "case") == 0) {
             token->ty = TK_CASE;
-         }
-         if (strcmp(token->input, "default") == 0) {
+         } else if (strcmp(token->input, "default") == 0) {
             token->ty = TK_DEFAULT;
-         }
-         if (strcmp(token->input, "enum") == 0) {
+         } else if (strcmp(token->input, "enum") == 0) {
             token->ty = TK_ENUM;
-         }
-         if (strcmp(token->input, "__LINE__") == 0) {
+         } else if (strcmp(token->input, "__LINE__") == 0) {
             token->ty = TK_NUM;
             token->num_val = pline;
          }
@@ -648,21 +644,6 @@ Vector *tokenize(char *p) {
    vec_push(pre_tokens, token);
    return pre_tokens;
 }
-
-Node *node_mul();
-Node *node_term();
-Node *node_mathexpr();
-Node *node_mathexpr_without_comma();
-Node *node_land();
-Node *node_or();
-Node *node_lor();
-Node *node_and();
-Node *node_xor();
-Node *node_shift();
-Node *node_add();
-Node *node_cast();
-Node *node_increment();
-Node *assign();
 
 Node *node_mathexpr_without_comma() { return node_lor(); }
 
@@ -878,18 +859,16 @@ Node *new_dot_node(Node *node) {
 }
 
 Node *read_complex_ident() {
-   char *input = tokens->data[pos]->input;
+   char *input = expect_ident();
    Node *node = NULL;
    for (int j = 0; j < consts->keys->len; j++) {
       // support for constant
       if (strcmp(consts->keys->data[j], input) == 0) {
          node = consts->vals->data[j];
-         expect_node(TK_IDENT);
          return node;
       }
    }
    node = new_ident_node(input);
-   expect_node(TK_IDENT);
 
    while (1) {
       if (consume_node('[')) {
@@ -1043,19 +1022,6 @@ char *_rdi(Node *node) {
    } else {
       return "rdi";
    }
-}
-
-char *rdi_rax_larger(Node *node) {
-   Node *lhs = node->lhs;
-   Node *rhs = node->rhs;
-   char *str = malloc(sizeof(char) * 24);
-   if (type2size(lhs->type) < type2size(rhs->type)) {
-      // rdi, rax
-      snprintf(str, 24, "%s, %s", _rdi(rhs), _rax(rhs));
-   } else {
-      snprintf(str, 24, "%s, %s", _rdi(lhs), _rax(lhs));
-   }
-   return str;
 }
 
 char *rax_rdi_larger(Node *node) {
@@ -1574,25 +1540,25 @@ void gen(Node *node) {
          puts("sal rax, cl");
          break;
       case ND_ISEQ:
-         printf("cmp %s\n", rdi_rax_larger(node));
+         printf("cmp %s\n", rax_rdi_larger(node));
          puts("sete al");
          puts("movzx rax, al");
          break;
       case ND_ISNOTEQ:
-         printf("cmp %s\n", rdi_rax_larger(node));
+         printf("cmp %s\n", rax_rdi_larger(node));
          puts("setne al");
          puts("movzx rax, al");
          break;
       case '>':
-         printf("cmp %s\n", rdi_rax_larger(node));
-         puts("setl al");
+         printf("cmp %s\n", rax_rdi_larger(node));
+         puts("setg al");
          puts("movzx rax, al");
          break;
       case '<':
          // reverse of < and >
-         printf("cmp %s\n", rdi_rax_larger(node));
+         printf("cmp %s\n", rax_rdi_larger(node));
          // TODO: is "andb 1 %al" required?
-         puts("setg al");
+         puts("setl al");
          puts("movzx rax, al");
          break;
       case ND_ISMOREEQ:
