@@ -1559,11 +1559,8 @@ void gen(Node *node) {
    puts("push rax");
 }
 
-void expect(int line, int expected, int actual) {
-   if (expected == actual)
-      return;
-   fprintf(stderr, "%d: %d expected, but got %d\n", line, expected, actual);
-   exit(1);
+// TODO : removing this will cause error
+void expect(int line, int expected) {
 }
 
 Node *assign() {
@@ -1978,8 +1975,11 @@ void toplevel() {
          Type *type = read_type(&name);
          if (consume_node('(')) {
             code[i] = new_fdef_node(name, env, type);
-            // Function definition
-            // because toplevel func call
+            // Function definition because toplevel func call
+
+            // TODO env should be treated as cooler bc. of splitted namespaces
+            Env* prev_env = env;
+            env = code[i]->env;
             for (code[i]->argc = 0; code[i]->argc <= 6 && !consume_node(')');) {
                char *arg_name = NULL;
                Type *arg_type = read_type(&arg_name);
@@ -1987,6 +1987,7 @@ void toplevel() {
                    new_ident_node_with_new_variable(arg_name, arg_type);
                consume_node(',');
             }
+            env = prev_env;
             // to support prototype def.
             if (confirm_node('{')) {
                program(code[i++]);
