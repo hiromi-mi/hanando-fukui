@@ -61,6 +61,7 @@ typedef enum {
    TK_ARROW,
    TK_CONST,
    TK_DEFAULT,
+   TK_EXTERN,
 } TokenConst;
 
 typedef enum {

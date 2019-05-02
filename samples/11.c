@@ -1,3 +1,4 @@
+extern int cd[30];
 
 #ifdef __HANANDO_FUKUI__
 FILE* fopen(char* name, char* type);
@@ -30,5 +31,12 @@ int main() {
    int k=0;
    func(input);
    func2(input);
+   printf("%d\n", cd[1]);
+   if (cd[1] != 9) {
+      puts("Error! extern does not work!");
+      return 1;
+   }
+   cd[2]=4;
+   printf("%d\n", cd[2]);
    return 0;
 }

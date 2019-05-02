@@ -625,6 +625,8 @@ Vector *tokenize(char *p) {
             token->ty = TK_DEFAULT;
          } else if (strcmp(token->input, "enum") == 0) {
             token->ty = TK_ENUM;
+         } else if (strcmp(token->input, "extern") == 0) {
+            token->ty = TK_EXTERN;
          } else if (strcmp(token->input, "__LINE__") == 0) {
             token->ty = TK_NUM;
             token->num_val = pline;
@@ -1933,6 +1935,14 @@ void toplevel() {
    env = new_env(NULL);
 
    while (tokens->data[pos]->ty != TK_EOF) {
+      if (consume_node(TK_EXTERN)) {
+         char *name = NULL;
+         Type *type = read_type(&name);
+         type->offset = -1; // TODO externed
+         map_put(global_vars, name, type);
+         expect_node(';');
+         continue;
+      }
       // definition of struct
       if (consume_node(TK_TYPEDEF)) {
          if (consume_node(TK_ENUM)) {
@@ -2008,8 +2018,9 @@ void toplevel() {
             }
             continue;
          } else {
+            // Global Variables.
+            type->offset = 0; // TODO externed
             map_put(global_vars, name, type);
-            // get initial value
             type->initval = 0;
             if (consume_node('=')) {
                Node *initval = node_term();
@@ -2066,6 +2077,10 @@ void globalvar_gen() {
    for (int j = 0; j < global_vars->keys->len; j++) {
       Type *valdataj = (Type *)global_vars->vals->data[j];
       char *keydataj = (char *)global_vars->keys->data[j];
+      if (valdataj->offset < 0) {
+         // There are no offset. externed.
+         continue;
+      }
       if (valdataj->initval != 0) {
          printf(".type %s,@object\n", keydataj);
          printf(".global %s\n", keydataj);
