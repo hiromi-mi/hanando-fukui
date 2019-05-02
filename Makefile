@@ -29,6 +29,7 @@ test:	self test1 test2 test3 test4 \
    test15 test16 test17 test18 test20 test21\
    test22 test23 test24 test25 test26 test27\
    test28 test30 test29
+	make -C samples/
 
 test1:
 	sh test.sh '1;' 1
