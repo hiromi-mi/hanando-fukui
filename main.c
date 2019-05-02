@@ -49,6 +49,8 @@ void define_enum(int use);
 char *expect_ident();
 void program(Node *block_node);
 Type *find_typed_db(char *input, Map *db);
+int cnt_size(Type *type);
+
 int env_for_while = 0;
 int env_for_while_switch = 0;
 Env *env;
@@ -100,8 +102,7 @@ int vec_push(Vector *vec, Token *element) {
       vec->capacity *= 2;
       vec->data = realloc(vec->data, sizeof(Token *) * vec->capacity);
       if (!vec->data) {
-         fprintf(stderr, "Error: Realloc failed.%ld, %ld", vec->capacity,
-                 sizeof(Token *) * vec->capacity);
+         fprintf(stderr, "Error: Realloc failed: %ld\n", vec->capacity);
          exit(1);
       }
    }
@@ -1121,11 +1122,11 @@ int type2size(Type *type) {
          return 1;
       case TY_ARRAY:
          return cnt_size(type->ptrof);
-      case TY_STRUCT: {
-         int val = 0;
-         val = cnt_size(type);
-         return val;
-      }
+      case TY_STRUCT:
+         return cnt_size(type);
+      default:
+         error("Error: NOT a type");
+         return 0;
    }
 }
 
@@ -1312,10 +1313,12 @@ void gen(Node *node) {
       puts("mov al, 0"); // TODO to preserve float
       printf("call %s\n", node->name);
       // rax should be aligned with the size
-      // TODO extension
+      // TODO extension This should be implemented in CAST
+      /*
       if (node->type->ty == TY_INT) {
          puts("cdqe");
       }
+      */
       puts("push rax");
       return;
    }
@@ -1407,7 +1410,7 @@ void gen(Node *node) {
       gen_lval(node);
       if (node->type->ty != TY_ARRAY) {
          puts("pop rax");
-         puts("mov rax, [rax]");
+         printf("mov %s, [rax]\n", _rax(node));
          if (node->type->ty == TY_CHAR) {
             // TODO: extension: unsingned char.
             puts("movzx rax, al");
