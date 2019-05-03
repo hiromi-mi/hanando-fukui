@@ -16,8 +16,6 @@ limitations under the License.
 */
 
 #include "main.h"
-#include <assert.h>
-#include <ctype.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -74,7 +72,6 @@ Node *node_add();
 Node *node_cast();
 Node *node_increment();
 Node *assign();
-
 
 // FOR SELFHOST
 #ifdef __HANANDO_FUKUI__
@@ -1366,8 +1363,8 @@ void gen(Node *node) {
       return;
    }
 
-   if (node->ty == ND_IDENT || node->ty == ND_GLOBAL_IDENT
-         || node->ty == '.' || node->ty == ND_EXTERN_SYMBOL) {
+   if (node->ty == ND_IDENT || node->ty == ND_GLOBAL_IDENT || node->ty == '.' ||
+       node->ty == ND_EXTERN_SYMBOL) {
       gen_lval(node);
       if (node->type->ty != TY_ARRAY) {
          puts("pop rax");
@@ -1559,8 +1556,7 @@ void gen(Node *node) {
 }
 
 // TODO : removing this will cause error
-void expect(int line, int expected) {
-}
+void expect(int line, int expected) {}
 
 Node *assign() {
    Node *node = node_mathexpr();
@@ -1977,7 +1973,7 @@ void toplevel() {
             // Function definition because toplevel func call
 
             // TODO env should be treated as cooler bc. of splitted namespaces
-            Env* prev_env = env;
+            Env *prev_env = env;
             env = code[i]->env;
             for (code[i]->argc = 0; code[i]->argc <= 6 && !consume_node(')');) {
                char *arg_name = NULL;
@@ -2151,13 +2147,10 @@ void preprocess(Vector *pre_tokens) {
          continue;
       }
       // skip without #ifdef, #endif
-      if (skipped != 0) {
+      if (skipped != 0 || pre_tokens->data[j]->ty == TK_NEWLINE ||
+          pre_tokens->data[j]->ty == TK_SPACE)
          continue;
-      }
-      if (pre_tokens->data[j]->ty == TK_NEWLINE)
-         continue;
-      if (pre_tokens->data[j]->ty == TK_SPACE)
-         continue;
+
       int called = 0;
       for (int k = 0; k < defined->keys->len; k++) {
          char *chr = defined->keys->data[k];
