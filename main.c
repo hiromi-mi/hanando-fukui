@@ -57,7 +57,7 @@ void program(Node *block_node);
 Type *find_typed_db(char *input, Map *db);
 int cnt_size(Type *type);
 int get_lval_offset(Node *node);
-Type *get_type(Node *node);
+Type *get_type_local(Node *node);
 void gen(Node *node);
 
 Node *node_mul();
@@ -258,7 +258,14 @@ Node *new_ident_node(char *name) {
       node->type->ptrof->ty = TY_INT;
       return node;
    }
-   node->type = get_type(node);
+   node->type = get_type_local(node);
+   if (node->type != NULL) {
+      return node;
+   }
+
+   // Try global variable.
+   node->ty = ND_GLOBAL_IDENT;
+   node->type = map_get(global_vars, node->name);
    if (!node->type) {
       error("Error: New Variable Definition.");
    }
@@ -965,11 +972,13 @@ Node *node_term() {
 }
 
 Type *get_type_local(Node *node) {
+   // TODO: another effect: set node->env
    Env *local_env = env;
    Type *type = NULL;
    while (type == NULL && local_env != NULL) {
       type = map_get(local_env->idents, node->name);
       if (type) {
+         node->env = local_env;
          return type;
       }
       local_env = local_env->env;
@@ -977,15 +986,6 @@ Type *get_type_local(Node *node) {
    return type;
 }
 
-Type *get_type(Node *node) {
-   Type *type = get_type_local(node);
-   if (!type) {
-      type = map_get(global_vars, node->name);
-   }
-   return type;
-}
-
-// TODO: another effect: set node->type. And join into get_type()
 // should be abolished
 int get_lval_offset(Node *node) {
    int offset = (int)NULL;
@@ -1041,19 +1041,19 @@ void gen_lval(Node *node) {
    }
    if (node->ty == ND_IDENT) {
       int offset = get_lval_offset(node);
-      if (offset != (int)NULL) {
-         puts("mov rax, rbp");
-         printf("sub rax, %d\n", offset);
-      } else {
-         // treat as global variable.
-         node->type = get_type(node);
-         // TODO
-         printf("xor rax, rax\n");
-         printf("lea rax, dword ptr %s[rip]\n", node->name);
-      }
+      puts("mov rax, rbp");
+      printf("sub rax, %d\n", offset);
       puts("push rax");
       return;
    }
+
+   if (node->ty == ND_GLOBAL_IDENT) {
+      printf("xor rax, rax\n");
+      printf("lea rax, dword ptr %s[rip]\n", node->name);
+      puts("push rax");
+      return;
+   }
+
    if (node->ty == ND_DEREF) {
       gen(node->lhs);
       return;
@@ -1367,8 +1367,8 @@ void gen(Node *node) {
       return;
    }
 
-   if (node->ty == ND_IDENT || node->ty == '.' ||
-       node->ty == ND_EXTERN_SYMBOL) {
+   if (node->ty == ND_IDENT || node->ty == ND_GLOBAL_IDENT
+         || node->ty == '.' || node->ty == ND_EXTERN_SYMBOL) {
       gen_lval(node);
       if (node->type->ty != TY_ARRAY) {
          puts("pop rax");
@@ -2062,11 +2062,13 @@ void globalvar_gen() {
       if (valdataj->initval != 0) {
          printf(".type %s,@object\n", keydataj);
          printf(".global %s\n", keydataj);
-         printf(".size %s, 4\n", keydataj);
+         printf(".size %s, %d\n", keydataj, cnt_size(valdataj));
          printf("%s:\n", keydataj);
          printf(".long %d\n", valdataj->initval);
          puts(".text");
       } else {
+         printf(".type %s,@object\n", keydataj);
+         printf(".global %s\n", keydataj);
          printf(".comm %s, %d\n", keydataj, cnt_size(valdataj));
       }
    }

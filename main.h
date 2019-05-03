@@ -78,6 +78,7 @@ typedef enum {
    ND_COMMA = ',',
    ND_NUM = 256,
    ND_IDENT,
+   ND_GLOBAL_IDENT,
    ND_ISEQ,
    ND_ISNOTEQ,
    ND_ISLESSEQ,
