@@ -41,6 +41,7 @@ int env_for_while_switch = 0;
 Env *env;
 int if_cnt = 0;
 int for_while_cnt = 0;
+char registers[6][4];
 
 int type2size(Type *type);
 Type *read_type(char **input);
@@ -1097,8 +1098,7 @@ void gen(Node *node) {
       return;
    }
    if (node->ty == ND_STRING) {
-      // TODO
-      printf("xor rax, rax\n");
+      printf("xor rax, rax\n"); // TODO
       printf("lea rax, dword ptr %s[rip]\n", node->name);
       puts("push rax");
       return;
@@ -1166,13 +1166,6 @@ void gen(Node *node) {
       puts("push rbp");
       puts("mov rbp, rsp");
       printf("sub rsp, %d\n", env->rsp_offset);
-      char registers[6][4];
-      strcpy(registers[0], "rdi");
-      strcpy(registers[1], "rsi");
-      strcpy(registers[2], "rdx");
-      strcpy(registers[3], "rcx");
-      strcpy(registers[4], "r8");
-      strcpy(registers[5], "r9");
       // char registers[6][4] = {"rdi", "rsi", "rdx", "rcx", "r8", "r9"};
       for (int j = 0; j < node->argc; j++) {
          gen_lval(node->args[j]);
@@ -1185,12 +1178,7 @@ void gen(Node *node) {
             Node *curnode = node->code->data[j];
             gen(curnode->lhs);
             puts("pop rax");
-            // TODO should fix break
-            puts("mov rsp, rbp");
-            puts("pop rbp");
-            puts("ret");
-            env = prev_env;
-            return;
+            break;
          }
          // read inside functions.
          gen(node->code->data[j]);
@@ -1250,15 +1238,6 @@ void gen(Node *node) {
    }
 
    if (node->ty == ND_FUNC) {
-      // TODO: support this kind
-      // char registers[6][4] = {"rdi", "rsi", "rdx", "rcx", "r8", "r9"};
-      char registers[6][4];
-      strcpy(registers[0], "rdi");
-      strcpy(registers[1], "rsi");
-      strcpy(registers[2], "rdx");
-      strcpy(registers[3], "rcx");
-      strcpy(registers[4], "r8");
-      strcpy(registers[5], "r9");
       for (int j = 0; j < node->argc; j++) {
          gen(node->args[j]);
       }
@@ -1892,6 +1871,13 @@ void define_enum(int assign_name) {
 }
 
 void toplevel() {
+   strcpy(registers[0], "rdi");
+   strcpy(registers[1], "rsi");
+   strcpy(registers[2], "rdx");
+   strcpy(registers[3], "rcx");
+   strcpy(registers[4], "r8");
+   strcpy(registers[5], "r9");
+
    int i = 0;
    // consume_node('{')
    // idents = new_map...
