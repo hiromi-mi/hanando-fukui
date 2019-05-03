@@ -1113,7 +1113,7 @@ void gen(Node *node) {
       int prev_env_for_while_switch = env_for_while_switch;
       env_for_while_switch = cur_if_cnt;
       gen(node->lhs);
-      puts("pop r9");
+      puts("pop r11");
       // find CASE Labels and lookup into args[0]->code->data
       for (int j = 0; node->rhs->code->data[j]; j++) {
          Node *curnode = (Node *)node->rhs->code->data[j];
@@ -1123,7 +1123,7 @@ void gen(Node *node) {
             curnode->name = input; // assign unique ID
             gen(curnode->lhs);
             puts("pop rax");
-            printf("cmp r9, rax\n");
+            printf("cmp r11, rax\n");
             printf("je %s\n", input);
          }
          if (curnode->ty == ND_DEFAULT) {
@@ -1742,6 +1742,7 @@ void program(Node *block_node) {
          expect_node('(');
          // TODO: should be splited between definition and expression
          for_node->args[0] = stmt();
+         for_node->rhs = new_block_node(env);
          // expect_node(';');
          // TODO: to allow without lines
          if (!consume_node(';')) {
@@ -1752,7 +1753,6 @@ void program(Node *block_node) {
             for_node->args[2] = assign();
             expect_node(')');
          }
-         for_node->rhs = new_block_node(env);
          program(for_node->rhs);
          vec_push(args, for_node);
          continue;
