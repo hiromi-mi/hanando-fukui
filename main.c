@@ -798,29 +798,27 @@ Node *node_cast() {
       pos--;
    }
 
-   node = node_increment();
-   return node;
+   return node_increment();
 }
 
 Node *node_increment() {
+   Node *node;
    if (consume_node(TK_PLUSPLUS)) {
-      Node *node = new_ident_node(tokens->data[pos]->input);
+      node = new_ident_node(tokens->data[pos]->input);
       expect_node(TK_IDENT);
       node = new_node('=', node, new_addsub_node('+', node, new_num_node(1)));
-      return node;
    } else if (consume_node(TK_SUBSUB)) {
-      Node *node = new_ident_node(tokens->data[pos]->input);
+      // TODO changes to new_ident_node(expect_ident()) does not work yet!
+      node = new_ident_node(tokens->data[pos]->input);
       expect_node(TK_IDENT);
       node = new_node('=', node, new_addsub_node('-', node, new_num_node(1)));
-      return node;
    } else if (consume_node('&')) {
-      Node *node = new_node(ND_ADDRESS, node_increment(), NULL);
+      node = new_node(ND_ADDRESS, node_increment(), NULL);
       node->type = malloc(sizeof(Type));
       node->type->ty = TY_PTR;
       node->type->ptrof = node->lhs->type;
-      return node;
    } else if (consume_node('*')) {
-      return new_deref_node(node_increment());
+      node = new_deref_node(node_increment());
    } else if (consume_node(TK_SIZEOF)) {
       if (consume_node('(') && confirm_type()) {
          // sizeof(int) read type without name
@@ -828,11 +826,12 @@ Node *node_increment() {
          expect_node(')');
          return new_long_num_node(type2size(type));
       }
-      Node *node = node_mathexpr();
+      node = node_mathexpr();
       return new_long_num_node(type2size(node->type));
    } else {
       return node_term();
    }
+   return node;
 }
 
 Node *node_mul() {
@@ -1908,7 +1907,7 @@ void toplevel() {
    strs = new_vector();
    env = new_env(NULL);
 
-   while (tokens->data[pos]->ty != TK_EOF) {
+   while (!consume_node(TK_EOF)) {
       if (consume_node(TK_EXTERN)) {
          char *name = NULL;
          Type *type = read_type(&name);
