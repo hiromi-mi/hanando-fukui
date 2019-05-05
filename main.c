@@ -1085,7 +1085,7 @@ void gen(Node *node) {
    }
    if (node->ty == ND_STRING) {
       printf("xor rax, rax\n"); // TODO
-      printf("lea rax, dword ptr %s[rip]\n", node->name);
+      printf("lea rax, qword ptr %s[rip]\n", node->name);
       puts("push rax");
       return;
    }
