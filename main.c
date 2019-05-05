@@ -906,7 +906,6 @@ Node *node_term() {
       Node *node = new_num_node(0);
       node->type->ty = TY_PTR;
       return node;
-      // TODO  zatu
    }
    if (confirm_ident()) {
       Node *node;
@@ -1244,9 +1243,12 @@ void gen(Node *node) {
       // printf("sub rsp, %d\n", (int)(ceil(4 * node->argc / 16.)) * 16);
       // FIXME: alignment should be 64-bit
       puts("mov al, 0"); // TODO to preserve float
-      printf("call %s\n", node->name);
-      // rax should be aligned with the size
-      puts("push rax");
+      printf("call %s\n", node->name); // rax should be aligned with the size
+      if (node->type->ty == TY_VOID) {
+         puts("push 0"); // FIXME
+      } else {
+         puts("push rax");
+      }
       return;
    }
 
@@ -1635,8 +1637,7 @@ Node *stmt() {
 }
 
 Node *node_if() {
-   Node *node;
-   node = new_node(ND_IF, NULL, NULL);
+   Node *node = new_node(ND_IF, NULL, NULL);
    node->argc = 1;
    node->args[0] = assign();
    node->args[1] = NULL;
@@ -2174,8 +2175,7 @@ void init_typedb() {
 }
 
 Vector *read_tokenize(char *fname) {
-   FILE *fp;
-   fp = fopen(fname, "r");
+   FILE *fp = fopen(fname, "r");
    if (!fp) {
       fprintf(stderr, "No file found: %s\n", fname);
       exit(1);
