@@ -657,7 +657,6 @@ Node *node_mathexpr_without_comma() { return node_lor(); }
 Node *node_mathexpr() {
    Node *node = node_lor();
    while (1) {
-      // TODO: support 1, 2 -> 2
       if (consume_node(',')) {
          node = new_node(',', node, node_lor());
          node->type = node->rhs->type;
@@ -1234,6 +1233,9 @@ void gen(Node *node) {
    }
    if (node->ty == ND_CAST) {
       gen(node->lhs);
+      if (node->type->ty == TY_INT && type2size(node->type) == 8) {
+         puts("cdqe");
+      }
       return;
    }
 
@@ -1250,12 +1252,6 @@ void gen(Node *node) {
       puts("mov al, 0"); // TODO to preserve float
       printf("call %s\n", node->name);
       // rax should be aligned with the size
-      // TODO extension This should be implemented in CAST
-      /*
-      if (node->type->ty == TY_INT) {
-         puts("cdqe");
-      }
-      */
       puts("push rax");
       return;
    }

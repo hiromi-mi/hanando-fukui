@@ -232,6 +232,9 @@ test30:
 	sh test.sh "char a;a='h';('a'<=a&&a<='z')||('0'<=a&&a<='9')||('A'<=a&&a<='Z')||a=='_';" 1
 	sh test.sh "char a;a='h';('a'<=a&&a<='z')||('0'<=a&&a<='9');" 1
 
+test31:
+	sh test.sh "(int)-1 == (long)(-1);" 1
+
 clean:
 	$(RM) -f $(target) $(objects) main.s main2.s main3.s main2 main3
 
