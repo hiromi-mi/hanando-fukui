@@ -1,5 +1,5 @@
 # hanando-fukui
-[EXPERIMENTAL] Compiler Prototype
+Self-hostable C Compiler Prototype. Version 1.1
 
 ## How to install
 By just typing `$ make` will compile as `./hanando`.
