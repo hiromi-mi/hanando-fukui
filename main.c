@@ -153,7 +153,6 @@ Node *new_node(NodeType ty, Node *lhs, Node *rhs) {
    node->lhs = lhs;
    node->rhs = rhs;
    if (lhs) {
-      // TODO
       node->type = node->lhs->type;
    }
    return node;
@@ -800,9 +799,7 @@ Node *node_cast() {
 Node *node_increment() {
    Node *node;
    if (consume_node(TK_PLUSPLUS)) {
-      // TODO change to new_ident_node(expect_ident()); does not work yet!
-      node = new_ident_node(tokens->data[pos]->input);
-      expect_node(TK_IDENT);
+      node = new_ident_node(expect_ident());
       node = new_node('=', node, new_addsub_node('+', node, new_num_node(1)));
    } else if (consume_node(TK_SUBSUB)) {
       node = new_ident_node(expect_ident());
@@ -846,12 +843,11 @@ Node *node_mul() {
 
 Node *new_dot_node(Node *node) {
    node = new_node('.', node, NULL);
-   node->name = tokens->data[pos]->input;
+   node->name = expect_ident();
    node->type = (Type *)map_get(node->lhs->type->structure, node->name);
    if (!node->type) {
       error("Error: structure not found.");
    }
-   expect_node(TK_IDENT);
    return node;
 }
 
@@ -911,9 +907,8 @@ Node *node_term() {
       Node *node;
       // Function Call
       if (tokens->data[pos + 1]->ty == '(') {
-         node = new_func_node(tokens->data[pos]->input);
+         node = new_func_node(expect_ident());
          // skip func , (
-         expect_node(TK_IDENT);
          expect_node('(');
          while (1) {
             if ((consume_node(',') == 0) && consume_node(')')) {
@@ -1620,9 +1615,7 @@ Node *stmt() {
       // FIXME GOTO is not statement, expr.
    } else if (consume_node(TK_GOTO)) {
       node = new_node(ND_GOTO, NULL, NULL);
-      // TODO should fix
-      node->name = tokens->data[pos]->input;
-      expect_node(TK_IDENT);
+      node->name = expect_ident();
    } else if (consume_node(TK_BREAK)) {
       node = new_node(ND_BREAK, NULL, NULL);
    } else if (consume_node(TK_CONTINUE)) {
@@ -1784,9 +1777,7 @@ Type *read_fundamental_type() {
       type->ptrof = NULL;
       return type;
    }
-   if (tokens->data[pos]->ty == TK_STRUCT) {
-      // TODO: for ease
-      expect_node(TK_STRUCT);
+   if (consume_node(TK_STRUCT)) {
       return find_typed_db(expect_ident(), struct_typedb);
    }
    return find_typed_db(expect_ident(), typedb);
