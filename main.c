@@ -1032,7 +1032,7 @@ void gen_lval(Node *node) {
 
    if (node->ty == ND_GLOBAL_IDENT) {
       printf("xor rax, rax\n");
-      printf("lea rax, dword ptr %s[rip]\n", node->name);
+      printf("lea rax, qword ptr %s[rip]\n", node->name);
       puts("push rax");
       return;
    }
@@ -1517,7 +1517,7 @@ void gen(Node *node) {
 }
 
 // TODO : removing this will cause error
-void expect(int line, int expected) {}
+int expect(int a);
 
 Node *assign() {
    Node *node = node_mathexpr();
