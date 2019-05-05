@@ -800,13 +800,12 @@ Node *node_cast() {
 Node *node_increment() {
    Node *node;
    if (consume_node(TK_PLUSPLUS)) {
+      // TODO change to new_ident_node(expect_ident()); does not work yet!
       node = new_ident_node(tokens->data[pos]->input);
       expect_node(TK_IDENT);
       node = new_node('=', node, new_addsub_node('+', node, new_num_node(1)));
    } else if (consume_node(TK_SUBSUB)) {
-      // TODO changes to new_ident_node(expect_ident()) does not work yet!
-      node = new_ident_node(tokens->data[pos]->input);
-      expect_node(TK_IDENT);
+      node = new_ident_node(expect_ident());
       node = new_node('=', node, new_addsub_node('-', node, new_num_node(1)));
    } else if (consume_node('&')) {
       node = new_node(ND_ADDRESS, node_increment(), NULL);
