@@ -1772,11 +1772,8 @@ Type *find_typed_db(char *input, Map *db) {
 }
 
 Type *read_fundamental_type() {
-   Token *token = tokens->data[pos];
-   // TODO: using token->data[pos] does not work yet!
    if (tokens->data[pos]->ty == TK_CONST) {
       expect_node(TK_CONST); // TODO : for ease skip
-      token = tokens->data[pos];
    }
    if (tokens->data[pos]->ty == TK_ENUM) {
       // treat as anonymous enum
@@ -1796,13 +1793,12 @@ Type *read_fundamental_type() {
 }
 
 int split_type_ident() {
-   Token *token = tokens->data[pos];
-   if (token->ty != TK_IDENT) {
+   if (tokens->data[pos]->ty != TK_IDENT) {
       return 0;
    }
    for (int j = 0; j < typedb->keys->len; j++) {
       // for struct
-      if (strcmp(token->input, typedb->keys->data[j]) == 0) {
+      if (strcmp(tokens->data[pos]->input, typedb->keys->data[j]) == 0) {
          return typedb->vals->data[j]->ty;
       }
    }
