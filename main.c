@@ -1015,17 +1015,13 @@ char *_rdi(Node *node) {
    }
 }
 
-char *rax_rdi_larger(Node *node) {
-   Node *lhs = node->lhs;
-   Node *rhs = node->rhs;
-   char *str = malloc(sizeof(char) * 24);
-   if (type2size(lhs->type) < type2size(rhs->type)) {
+int cmp_rax_rdi(Node *node) {
+   if (type2size(node->lhs->type) < type2size(node->rhs->type)) {
       // rdi, rax
-      snprintf(str, 24, "%s, %s", _rax(rhs), _rdi(rhs));
+      return printf("cmp %s, %s\n", _rax(node->rhs), _rdi(node->rhs));
    } else {
-      snprintf(str, 24, "%s, %s", _rax(lhs), _rdi(lhs));
+      return printf("cmp %s, %s\n", _rax(node->lhs), _rdi(node->lhs));
    }
-   return str;
 }
 
 void gen_lval(Node *node) {
@@ -1489,36 +1485,35 @@ void gen(Node *node) {
          puts("sal rax, cl");
          break;
       case ND_ISEQ:
-         printf("cmp %s\n", rax_rdi_larger(node));
+         cmp_rax_rdi(node);
          puts("sete al");
          puts("movzx rax, al");
          break;
       case ND_ISNOTEQ:
-         printf("cmp %s\n", rax_rdi_larger(node));
+         cmp_rax_rdi(node);
          puts("setne al");
          puts("movzx rax, al");
          break;
       case '>':
-         printf("cmp %s\n", rax_rdi_larger(node));
+         cmp_rax_rdi(node);
          puts("setg al");
          puts("movzx rax, al");
          break;
       case '<':
-         // reverse of < and >
-         printf("cmp %s\n", rax_rdi_larger(node));
+         cmp_rax_rdi(node);
          // TODO: is "andb 1 %al" required?
          puts("setl al");
          puts("movzx rax, al");
          break;
       case ND_ISMOREEQ:
-         printf("cmp %s\n", rax_rdi_larger(node));
+         cmp_rax_rdi(node);
          puts("setge al");
          puts("and al, 1");
          // should be eax instead of rax?
          puts("movzx rax, al");
          break;
       case ND_ISLESSEQ:
-         printf("cmp %s\n", rax_rdi_larger(node));
+         cmp_rax_rdi(node);
          puts("setle al");
          puts("and al, 1");
          puts("movzx eax, al");
