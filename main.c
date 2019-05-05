@@ -255,7 +255,7 @@ Node *new_ident_node(char *name) {
       return node;
    }
    node->type = get_type_local(node);
-   if (node->type != NULL) {
+   if (node->type) {
       return node;
    }
 
@@ -280,8 +280,7 @@ Node *new_func_node(char *name) {
    if (result) {
       node->type = result->type;
    } else {
-      node->type = malloc(sizeof(Type));
-      node->type->ty = TY_INT;
+      node->type = find_typed_db("int", typedb);
    }
    return node;
 }
@@ -1350,15 +1349,13 @@ void gen(Node *node) {
          return;
          // continuous array will be ignored.
       }
-      puts("#deref");
       puts("pop rax");
       printf("mov %s, [rax]\n", _rax(node));
-      // TODO : when reading char, we should read just 1 byte
+      // when reading char, we should read just 1 byte
       if (node->type->ty == TY_CHAR) {
          printf("movzx rax, al\n");
       }
       puts("push rax");
-      puts("\n");
       return;
    }
 
@@ -1397,7 +1394,6 @@ void gen(Node *node) {
       gen(node->rhs);
       puts("pop rdi");
       puts("pop rax");
-      // TODO See samples/2.c
       puts("mov [rax], rdi");
       // this should be rdi instead of edi
       puts("push rdi");
@@ -1772,10 +1768,7 @@ Type *read_fundamental_type() {
       // treat as anonymous enum
       expect_node(TK_ENUM);
       define_enum(0);
-      Type *type = malloc(sizeof(Type));
-      type->ty = TY_INT;
-      type->ptrof = NULL;
-      return type;
+      return find_typed_db("int", typedb);
    }
    if (consume_node(TK_STRUCT)) {
       return find_typed_db(expect_ident(), struct_typedb);
