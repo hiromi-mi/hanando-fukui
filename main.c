@@ -209,7 +209,6 @@ Node *new_addsub_node(NodeType ty, Node *lhs_node, Node *rhs_node) {
 }
 
 int cnt_size(Type *type) {
-   // TODO: should aligned as x86_64
    switch (type->ty) {
       case TY_PTR:
       case TY_INT:
@@ -217,7 +216,6 @@ int cnt_size(Type *type) {
       case TY_LONG:
          return type2size(type);
       case TY_ARRAY:
-         // TODO: should not be 8 in case of truct
          return cnt_size(type->ptrof) * type->array_size;
       case TY_STRUCT:
          return type->offset;
@@ -233,6 +231,7 @@ Node *new_ident_node_with_new_variable(char *name, Type *type) {
    node->name = name;
    node->type = type;
    int size = cnt_size(type);
+   // should aligned as x86_64
    if (size % 8 != 0) {
       size += (8 - size % 8);
    }
@@ -780,7 +779,7 @@ Node *node_add() {
 }
 
 Node *node_cast() {
-   // reading cast stmt.
+   // reading cast stmt. This does not support multiple cast.
    Node *node = NULL;
    if (consume_node('(')) {
       if (confirm_type()) {
@@ -1024,7 +1023,7 @@ char *rax_rdi_larger(Node *node) {
       // rdi, rax
       snprintf(str, 24, "%s, %s", _rax(rhs), _rdi(rhs));
    } else {
-      snprintf(str, 24, "%s, %s", _rax(rhs), _rdi(rhs));
+      snprintf(str, 24, "%s, %s", _rax(lhs), _rdi(lhs));
    }
    return str;
 }
