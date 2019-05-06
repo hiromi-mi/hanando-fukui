@@ -1016,25 +1016,41 @@ int cmp_rax_rdi(Node *node) {
    }
 }
 
-void gen_lval(Node *node) {
+char* type2str(Type *type) {
+   switch(type->ty) {
+      case TY_CHAR:
+         return "byte ptr";
+      case TY_INT:
+         return "dword ptr";
+      case TY_PTR:
+      case TY_LONG:
+         return "qword ptr";
+         /*
+      case TY_ARRAY:
+         return type2str(type->
+      case TY_STRUCT:
+         return type->offset;
+         */
+      default:
+         return "";
+   }
+}
+
+char* gen_lval(Node *node) {
+   char* str = malloc(sizeof(char) * 256);
    if (node->ty == ND_EXTERN_SYMBOL) {
-      printf("mov rax, qword ptr [rip + %s@GOTPCREL]\n", node->name);
-      puts("push rax");
-      return;
+      snprintf(str, 256, "qword ptr [rip + %s@GOTPCREL]\n", node->name);
+      return str;
    }
    if (node->ty == ND_IDENT) {
       int offset = get_lval_offset(node);
-      puts("mov rax, rbp");
-      printf("sub rax, %d\n", offset);
-      puts("push rax");
-      return;
+      snprintf(str, 256, "%s -%d[rbp]", type2str(node->type), offset);
+      return str;
    }
 
    if (node->ty == ND_GLOBAL_IDENT) {
-      printf("xor rax, rax\n");
-      printf("lea rax, qword ptr %s[rip]\n", node->name);
-      puts("push rax");
-      return;
+      snprintf(str, 256, "%s %s[rip]\n", type2str(node->type), node->name);
+      return str;
    }
 
    if (node->ty == ND_DEREF) {
