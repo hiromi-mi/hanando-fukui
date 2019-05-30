@@ -28,6 +28,7 @@ typedef enum {
    TK_PLUSPLUS = 86, // '+' + '+',
    TK_SUBSUB = 90, // '-' + '-',
    TK_NUM = 256,
+   TK_FLOAT,
    TK_IDENT,
    TK_EOF,
    TK_ISEQ,
@@ -77,6 +78,7 @@ typedef enum {
    ND_GREATER = '>',
    ND_COMMA = ',',
    ND_NUM = 256,
+   ND_FLOAT,
    ND_IDENT,
    ND_GLOBAL_IDENT,
    ND_ISEQ,
@@ -132,7 +134,7 @@ typedef struct {
 } Map;
 
 typedef struct Type {
-   enum { TY_INT = 3, TY_PTR, TY_ARRAY, TY_CHAR, TY_LONG, TY_STRUCT, TY_VOID } ty;
+   enum { TY_INT = 3, TY_PTR, TY_ARRAY, TY_CHAR, TY_LONG, TY_STRUCT, TY_VOID, TY_DOUBLE} ty;
    Map *structure; // <name, Type*>
    struct Type *ptrof;
    int array_size;

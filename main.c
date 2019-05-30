@@ -19,6 +19,7 @@ limitations under the License.
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <ctype.h>
 
 #define SEEK_END 2
 #define SEEK_SET 0
@@ -178,6 +179,13 @@ Node *new_long_num_node(long num_val) {
    node->ty = ND_NUM;
    node->num_val = num_val;
    node->type = find_typed_db("long", typedb);
+   return node;
+}
+Node *new_double_node(double num_val) {
+   Node *node = malloc(sizeof(Node));
+   node->ty = ND_FLOAT;
+   node->num_val = num_val;
+   node->type = find_typed_db("double", typedb);
    return node;
 }
 
@@ -574,6 +582,12 @@ Vector *tokenize(char *p) {
          token->ty = TK_NUM;
          token->input = p;
          token->num_val = strtol(p, &p, 10);
+
+         // if there are DOUBLE
+         if (*p == '.') {
+            token->ty = TK_FLOAT;
+            token->num_val = strtod(token->input, &p);
+         }
          vec_push(pre_tokens, token);
          continue;
       }
@@ -892,6 +906,11 @@ Node *node_term() {
       Node *node = node_term();
       return node;
    }
+   if (confirm_type(TK_FLOAT)) {
+      Node *node = new_double_node((double)tokens->data[pos]->num_val);
+      expect_node(TK_NUM);
+      return node;
+   }
    if (confirm_node(TK_NUM)) {
       Node *node = new_num_node(tokens->data[pos]->num_val);
       expect_node(TK_NUM);
@@ -975,16 +994,15 @@ Type *get_type_local(Node *node) {
 
 // should be abolished
 int get_lval_offset(Node *node) {
-   int offset = (int)NULL;
    Env *local_env = env;
-   while (offset == (int)NULL && local_env != NULL) {
+   while (local_env != NULL) {
       node->type = map_get(local_env->idents, node->name);
       if (node->type) {
-         offset = local_env->rsp_offset_all + node->type->offset;
+         return local_env->rsp_offset_all + node->type->offset;
       }
       local_env = local_env->env;
    }
-   return offset;
+   return 0;
 }
 
 char *_rax(Node *node) {
@@ -1099,8 +1117,11 @@ void gen(Node *node) {
       printf("push %ld\n", node->num_val);
       return;
    }
+   if (node->ty == ND_FLOAT) {
+      printf("push %ld\n", node->num_val);
+      return;
+   }
    if (node->ty == ND_STRING) {
-      printf("xor rax, rax\n"); // TODO
       printf("lea rax, qword ptr %s[rip]\n", node->name);
       puts("push rax");
       return;
@@ -2172,6 +2193,13 @@ void init_typedb() {
    typevoid->offset = 8;
    typevoid->structure = new_map();
    map_put(typedb, "FILE", typevoid);
+
+   Type *typedou = malloc(sizeof(Type));
+   typedou->ty = TY_DOUBLE;
+   typedou->ptrof = NULL;
+   typedou->offset = 8;
+   map_put(typedb, "double", typevoid);
+
 }
 
 Vector *read_tokenize(char *fname) {
