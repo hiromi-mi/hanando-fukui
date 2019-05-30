@@ -585,7 +585,7 @@ Vector *tokenize(char *p) {
          // if there are DOUBLE
          if (*p == '.') {
             token->ty = TK_FLOAT;
-            token->num_val = strtod(token->input, &p, 10);
+            token->num_val = strtod(token->input, &p);
          }
          vec_push(pre_tokens, token);
          continue;
@@ -906,7 +906,7 @@ Node *node_term() {
       return node;
    }
    if (confirm_type(TK_FLOAT)) {
-      Node *node = new_double_node((double)token->data[pos]->num_val);
+      Node *node = new_double_node((double)tokens->data[pos]->num_val);
       expect_node(TK_NUM);
       return node;
    }
