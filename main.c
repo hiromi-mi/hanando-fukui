@@ -19,6 +19,7 @@ limitations under the License.
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <ctype.h>
 
 #define SEEK_END 2
 #define SEEK_SET 0
@@ -993,16 +994,15 @@ Type *get_type_local(Node *node) {
 
 // should be abolished
 int get_lval_offset(Node *node) {
-   int offset = (int)NULL;
    Env *local_env = env;
-   while (offset == (int)NULL && local_env != NULL) {
+   while (local_env != NULL) {
       node->type = map_get(local_env->idents, node->name);
       if (node->type) {
-         offset = local_env->rsp_offset_all + node->type->offset;
+         return local_env->rsp_offset_all + node->type->offset;
       }
       local_env = local_env->env;
    }
-   return offset;
+   return 0;
 }
 
 char *_rax(Node *node) {
@@ -1106,7 +1106,6 @@ void gen(Node *node) {
       return;
    }
    if (node->ty == ND_STRING) {
-      printf("xor rax, rax\n"); // TODO
       printf("lea rax, qword ptr %s[rip]\n", node->name);
       puts("push rax");
       return;
