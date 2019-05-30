@@ -1,7 +1,7 @@
 # hanando-fukui !EXPERIMENTAL VERSION!
 Self-hostable C Compiler Prototype: 
 
-**Currently This cannot be compiled yet. To consult hanando-fukui quickly, use Version 1.1 (`git checkout v1.1`) instead.**
+**Currently This cannot be compiled yet. To consult hanando-fukui quickly, use Version 1.1 Series (`git checkout 1.1`) instead.**
 
 ## How to install
 By just typing `$ make` will compile as `./hanando`.
