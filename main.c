@@ -181,10 +181,10 @@ Node *new_long_num_node(long num_val) {
    node->type = find_typed_db("long", typedb);
    return node;
 }
-Node *new_double_node(double num_val) {
+Node *new_double_node(double double_val) {
    Node *node = malloc(sizeof(Node));
    node->ty = ND_FLOAT;
-   node->num_val = num_val;
+   node->double_val = double_val;
    node->type = find_typed_db("double", typedb);
    return node;
 }
@@ -1102,7 +1102,7 @@ void gen(Node *node) {
       return;
    }
    if (node->ty == ND_FLOAT) {
-      printf("push %ld\n", node->num_val);
+      printf("push %f\n", node->double_val);
       return;
    }
    if (node->ty == ND_STRING) {

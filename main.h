@@ -157,6 +157,7 @@ typedef struct Node {
    Vector *code;
    long argc;
    long num_val;
+   double double_val;
    char *name;
    Env *env;
    Type *type;
