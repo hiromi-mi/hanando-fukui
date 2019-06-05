@@ -941,10 +941,12 @@ Type *get_type_local(Node *node) {
       type = map_get(local_env->idents, node->name);
       if (type) {
          node->env = local_env;
+         node->type = type;
          return type;
       }
       local_env = local_env->env;
    }
+   node->type = type;
    return type;
 }
 
@@ -1812,7 +1814,6 @@ void define_enum(int assign_name) {
    // to support anonymous enum
    if (assign_name && confirm_ident()) {
       char *name = expect_ident();
-      printf("#define new enum: %s\n", name);
       map_put(typedb, name, enumtype);
    }
 }
@@ -1872,7 +1873,6 @@ void toplevel() {
             if ((offset % size != 0)) {
                offset += (size - offset % size);
             }
-            printf("#define new offset: %s on %d\n", name, offset);
             // all type should aligned with proper value.
             // TODO assumption there are NO bytes over 8 bytes.
             type->offset = offset;
@@ -1883,7 +1883,6 @@ void toplevel() {
          structuretype->offset = offset;
          char *name = expect_ident();
          expect_node(';');
-         printf("#define new struct: %s\n", name);
          map_put(typedb, name, structuretype);
          continue;
       }
@@ -1894,7 +1893,6 @@ void toplevel() {
          char *name = expect_ident();
          Type *structuretype = malloc(sizeof(Type));
          expect_node(';');
-         printf("#define new enum: %s\n", name);
          map_put(typedb, name, structuretype);
       }
 
