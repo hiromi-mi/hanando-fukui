@@ -43,6 +43,7 @@ Env *env;
 int if_cnt = 0;
 int for_while_cnt = 0;
 char registers[6][4];
+char base_registers[6][4];
 
 int type2size(Type *type);
 Type *read_type(char **input);
@@ -1147,7 +1148,6 @@ void gen(Node *node) {
       puts("push rbp");
       puts("mov rbp, rsp");
       printf("sub rsp, %d\n", env->rsp_offset);
-      // char registers[6][4] = {"rdi", "rsi", "rdx", "rcx", "r8", "r9"};
       for (int j = 0; j < node->argc; j++) {
          gen_lval(node->args[j]);
          puts("pop rax");
@@ -1841,6 +1841,9 @@ void toplevel() {
    strcpy(registers[3], "rcx");
    strcpy(registers[4], "r8");
    strcpy(registers[5], "r9");
+
+   strcpy(registers[0], "rax");
+   strcpy(registers[1], "rdi");
 
    int i = 0;
    // consume_node('{')
