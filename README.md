@@ -1,5 +1,5 @@
 # hanando-fukui !EXPERIMENTAL VERSION!
-Self-hostable C Compiler Prototype: Development Unstable Version for Version 2.0
+Self-hostable C Compiler Prototype: 
 
 **Currently This cannot be compiled yet. To consult hanando-fukui quickly, use Version 1.1 Series (`git checkout 1.1`) instead.**
 
