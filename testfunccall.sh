@@ -3,7 +3,7 @@
 clang foo.c -o foo.o -c
 naiyou2="int main(){$1}"
 #./hanando "$naiyou2" > tmp.s
-./main "$naiyou2" > tmp.s
+./hanando "$naiyou2" > tmp.s
 clang tmp.s foo.o -o tmp
 actual=$(./tmp)
 retval=$?

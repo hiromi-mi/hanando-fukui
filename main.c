@@ -133,19 +133,19 @@ void error(const char *str) {
    exit(1);
 }
 
-Node *new_string_node(char *id) {
-   Node *node = malloc(sizeof(Node));
-   node->ty = ND_STRING;
-   node->lhs = NULL;
-   node->rhs = NULL;
-   node->name = id;
+Node *new_string_node(char *_id) {
+   Node *_node = malloc(sizeof(Node));
+   _node->ty = ND_STRING;
+   _node->lhs = NULL;
+   _node->rhs = NULL;
+   _node->name = _id;
    Type *type = malloc(sizeof(Type));
    type->ty = TY_PTR;
    type->ptrof = malloc(sizeof(Type));
    type->ptrof->ty = TY_CHAR;
    type->ptrof->ptrof = NULL;
-   node->type = type;
-   return node;
+   _node->type = type;
+   return _node;
 }
 
 Node *new_node(NodeType ty, Node *lhs, Node *rhs) {
@@ -314,7 +314,7 @@ Node *new_fdef_node(char *name, Env *prev_env, Type *type) {
    node->lhs = NULL;
    node->rhs = NULL;
    node->argc = 0;
-   node->env = prev_env;
+   node->env = new_env(prev_env);
    node->code = new_vector();
    map_put(funcdefs, name, node);
    return node;
@@ -913,9 +913,9 @@ Node *node_term() {
       return node;
    }
    if (confirm_node(TK_STRING)) {
-      char *str = malloc(sizeof(char) * 256);
-      snprintf(str, 255, ".LC%d", vec_push(strs, tokens->data[pos]->input));
-      Node *node = new_string_node(str);
+      char *_str = malloc(sizeof(char) * 256);
+      snprintf(_str, 255, ".LC%d", vec_push(strs, tokens->data[pos]->input));
+      Node *node = new_string_node(_str);
       expect_node(TK_STRING);
       return node;
    }
@@ -1049,6 +1049,127 @@ int type2size(Type *type) {
          error("Error: NOT a type");
          return 0;
    }
+}
+
+int reg_table[6];
+char *registers8[6];
+char *registers16[6];
+char *registers32[6];
+char *registers64[6];
+
+// These registers will be used to map into registers
+void init_reg_registers() {
+   // This code is valid (and safe) because RHS is const ptr. lreg[7] -> on top of "r10b"
+   registers8[0] = "r10b";
+   registers8[1] = "r11b";
+   registers8[2] = "r12b";
+   registers8[3] = "r13b";
+   registers8[4] = "r14b";
+   registers8[5] = "r15b";
+   registers16[0] = "r10w";
+   registers16[1] = "r11w";
+   registers16[2] = "r12w";
+   registers16[3] = "r13w";
+   registers16[4] = "r14w";
+   registers16[5] = "r15w";
+   registers32[0] = "r10d";
+   registers32[1] = "r11d";
+   registers32[2] = "r12d";
+   registers32[3] = "r13d";
+   registers32[4] = "r14d";
+   registers32[5] = "r15d";
+   registers64[0] = "r10";
+   registers64[1] = "r11";
+   registers64[2] = "r12";
+   registers64[3] = "r13";
+   registers64[4] = "r14";
+   registers64[5] = "r15";
+}
+
+char* id2reg32(int id) {
+   return registers32[id];
+}
+
+
+char* id2reg64(int id) {
+   return registers64[id];
+}
+
+void init_reg_table() {
+   for (int j = 0; j < 6; j++) {
+      reg_table[j] = 0;
+   }
+}
+
+int use_temp_reg() {
+   for (int j = 0; j < 6; j++) {
+      if (reg_table[j] > 0) continue;
+      reg_table[j] = 1;
+      return j; //saame reg_name index
+   }
+   fprintf(stderr, "No more registers are avaliable\n");
+   return 0;
+}
+
+void finish_reg(int i) {
+   reg_table[i] = 0;
+}
+
+int gen_register_2(Node* node) {
+   switch(node->ty) {
+      case ND_NUM: {
+         int temp_reg = use_temp_reg();
+         printf("mov %s, %d\n", node->num_val, id2reg32(temp_reg));
+         return temp_reg;
+      }
+
+      case ND_RETURN: {
+         if (node->lhs) {
+            int reg_id = gen_register_2(node->lhs);
+            printf("mov rax, %s", id2reg64(reg_id));
+            finish_reg(reg_id);
+         }
+         puts("mov rsp, rbp");
+         puts("pop rbp");
+         puts("ret");
+         return -1;
+      }
+      case ND_FDEF: {
+         Env *prev_env = env;
+         env = node->env;
+         printf(".type %s,@function\n", node->name);
+         // to visible for ld
+         printf(".global %s\n", node->name);
+         printf("%s:\n", node->name);
+         puts("push rbp");
+         puts("mov rbp, rsp");
+         printf("sub rsp, %d\n", env->rsp_offset);
+         for (int j = 0; node->code->data[j]; j++) {
+            // read inside functions.
+            gen_register_2(node->code->data[j]);
+         }
+         puts("mov rsp, rbp");
+         puts("pop rbp");
+         puts("ret");
+         return -1;
+      }
+      default:
+         error("Error: Incorrect Registers.");
+   }
+   return -1;
+}
+
+void gen_register(Node* node) {
+   if (!node) {
+      return;
+   }
+
+   // TODO: Support Global Variable
+   puts(".text");
+}
+
+void gen_register_top() {
+   // consume code[j] and get
 }
 
 void gen(Node *node) {
@@ -2177,8 +2298,13 @@ int main(int argc, char **argv) {
    // treat with global variables
    globalvar_gen();
 
-   for (int j = 0; code[j]; j++) {
-      gen(code[j]);
+   // TODO support ./hanando -r -f main.c
+   if (strcmp(argv[1], "-r") == 0) {
+      gen_register_top();
+   } else {
+      for (int j = 0; code[j]; j++) {
+         gen(code[j]);
+      }
    }
 
    return 0;
