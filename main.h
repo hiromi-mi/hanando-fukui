@@ -69,6 +69,7 @@ typedef enum {
    ND_ADD = '+',
    ND_SUB = '-',
    ND_MUL = '*',
+   ND_EQUAL = '=',
    ND_DIV = '/',
    ND_MOD = '%',
    ND_XOR = '^',

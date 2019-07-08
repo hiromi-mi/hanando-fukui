@@ -1131,43 +1131,51 @@ void finish_reg(int i) {
 }
 
 int gen_register_2(Node* node) {
+   int temp_reg, lhs_reg, rhs_reg;
    if (!node) {
       return -1;
    }
    switch(node->ty) {
-      case ND_NUM: {
-         int temp_reg = use_temp_reg();
+      case ND_NUM:
+         temp_reg = use_temp_reg();
          printf("mov %s, %d\n", id2reg32(temp_reg), node->num_val);
          return temp_reg;
-      }
 
-      case ND_ADD: {
-         int lhs_reg = gen_register_2(node->lhs);
-         int rhs_reg = gen_register_2(node->rhs);
+      case ND_ADD:
+         lhs_reg = gen_register_2(node->lhs);
+         rhs_reg = gen_register_2(node->rhs);
          printf("add %s, %s\n", node2reg(node, lhs_reg), node2reg(node, rhs_reg));
          finish_reg(rhs_reg);
          return lhs_reg;
-      }
 
-      case ND_SUB: {
-         int lhs_reg = gen_register_2(node->lhs);
-         int rhs_reg = gen_register_2(node->rhs);
+      case ND_SUB:
+         lhs_reg = gen_register_2(node->lhs);
+         rhs_reg = gen_register_2(node->rhs);
+         // TODO Fix for size convergence.
          printf("sub %s, %s\n", node2reg(node, lhs_reg), node2reg(node, rhs_reg));
          finish_reg(rhs_reg);
          return lhs_reg;
-      }
 
-      case ND_RETURN: {
+      case ND_MUL:
+         lhs_reg = gen_register_2(node->lhs);
+         printf("mov %s, %s\n",  _rax(node->lhs), node2reg(node->lhs, lhs_reg));
+         rhs_reg = gen_register_2(node->rhs);
+         printf("mul %s\n", node2reg(node->rhs, rhs_reg));
+         printf("mov %s, %s\n", node2reg(node, rhs_reg), _rax(node->lhs));
+         finish_reg(lhs_reg);
+         return rhs_reg;
+
+      case ND_RETURN:
          if (node->lhs) {
-            int reg_id = gen_register_2(node->lhs);
-            printf("mov rax, %s\n", id2reg64(reg_id));
-            finish_reg(reg_id);
+            lhs_reg = gen_register_2(node->lhs);
+            printf("mov rax, %s\n", id2reg64(lhs_reg));
+            finish_reg(lhs_reg);
          }
          puts("mov rsp, rbp");
          puts("pop rbp");
          puts("ret");
          return -1;
-      }
+ 
       case ND_FDEF: {
          Env *prev_env = env;
          env = node->env;
@@ -1187,6 +1195,11 @@ int gen_register_2(Node* node) {
          puts("ret");
          return -1;
       }
+
+      case ND_GOTO:
+         printf("jmp %s\n", node->name);
+         return -1;
+
       default:
          fprintf(stderr, "Error: Incorrect Registers.\n");
          exit(1);
@@ -1200,9 +1213,6 @@ void gen_register(Node* node) {
    }
 
    // TODO: Support Global Variable
-   puts(".intel_syntax noprefix");
-   puts(".align 4");
-   puts(".data");
    gen_register_2(node);
 }
 
