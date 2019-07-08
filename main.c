@@ -1116,10 +1116,13 @@ void finish_reg(int i) {
 }
 
 int gen_register_2(Node* node) {
+   if (!node) {
+      return -1;
+   }
    switch(node->ty) {
       case ND_NUM: {
          int temp_reg = use_temp_reg();
-         printf("mov %s, %d\n", node->num_val, id2reg32(temp_reg));
+         printf("mov %s, %d\n", id2reg32(temp_reg), node->num_val);
          return temp_reg;
       }
 
@@ -1154,7 +1157,8 @@ int gen_register_2(Node* node) {
          return -1;
       }
       default:
-         error("Error: Incorrect Registers.");
+         fprintf(stderr, "Error: Incorrect Registers.\n");
+         exit(1);
    }
    return -1;
 }
@@ -1165,11 +1169,16 @@ void gen_register(Node* node) {
    }
 
    // TODO: Support Global Variable
-   puts(".text");
+   puts(".intel_syntax noprefix");
+   puts(".align 4");
+   puts(".data");
+   gen_register_2(node);
 }
 
 void gen_register_top() {
+   init_reg_registers();
    // consume code[j] and get
+   gen_register(code[0]);
 }
 
 void gen(Node *node) {
@@ -2286,7 +2295,7 @@ int main(int argc, char **argv) {
    if (strcmp(argv[1], "-f") == 0) {
       preprocess(read_tokenize(argv[2]));
    } else {
-      preprocess(tokenize(argv[1]));
+      preprocess(tokenize(argv[argc-1]));
    }
 
    init_typedb();
