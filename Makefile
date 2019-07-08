@@ -32,13 +32,13 @@ test:	self test1 test2 test3 test4 \
 	+ make -C samples/
 
 test1:
-	sh test.sh '1;' 1
-	sh test.sh '1+9;' 10
-	sh test.sh '1*9;' 9
-	sh test.sh '18/9;' 2
+	sh test.sh 'return 1;' 1
+	sh test.sh 'return 1+9;' 10
+	sh test.sh 'return 13-9;' 4
 
 test2:
-	sh test.sh '13-9;' 4
+	sh test.sh '1*9;' 9
+	sh test.sh '18/9;' 2
 	sh test.sh '(11-9)*34;' 68
 	sh test.sh 'int a;a=3;a;' 3
 	sh test.sh 'int X;X=3;X;' 3

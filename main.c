@@ -1086,6 +1086,10 @@ void init_reg_registers() {
    registers64[5] = "r15";
 }
 
+char* id2reg8(int id) {
+   return registers8[id];
+}
+
 char* id2reg32(int id) {
    return registers32[id];
 }
@@ -1098,6 +1102,17 @@ char* id2reg64(int id) {
 void init_reg_table() {
    for (int j = 0; j < 6; j++) {
       reg_table[j] = 0;
+   }
+}
+
+// TODO
+char* node2reg(Node* node, int id) {
+   if (node->type->ty == TY_CHAR) {
+      return id2reg8(id);
+   } else if (node->type->ty == TY_INT) {
+      return id2reg32(id);
+   } else {
+      return id2reg64(id);
    }
 }
 
@@ -1126,10 +1141,26 @@ int gen_register_2(Node* node) {
          return temp_reg;
       }
 
+      case ND_ADD: {
+         int lhs_reg = gen_register_2(node->lhs);
+         int rhs_reg = gen_register_2(node->rhs);
+         printf("add %s, %s\n", node2reg(node, lhs_reg), node2reg(node, rhs_reg));
+         finish_reg(rhs_reg);
+         return lhs_reg;
+      }
+
+      case ND_SUB: {
+         int lhs_reg = gen_register_2(node->lhs);
+         int rhs_reg = gen_register_2(node->rhs);
+         printf("sub %s, %s\n", node2reg(node, lhs_reg), node2reg(node, rhs_reg));
+         finish_reg(rhs_reg);
+         return lhs_reg;
+      }
+
       case ND_RETURN: {
          if (node->lhs) {
             int reg_id = gen_register_2(node->lhs);
-            printf("mov rax, %s", id2reg64(reg_id));
+            printf("mov rax, %s\n", id2reg64(reg_id));
             finish_reg(reg_id);
          }
          puts("mov rsp, rbp");
@@ -1176,6 +1207,7 @@ void gen_register(Node* node) {
 }
 
 void gen_register_top() {
+   init_reg_table();
    init_reg_registers();
    // consume code[j] and get
    gen_register(code[0]);
