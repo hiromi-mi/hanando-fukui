@@ -62,6 +62,8 @@ int get_lval_offset(Node *node);
 Type *get_type_local(Node *node);
 void gen(Node *node);
 
+Register* gen_register_2(Node* node);
+
 Node *node_mul();
 Node *node_term();
 Node *node_mathexpr();
@@ -1164,7 +1166,7 @@ void finish_reg(Register* reg) {
    free(reg);
 }
 
-void security_register(Register* reg) {
+void secure_mutable(Register* reg) {
    // to enable to change
    if (reg->kind != R_REGISTER) {
       Register* new_reg = use_temp_reg();
@@ -1174,8 +1176,31 @@ void security_register(Register* reg) {
    }
 }
 
+Register* gen_register_3(Node *node) {
+   Register *temp_reg;
+   // Treat as lvalue.
+   if (!node) {
+      return NO_REGISTER;
+   }
+   switch(node->ty) {
+      case ND_IDENT:
+         temp_reg = use_temp_reg();
+         printf("lea %s, [rbp-%d]\n", node2reg(node, temp_reg), get_lval_offset(node));
+         return temp_reg;
+
+      case ND_DEREF:
+         return gen_register_2(node->lhs);
+
+      default:
+         error("Error: NOT lvalue");
+   }
+
+}
+
 Register* gen_register_2(Node* node) {
    Register *temp_reg, *lhs_reg, *rhs_reg;
+   int j = 0;
+   Env *prev_env;
 
    if (!node) {
       return NO_REGISTER;
@@ -1193,6 +1218,7 @@ Register* gen_register_2(Node* node) {
          return temp_reg;
 
       case ND_STRING:
+      case ND_GLOBAL_IDENT:
          temp_reg = malloc(sizeof(Register));
          temp_reg->id = get_lval_offset(node);
          temp_reg->kind = R_GVAR;
@@ -1208,13 +1234,21 @@ Register* gen_register_2(Node* node) {
          return temp_reg;
 
       case ND_EQUAL:
-         lhs_reg = gen_register_2(node->lhs);
-         rhs_reg = gen_register_2(node->rhs);
-         // This Should be adjusted with ND_CAST
-         // SHOULD DETECT left_val
-         printf("mov %s, %s\n", node2reg(node->lhs, lhs_reg), node2reg(node->rhs, rhs_reg));
-         finish_reg(rhs_reg);
-         return lhs_reg;
+         // This behaivour can be revised. like [rbp-8+2]
+         if (node->lhs->ty == ND_IDENT || node->lhs->ty == ND_GLOBAL_IDENT) {
+            lhs_reg = gen_register_3(node->lhs);
+            rhs_reg = gen_register_2(node->rhs);
+            printf("mov %s, %s\n", node2reg(node->lhs, lhs_reg), node2reg(node->rhs, rhs_reg));
+            finish_reg(rhs_reg);
+            return lhs_reg;
+         } else {
+            lhs_reg = gen_register_3(node->lhs);
+            rhs_reg = gen_register_2(node->rhs);
+            // This Should be adjusted with ND_CAST
+            printf("mov [%s], %s\n", id2reg64(lhs_reg), node2reg(node->rhs, rhs_reg));
+            finish_reg(lhs_reg);
+            return rhs_reg;
+         }
 
       case ND_CAST:
          temp_reg = gen_register_2(node->lhs);
@@ -1230,7 +1264,7 @@ Register* gen_register_2(Node* node) {
       case ND_ADD:
          lhs_reg = gen_register_2(node->lhs);
          rhs_reg = gen_register_2(node->rhs);
-         security_register(lhs_reg);
+         secure_mutable(lhs_reg);
          printf("add %s, %s\n", node2reg(node, lhs_reg), node2reg(node, rhs_reg));
          finish_reg(rhs_reg);
          return lhs_reg;
@@ -1238,7 +1272,7 @@ Register* gen_register_2(Node* node) {
       case ND_SUB:
          lhs_reg = gen_register_2(node->lhs);
          rhs_reg = gen_register_2(node->rhs);
-         security_register(lhs_reg);
+         secure_mutable(lhs_reg);
          // TODO Fix for size convergence.
          printf("sub %s, %s\n", node2reg(node, lhs_reg), node2reg(node, rhs_reg));
          finish_reg(rhs_reg);
@@ -1249,7 +1283,7 @@ Register* gen_register_2(Node* node) {
          printf("mov %s, %s\n",  _rax(node->lhs), node2reg(node->lhs, lhs_reg));
          rhs_reg = gen_register_2(node->rhs);
          printf("mul %s\n", node2reg(node->rhs, rhs_reg));
-         security_register(lhs_reg);
+         secure_mutable(lhs_reg);
          printf("mov %s, %s\n", node2reg(node, lhs_reg), _rax(node->lhs));
          finish_reg(rhs_reg);
          return lhs_reg;
@@ -1277,25 +1311,32 @@ Register* gen_register_2(Node* node) {
          printf("neg %s\n", node2reg(node, lhs_reg));
          return lhs_reg;
 
-      case ND_FDEF: {
-         Env *prev_env = env;
+      case ND_FDEF:
+         prev_env = env;
          env = node->env;
+
          printf(".type %s,@function\n", node->name);
-         // to visible for ld
-         printf(".global %s\n", node->name);
+         printf(".global %s\n", node->name); // to visible for ld
          printf("%s:\n", node->name);
          puts("push rbp");
          puts("mov rbp, rsp");
          printf("sub rsp, %d\n", env->rsp_offset);
-         for (int j = 0; node->code->data[j]; j++) {
+         for (j = 0; node->code->data[j]; j++) {
             // read inside functions.
             gen_register_2(node->code->data[j]);
          }
          puts("mov rsp, rbp");
          puts("pop rbp");
          puts("ret");
+
+         env = prev_env;
          return NO_REGISTER;
-      }
+
+      case ND_FUNC:
+         for (j=0;j<node->argc;j++) {
+            gen_register_2(node->args[j]);
+         }
+
 
       case ND_GOTO:
          printf("jmp %s\n", node->name);
