@@ -24,6 +24,8 @@ limitations under the License.
 #define SEEK_END 2
 #define SEEK_SET 0
 
+#define NO_REGISTER NULL
+
 // double ceil(double x);
 // to use vector instead of something
 Vector *tokens;
@@ -1105,45 +1107,110 @@ void init_reg_table() {
    }
 }
 
-// TODO
-char* node2reg(Node* node, int id) {
-   if (node->type->ty == TY_CHAR) {
-      return id2reg8(id);
-   } else if (node->type->ty == TY_INT) {
-      return id2reg32(id);
-   } else {
-      return id2reg64(id);
+char* node2reg(Node* node, Register* reg) {
+   if (reg->kind == R_REGISTER) {
+      if (node->type->ty == TY_CHAR) {
+         return id2reg8(reg->id);
+      } else if (node->type->ty == TY_INT) {
+         return id2reg32(reg->id);
+      } else {
+         return id2reg64(reg->id);
+      }
+   // with type specifier.
+   } else if (reg->kind == R_LVAR) {
+      char *_str = malloc(sizeof(char) * 256);
+      if (node->type->ty == TY_CHAR) {
+         snprintf(_str, 255, "byte ptr [rbp-%d]", reg->id);
+      } else if (node->type->ty == TY_INT) {
+         snprintf(_str, 255, "dword ptr [rbp-%d]", reg->id);
+      } else {
+         snprintf(_str, 255, "qword ptr [rbp-%d]", reg->id);
+      }
+      return _str;
    }
+   fprintf(stderr, "Error: Cannot Have Register\n");
+   exit(1);
 }
 
-int use_temp_reg() {
+Register* use_temp_reg() {
    for (int j = 0; j < 6; j++) {
       if (reg_table[j] > 0) continue;
       reg_table[j] = 1;
-      return j; //saame reg_name index
+
+      Register* reg = malloc(sizeof(Register));
+      reg->id = j;
+      reg->name = NULL;
+      reg->kind = R_REGISTER;
+      return reg;
    }
    fprintf(stderr, "No more registers are avaliable\n");
    return 0;
 }
 
-void finish_reg(int i) {
-   reg_table[i] = 0;
+void finish_reg(Register* reg) {
+   if (reg->kind == R_REGISTER) {
+      reg_table[reg->id] = 0;
+   }
+   free(reg);
 }
 
-int gen_register_2(Node* node) {
-   int temp_reg, lhs_reg, rhs_reg;
+void security_register(Register* reg) {
+   // to enable to change
+   if (reg->kind != R_REGISTER) {
+      Register* new_reg = use_temp_reg();
+      reg->id = new_reg->id;
+      reg->kind = new_reg->kind;
+      reg->name = new_reg->name;
+   }
+}
+
+Register* gen_register_2(Node* node) {
+   Register *temp_reg, *lhs_reg, *rhs_reg;
+
    if (!node) {
-      return -1;
+      return NO_REGISTER;
    }
    switch(node->ty) {
       case ND_NUM:
          temp_reg = use_temp_reg();
-         printf("mov %s, %d\n", id2reg32(temp_reg), node->num_val);
+         switch(node->type->ty) {
+            case TY_CHAR:
+               printf("movxz %s, %d\n", node2reg(node, temp_reg), node->num_val);
+               break;
+            default:
+               printf("mov %s, %ld\n", node2reg(node, temp_reg), node->num_val);
+         }
+         return temp_reg;
+
+      case ND_IDENT:
+         temp_reg = malloc(sizeof(Register));
+         temp_reg->id = get_lval_offset(node);
+         temp_reg->kind = R_LVAR;
+         temp_reg->name = NULL;
+         return temp_reg;
+
+      case ND_EQUAL:
+         lhs_reg = gen_register_2(node->lhs);
+         rhs_reg = gen_register_2(node->rhs);
+         // This Should be adjusted with ND_CAST
+         printf("mov %s, %s\n", node2reg(node->lhs, lhs_reg), node2reg(node->rhs, rhs_reg));
+         return lhs_reg;
+
+      case ND_CAST:
+         temp_reg = gen_register_2(node->lhs);
+         switch(node->lhs->type->ty) {
+            case TY_CHAR:
+               // TODO treat as unsigned char.
+               // for signed char, use movsx instead of.
+               printf("movzx %s, %s\n", node2reg(node, temp_reg), id2reg8(temp_reg));
+               break;
+         }
          return temp_reg;
 
       case ND_ADD:
          lhs_reg = gen_register_2(node->lhs);
          rhs_reg = gen_register_2(node->rhs);
+         security_register(lhs_reg);
          printf("add %s, %s\n", node2reg(node, lhs_reg), node2reg(node, rhs_reg));
          finish_reg(rhs_reg);
          return lhs_reg;
@@ -1151,6 +1218,7 @@ int gen_register_2(Node* node) {
       case ND_SUB:
          lhs_reg = gen_register_2(node->lhs);
          rhs_reg = gen_register_2(node->rhs);
+         security_register(lhs_reg);
          // TODO Fix for size convergence.
          printf("sub %s, %s\n", node2reg(node, lhs_reg), node2reg(node, rhs_reg));
          finish_reg(rhs_reg);
@@ -1161,20 +1229,21 @@ int gen_register_2(Node* node) {
          printf("mov %s, %s\n",  _rax(node->lhs), node2reg(node->lhs, lhs_reg));
          rhs_reg = gen_register_2(node->rhs);
          printf("mul %s\n", node2reg(node->rhs, rhs_reg));
-         printf("mov %s, %s\n", node2reg(node, rhs_reg), _rax(node->lhs));
-         finish_reg(lhs_reg);
-         return rhs_reg;
+         security_register(lhs_reg);
+         printf("mov %s, %s\n", node2reg(node, lhs_reg), _rax(node->lhs));
+         finish_reg(rhs_reg);
+         return lhs_reg;
 
       case ND_RETURN:
          if (node->lhs) {
             lhs_reg = gen_register_2(node->lhs);
-            printf("mov rax, %s\n", id2reg64(lhs_reg));
+            printf("mov %s, %s\n", _rax(node->lhs), node2reg(node->lhs, lhs_reg));
             finish_reg(lhs_reg);
          }
          puts("mov rsp, rbp");
          puts("pop rbp");
          puts("ret");
-         return -1;
+         return NO_REGISTER;
  
       case ND_FDEF: {
          Env *prev_env = env;
@@ -1193,18 +1262,18 @@ int gen_register_2(Node* node) {
          puts("mov rsp, rbp");
          puts("pop rbp");
          puts("ret");
-         return -1;
+         return NO_REGISTER;
       }
 
       case ND_GOTO:
          printf("jmp %s\n", node->name);
-         return -1;
+         return NO_REGISTER;
 
       default:
          fprintf(stderr, "Error: Incorrect Registers.\n");
          exit(1);
    }
-   return -1;
+   return NO_REGISTER;
 }
 
 void gen_register(Node* node) {

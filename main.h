@@ -163,6 +163,14 @@ typedef struct Node {
    Type *type;
 } Node;
 
+
+// Extended Register. with global variables, local variables, memory map, registers, ...
+typedef struct Register {
+   enum {R_REGISTER, R_LVAR, R_GVAR} kind;
+   int id; // offset or type
+   char* name; // for global variable
+} Register;
+
 Map *new_map();
 int map_put(Map *map, char *key, void *val);
 void *map_get(Map *map, char *key);
