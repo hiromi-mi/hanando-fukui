@@ -1127,6 +1127,16 @@ char* node2reg(Node* node, Register* reg) {
          snprintf(_str, 255, "qword ptr [rbp-%d]", reg->id);
       }
       return _str;
+   } else if (reg->kind == R_GVAR) {
+      char *_str = malloc(sizeof(char) * 256);
+      if (node->type->ty == TY_CHAR) {
+         snprintf(_str, 255, "byte ptr %s[rip]", reg->name);
+      } else if (node->type->ty == TY_INT) {
+         snprintf(_str, 255, "dword ptr %s[rip]", reg->name);
+      } else {
+         snprintf(_str, 255, "qword ptr %s[rip]", reg->name);
+      }
+      return _str;
    }
    fprintf(stderr, "Error: Cannot Have Register\n");
    exit(1);
@@ -1182,6 +1192,14 @@ Register* gen_register_2(Node* node) {
          }
          return temp_reg;
 
+      case ND_STRING:
+         temp_reg = malloc(sizeof(Register));
+         temp_reg->id = get_lval_offset(node);
+         temp_reg->kind = R_GVAR;
+         temp_reg->name = node->name;
+         return temp_reg;
+         // return with toplevel char ptr.
+
       case ND_IDENT:
          temp_reg = malloc(sizeof(Register));
          temp_reg->id = get_lval_offset(node);
@@ -1193,7 +1211,9 @@ Register* gen_register_2(Node* node) {
          lhs_reg = gen_register_2(node->lhs);
          rhs_reg = gen_register_2(node->rhs);
          // This Should be adjusted with ND_CAST
+         // SHOULD DETECT left_val
          printf("mov %s, %s\n", node2reg(node->lhs, lhs_reg), node2reg(node->rhs, rhs_reg));
+         finish_reg(rhs_reg);
          return lhs_reg;
 
       case ND_CAST:
@@ -1244,7 +1264,19 @@ Register* gen_register_2(Node* node) {
          puts("pop rbp");
          puts("ret");
          return NO_REGISTER;
+
+      case ND_ADDRESS:
+         temp_reg = use_temp_reg();
+         lhs_reg = gen_register_2(node->lhs);
+         printf("lea %s, %s\n", node2reg(node, temp_reg), node2reg(node, lhs_reg));
+         finish_reg(lhs_reg);
+         return temp_reg;
  
+      case ND_NEG:
+         lhs_reg = gen_register_2(node->lhs);
+         printf("neg %s\n", node2reg(node, lhs_reg));
+         return lhs_reg;
+
       case ND_FDEF: {
          Env *prev_env = env;
          env = node->env;
