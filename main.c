@@ -1284,11 +1284,27 @@ Register* gen_register_2(Node* node) {
          lhs_reg = gen_register_2(node->lhs);
          printf("mov %s, %s\n",  _rax(node->lhs), node2reg(node->lhs, lhs_reg));
          rhs_reg = gen_register_2(node->rhs);
-         printf("mul %s\n", node2reg(node->rhs, rhs_reg));
          secure_mutable(lhs_reg);
-         printf("mov %s, %s\n", node2reg(node, lhs_reg), _rax(node->lhs));
+         printf("imul %s, %s\n", node2reg(node->lhs, lhs_reg), node2reg(node->rhs, rhs_reg));
          finish_reg(rhs_reg);
          return lhs_reg;
+
+      case ND_MOD:
+         // TODO modulo with char should be supported?
+         puts("mov rdx, 0");
+         puts("div rax, rdi");
+         // modulo are stored in rdx.
+         puts("mov rax, rdx");
+         break;
+      case ND_XOR:
+         printf("xor %s, %s\n", _rax(node), _rdi(node));
+         break;
+      case ND_AND:
+         printf("and %s, %s\n", _rax(node), _rdi(node));
+         break;
+      case ND_OR:
+         printf("or %s, %s\n", _rax(node), _rdi(node));
+         break;
 
       case ND_RETURN:
          if (node->lhs) {
@@ -1346,21 +1362,6 @@ Register* gen_register_2(Node* node) {
             return temp_reg;
          }
 
-      case ND_MOD:
-         puts("mov rdx, 0");
-         puts("div rax, rdi");
-         // modulo are stored in rdx.
-         puts("mov rax, rdx");
-         break;
-      case '^':
-         printf("xor %s, %s\n", _rax(node), _rdi(node));
-         break;
-      case '&':
-         printf("and %s, %s\n", _rax(node), _rdi(node));
-         break;
-      case '|':
-         printf("or %s, %s\n", _rax(node), _rdi(node));
-         break;
       case ND_RSHIFT:
          // FIXME: for signed int (Arthmetric)
          // mov rdi[8] -> rax
@@ -1381,12 +1382,12 @@ Register* gen_register_2(Node* node) {
          puts("setne al");
          puts("movzx rax, al");
          break;
-      case '>':
+      case ND_GREATER:
          cmp_rax_rdi(node);
          puts("setg al");
          puts("movzx rax, al");
          break;
-      case '<':
+      case ND_LESS:
          cmp_rax_rdi(node);
          // TODO: is "andb 1 %al" required?
          puts("setl al");
