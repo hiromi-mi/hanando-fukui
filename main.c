@@ -1168,7 +1168,7 @@ Register *use_temp_reg() {
       return reg;
    }
    fprintf(stderr, "No more registers are avaliable\n");
-   return 0;
+   exit(1);
 }
 
 void finish_reg(Register *reg) {
