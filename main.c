@@ -989,6 +989,16 @@ char *_rdi(Node *node) {
    }
 }
 
+char *_rdx(Node *node) {
+   if (node->type->ty == TY_CHAR) {
+      return "dl";
+   } else if (node->type->ty == TY_INT) {
+      return "edx";
+   } else {
+      return "rdx";
+   }
+}
+
 int cmp_regs(Node *node, Register *lhs_reg, Register *rhs_reg) {
    if (type2size(node->lhs->type) < type2size(node->rhs->type)) {
       // rdi, rax
@@ -1270,7 +1280,7 @@ Register *gen_register_2(Node *node) {
             lhs_reg = gen_register_2(node->lhs);
             rhs_reg = gen_register_2(node->rhs);
             printf("mov %s, %s\n", node2reg(node->lhs, lhs_reg),
-                   node2reg(node->rhs, rhs_reg));
+                   node2reg(node->lhs, rhs_reg));
             finish_reg(rhs_reg);
             return lhs_reg;
          } else {
@@ -1278,7 +1288,7 @@ Register *gen_register_2(Node *node) {
             rhs_reg = gen_register_2(node->rhs);
             // This Should be adjusted with ND_CAST
             printf("mov [%s], %s\n", id2reg64(lhs_reg->id),
-                   node2reg(node->rhs, rhs_reg));
+                   node2reg(node->lhs, rhs_reg));
             finish_reg(lhs_reg);
             return rhs_reg;
          }
@@ -1345,7 +1355,7 @@ Register *gen_register_2(Node *node) {
          puts("cqo");
          printf("idiv %s\n", node2reg(node->rhs, rhs_reg));
          secure_mutable(lhs_reg);
-         printf("mov %s, %s\n", node2reg(node->lhs, lhs_reg), "rdx");
+         printf("mov %s, %s\n", node2reg(node, lhs_reg), _rdx(node->lhs));
          finish_reg(rhs_reg);
          return lhs_reg;
 
@@ -1383,7 +1393,7 @@ Register *gen_register_2(Node *node) {
          rhs_reg = gen_register_2(node->rhs);
          // FIXME: for signed int (Arthmetric)
          // mov rdi[8] -> rax
-         printf("mov cl, %s\n", node2reg(node->rhs, rhs_reg));
+         printf("mov cl, %s\n", id2reg8(rhs_reg->id));
          finish_reg(rhs_reg);
          secure_mutable(lhs_reg);
          printf("sar %s, cl\n", node2reg(node->lhs, lhs_reg));
@@ -1395,7 +1405,8 @@ Register *gen_register_2(Node *node) {
          rhs_reg = gen_register_2(node->rhs);
          // FIXME: for signed int (Arthmetric)
          // mov rdi[8] -> rax
-         printf("mov cl, %s\n", node2reg(node->rhs, rhs_reg));
+         // TODO Support minus
+         printf("mov cl, %s\n", id2reg8(rhs_reg->id));
          finish_reg(rhs_reg);
          secure_mutable(lhs_reg);
          printf("sal %s, cl\n", node2reg(node->lhs, lhs_reg));
@@ -1405,6 +1416,7 @@ Register *gen_register_2(Node *node) {
          lhs_reg = gen_register_2(node->lhs);
          rhs_reg = gen_register_2(node->rhs);
          cmp_regs(node, lhs_reg, rhs_reg);
+         // TODO Support minus
          puts("sete al");
          finish_reg(lhs_reg);
          finish_reg(rhs_reg);

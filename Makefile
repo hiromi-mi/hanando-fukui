@@ -59,18 +59,19 @@ test4:
 	sh testfunccall.sh 'int main(){foo(4,4);}' 8 0 -r
 
 test5:
-	sh test.sh '6%3;' 0
-	sh test.sh '5%4;' 1
-	sh test.sh '1^0;' 1
-	sh test.sh '1^1;' 0
-	sh test.sh '3^2;' 1
+	# to avoid printf %%
+	sh testfdef.sh 'int main(){return 6 %%3;}' 0 -r
+	sh testfdef.sh 'int main(){return 5 %%4;}' 1 -r
+	sh testfdef.sh 'int main(){return 1^0;}' 1 -r
+	sh testfdef.sh 'int main(){return 1^1;}' 0 -r
+	sh testfdef.sh 'int main(){return 3^2;}' 1 -r
 
 test6:
-	sh test.sh '6|3;' 7
-	sh test.sh '1|0;' 1
-	sh test.sh '1&0;' 0
-	sh test.sh '1<<1;' 2
-	sh test.sh '1>>1;' 0
+	sh testfdef.sh 'int main(){return 6|3;}' 7 -r
+	sh testfdef.sh 'int main(){return 1|0;}' 1 -r
+	sh testfdef.sh 'int main(){return 1&0;}' 0 -r
+	sh testfdef.sh 'int main(){return 1<<1;}' 2 -r
+	sh testfdef.sh 'int main(){return 1>>1;}' 0 -r
 
 test7:
 	sh test.sh 'int a;a=1;a-=1;return a;' 0
@@ -168,7 +169,7 @@ test20:
 	sh test.sh "(2 && 1);" 1
 
 test17:
-	sh test.sh "char a;a=1;" 1
+	sh testfdef.sh 'int main(){char a;return a=1;}' 1 -r
 
 test18:
 	sh test.sh "char a='a';a;" 97
