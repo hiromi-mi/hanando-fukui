@@ -55,8 +55,8 @@ test3:
 	sh test.sh "!(4==2);" 1
 
 test4:
-	sh testfunccall.sh 'func(4);' OK4 4
-	sh testfunccall.sh 'foo(4,4);' 8 0
+	sh testfunccall.sh 'int main(){return func(4);}' OK4 4 -r
+	sh testfunccall.sh 'int main(){foo(4,4);}' 8 0 -r
 
 test5:
 	sh test.sh '6%3;' 0

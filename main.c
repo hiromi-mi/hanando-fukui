@@ -1524,8 +1524,19 @@ Register *gen_register_2(Node *node) {
 
       case ND_FUNC:
          for (j = 0; j < node->argc; j++) {
-            gen_register_2(node->args[j]);
+            temp_reg = gen_register_2(node->args[j]);
+            // TODO Dirty: Should implement 642node
+            secure_mutable(temp_reg);
+            printf("push %s\n", id2reg64(temp_reg->id));
          }
+         for (j = node->argc - 1; j >= 0; j--) {
+            // because of function call will break these registers
+            printf("pop %s\n", registers[j]);
+         }
+         // FIXME: alignment should be 64-bit
+         puts("mov al, 0");               // TODO to preserve float
+         printf("call %s\n", node->name); // rax should be aligned with the size
+
          if (node->type->ty == TY_VOID) {
             return NO_REGISTER;
          } else {
