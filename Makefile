@@ -32,18 +32,18 @@ test:	self test1 test2 test3 test4 \
 	+ make -C samples/
 
 test1:
-	sh test.sh 'return 1;' 1
-	sh test.sh 'return 1+9;' 10
-	sh test.sh 'return 13-9;' 4
+	sh testfdef.sh 'int main() {return 1;}' 1 -r
+	sh testfdef.sh 'int main() {return 1+9;}' 10 -r
+	sh testfdef.sh 'int main() {return 13-9;}' 4 -r
 
 test2:
-	sh test.sh '1*9;' 9
-	sh test.sh '18/9;' 2
-	sh test.sh '(11-9)*34;' 68
-	sh test.sh 'int a;a=3;a;' 3
-	sh test.sh 'int X;X=3;X;' 3
-	sh test.sh 'int ce;ce=3;ce;' 3
-	sh test.sh 'int DE;DE=2;DE;' 2
+	sh testfdef.sh 'int main() {return 1*9;}' 9 -r
+	sh testfdef.sh 'int main() {return 18/9;}' 2
+	sh testfdef.sh 'int main() {return (11-9)*34;}' 68 -r
+	sh testfdef.sh 'int main() {int a;a=3;return a;}' 3 -r
+	sh testfdef.sh 'int main() {int X;X=3;return X;}' 3 -r
+	sh testfdef.sh 'int main() {int ce;ce=3;return ce;}' 3 -r
+	sh testfdef.sh 'int main() {int DE;DE=2;return DE;}' 2 -r
 
 test3:
 	sh test.sh '3==3;' 1
@@ -73,12 +73,12 @@ test6:
 	sh test.sh '1>>1;' 0
 
 test7:
-	sh test.sh 'int a;a=1;a-=1;a;' 0
-	sh test.sh 'int a;a=1;a+=1;a;' 2
+	sh test.sh 'int a;a=1;a-=1;return a;' 0
+	sh test.sh 'int a;a=1;a+=1;return a;' 2
 	#sh test.sh 'int a;a=1;a<<=1;a;' 2
-	sh test.sh 'int a;a=3;a*=2;a;' 6
-	sh test.sh 'int a;a=6;a/=2;a;' 3
-	sh test.sh 'int a;a=3;a%=2;a;' 1
+	sh test.sh 'int a;a=3;a*=2;return a;' 6
+	sh test.sh 'int a;a=6;a/=2;return a;' 3
+	sh test.sh 'int a;a=3;a%=2;return a;' 1
 
 test8:
 	sh test.sh 'int a;a=1;++a;a;' 2

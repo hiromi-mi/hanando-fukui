@@ -1210,7 +1210,7 @@ Register* gen_register_2(Node* node) {
          temp_reg = use_temp_reg();
          switch(node->type->ty) {
             case TY_CHAR:
-               printf("movxz %s, %d\n", node2reg(node, temp_reg), node->num_val);
+               printf("movxz %s, %ld\n", node2reg(node, temp_reg), node->num_val);
                break;
             default:
                printf("mov %s, %ld\n", node2reg(node, temp_reg), node->num_val);
@@ -1236,7 +1236,7 @@ Register* gen_register_2(Node* node) {
       case ND_EQUAL:
          // This behaivour can be revised. like [rbp-8+2]
          if (node->lhs->ty == ND_IDENT || node->lhs->ty == ND_GLOBAL_IDENT) {
-            lhs_reg = gen_register_3(node->lhs);
+            lhs_reg = gen_register_2(node->lhs);
             rhs_reg = gen_register_2(node->rhs);
             printf("mov %s, %s\n", node2reg(node->lhs, lhs_reg), node2reg(node->rhs, rhs_reg));
             finish_reg(rhs_reg);
@@ -1245,7 +1245,7 @@ Register* gen_register_2(Node* node) {
             lhs_reg = gen_register_3(node->lhs);
             rhs_reg = gen_register_2(node->rhs);
             // This Should be adjusted with ND_CAST
-            printf("mov [%s], %s\n", id2reg64(lhs_reg), node2reg(node->rhs, rhs_reg));
+            printf("mov [%s], %s\n", id2reg64(lhs_reg->id), node2reg(node->rhs, rhs_reg));
             finish_reg(lhs_reg);
             return rhs_reg;
          }
@@ -1256,7 +1256,9 @@ Register* gen_register_2(Node* node) {
             case TY_CHAR:
                // TODO treat as unsigned char.
                // for signed char, use movsx instead of.
-               printf("movzx %s, %s\n", node2reg(node, temp_reg), id2reg8(temp_reg));
+               printf("movzx %s, %s\n", node2reg(node, temp_reg), id2reg8(temp_reg->id));
+               break;
+            default:
                break;
          }
          return temp_reg;
@@ -1336,8 +1338,73 @@ Register* gen_register_2(Node* node) {
          for (j=0;j<node->argc;j++) {
             gen_register_2(node->args[j]);
          }
+         if (node->type->ty == TY_VOID) {
+            return NO_REGISTER;
+         } else {
+            temp_reg = use_temp_reg();
+            printf("mov %s, %s\n", node2reg(node, temp_reg), _rax(node));
+            return temp_reg;
+         }
 
-
+      case ND_MOD:
+         puts("mov rdx, 0");
+         puts("div rax, rdi");
+         // modulo are stored in rdx.
+         puts("mov rax, rdx");
+         break;
+      case '^':
+         printf("xor %s, %s\n", _rax(node), _rdi(node));
+         break;
+      case '&':
+         printf("and %s, %s\n", _rax(node), _rdi(node));
+         break;
+      case '|':
+         printf("or %s, %s\n", _rax(node), _rdi(node));
+         break;
+      case ND_RSHIFT:
+         // FIXME: for signed int (Arthmetric)
+         // mov rdi[8] -> rax
+         puts("mov cl, dil");
+         puts("sar rax, cl");
+         break;
+      case ND_LSHIFT:
+         puts("mov cl, dil");
+         puts("sal rax, cl");
+         break;
+      case ND_ISEQ:
+         cmp_rax_rdi(node);
+         puts("sete al");
+         puts("movzx rax, al");
+         break;
+      case ND_ISNOTEQ:
+         cmp_rax_rdi(node);
+         puts("setne al");
+         puts("movzx rax, al");
+         break;
+      case '>':
+         cmp_rax_rdi(node);
+         puts("setg al");
+         puts("movzx rax, al");
+         break;
+      case '<':
+         cmp_rax_rdi(node);
+         // TODO: is "andb 1 %al" required?
+         puts("setl al");
+         puts("movzx rax, al");
+         break;
+      case ND_ISMOREEQ:
+         cmp_rax_rdi(node);
+         puts("setge al");
+         puts("and al, 1");
+         // should be eax instead of rax?
+         puts("movzx rax, al");
+         break;
+      case ND_ISLESSEQ:
+         cmp_rax_rdi(node);
+         puts("setle al");
+         puts("and al, 1");
+         puts("movzx eax, al");
+         break;
       case ND_GOTO:
          printf("jmp %s\n", node->name);
          return NO_REGISTER;
