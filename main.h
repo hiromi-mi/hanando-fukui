@@ -26,7 +26,7 @@ typedef enum {
    TK_BLOCKEND = '}',
    TK_S = '#',
    TK_PLUSPLUS = 86, // '+' + '+',
-   TK_SUBSUB = 90, // '-' + '-',
+   TK_SUBSUB = 90,   // '-' + '-',
    TK_NUM = 256,
    TK_FLOAT,
    TK_IDENT,
@@ -135,7 +135,16 @@ typedef struct {
 } Map;
 
 typedef struct Type {
-   enum { TY_INT = 3, TY_PTR, TY_ARRAY, TY_CHAR, TY_LONG, TY_STRUCT, TY_VOID, TY_DOUBLE} ty;
+   enum {
+      TY_INT = 3,
+      TY_PTR,
+      TY_ARRAY,
+      TY_CHAR,
+      TY_LONG,
+      TY_STRUCT,
+      TY_VOID,
+      TY_DOUBLE
+   } ty;
    Map *structure; // <name, Type*>
    struct Type *ptrof;
    int array_size;
@@ -163,12 +172,12 @@ typedef struct Node {
    Type *type;
 } Node;
 
-
-// Extended Register. with global variables, local variables, memory map, registers, ...
+// Extended Register. with global variables, local variables, memory map,
+// registers, ...
 typedef struct Register {
-   enum {R_REGISTER, R_LVAR, R_GVAR} kind;
-   int id; // offset or type
-   char* name; // for global variable
+   enum { R_REGISTER, R_LVAR, R_GVAR } kind;
+   int id;     // offset or type
+   char *name; // for global variable
 } Register;
 
 Map *new_map();

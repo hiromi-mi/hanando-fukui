@@ -91,14 +91,14 @@ test8:
 	sh test.sh 'int a;a=4;--a;' 3
 
 test9:
-	sh test.sh '2<0;' 0
-	sh test.sh '0<2;' 1
-	sh test.sh '2>0;' 1
-	sh test.sh '0>2;' 0
-	sh test.sh '3<3;' 0
-	sh test.sh '2>2;' 0
-	sh test.sh '2>(-1);' 1
-	sh test.sh '2<(-1);' 0
+	sh testfdef.sh 'int main(){return 2<0;}' 0 -r
+	sh testfdef.sh 'int main(){return 0<2;}' 1 -r
+	sh testfdef.sh 'int main(){return 2>0;}' 1 -r
+	sh testfdef.sh 'int main(){return 0>2;}' 0 -r
+	sh testfdef.sh 'int main(){return 3<3;}' 0 -r
+	sh testfdef.sh 'int main(){return 2>2;}' 0 -r
+	sh testfdef.sh 'int main(){return 2>(-1);}' 1 -r
+	sh testfdef.sh 'int main(){return 2<(-1);}' 0 -r
 
 test10:
 	sh test.sh "{if(1){3;}}" 3
