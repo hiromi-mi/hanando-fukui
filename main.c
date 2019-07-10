@@ -1116,6 +1116,18 @@ void init_reg_table() {
    }
 }
 
+char *gvar_node2reg(Node *node, char* name) {
+   char *_str = malloc(sizeof(char) * 256);
+   if (node->type->ty == TY_CHAR) {
+      snprintf(_str, 255, "byte ptr %s[rip]", name);
+   } else if (node->type->ty == TY_INT) {
+      snprintf(_str, 255, "dword ptr %s[rip]", name);
+   } else {
+      snprintf(_str, 255, "qword ptr %s[rip]", name);
+   }
+   return _str;
+}
+
 char *node2reg(Node *node, Register *reg) {
    if (reg->kind == R_REGISTER) {
       if (node->type->ty == TY_CHAR) {
@@ -1137,15 +1149,7 @@ char *node2reg(Node *node, Register *reg) {
       }
       return _str;
    } else if (reg->kind == R_GVAR) {
-      char *_str = malloc(sizeof(char) * 256);
-      if (node->type->ty == TY_CHAR) {
-         snprintf(_str, 255, "byte ptr %s[rip]", reg->name);
-      } else if (node->type->ty == TY_INT) {
-         snprintf(_str, 255, "dword ptr %s[rip]", reg->name);
-      } else {
-         snprintf(_str, 255, "qword ptr %s[rip]", reg->name);
-      }
-      return _str;
+      return gvar_node2reg(node, reg->name);
    }
    fprintf(stderr, "Error: Cannot Have Register\n");
    exit(1);
@@ -1200,6 +1204,11 @@ Register *gen_register_3(Node *node) {
       case ND_DEREF:
          return gen_register_2(node->lhs);
 
+      case ND_GLOBAL_IDENT:
+         temp_reg = use_temp_reg();
+         printf("lea %s, %s\n", node2reg(node, temp_reg), gvar_node2reg(node, node->name));
+         return temp_reg;
+
       default:
          error("Error: NOT lvalue");
    }
@@ -1235,11 +1244,9 @@ Register *gen_register_2(Node *node) {
          return temp_reg;
 
       case ND_STRING:
-      case ND_GLOBAL_IDENT:
          temp_reg = malloc(sizeof(Register));
          temp_reg->id = get_lval_offset(node);
          temp_reg->kind = R_GVAR;
-         temp_reg->name = node->name;
          return temp_reg;
          // return with toplevel char ptr.
 
@@ -1248,6 +1255,13 @@ Register *gen_register_2(Node *node) {
          temp_reg->id = get_lval_offset(node);
          temp_reg->kind = R_LVAR;
          temp_reg->name = NULL;
+         return temp_reg;
+
+      case ND_GLOBAL_IDENT:
+         temp_reg = malloc(sizeof(Register));
+         temp_reg->id = 0;
+         temp_reg->kind = R_GVAR;
+         temp_reg->name = node->name;
          return temp_reg;
 
       case ND_EQUAL:

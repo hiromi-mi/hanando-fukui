@@ -137,10 +137,10 @@ test13:
 	sh test.sh "int x[10];x[0]=2;x[1]=3;x[0];" 2
 
 test14:
-	sh testfdef.sh "int a;int main(){a=1;a;}" 1
-	sh testfdef.sh "int a;int main(){a;}" 0
-	sh testfdef.sh "int a=2;int main(){a;}" 2
-	sh testfdef.sh "int a=2;int main(){a=3;a;}" 3
+	sh testfdef.sh "int a;int main(){a=1;return a;}" 1 -r
+	sh testfdef.sh "int a;int main(){return a;}" 0 -r
+	sh testfdef.sh "int a=2;int main(){return a;}" 2 -r
+	sh testfdef.sh "int a=2;int main(){a=3;return a;}" 3 -r
 
 test15:
 	sh test.sh "char a;a=1;" 1
