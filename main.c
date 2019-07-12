@@ -1523,7 +1523,7 @@ Register *gen_register_2(Node *node) {
       case ND_ADDRESS:
          temp_reg = use_temp_reg();
          lhs_reg = gen_register_2(node->lhs);
-         printf("lea %s, %s\n", node2reg(node, temp_reg),
+         printf("lea %s, %s\n", id2reg64(temp_reg->id),
                 node2reg(node, lhs_reg));
          finish_reg(lhs_reg);
          return temp_reg;
@@ -1597,6 +1597,14 @@ Register *gen_register_2(Node *node) {
 
       case ND_GOTO:
          printf("jmp %s\n", node->name);
+         return NO_REGISTER;
+
+      case ND_BREAK:
+         printf("jmp .Lend%d #break\n", env_for_while_switch);
+         return NO_REGISTER;
+
+      case ND_CONTINUE:
+         printf("jmp .Lbegin%d\n", env_for_while);
          return NO_REGISTER;
 
       default:
