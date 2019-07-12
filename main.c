@@ -1126,11 +1126,11 @@ void init_reg_table() {
    }
 }
 
-char *gvar_node2reg(Node *node, char* name) {
+char *gvar_size2reg(int size, char* name) {
    char *_str = malloc(sizeof(char) * 256);
-   if (node->type->ty == TY_CHAR) {
+   if (size == 1) {
       snprintf(_str, 255, "byte ptr %s[rip]", name);
-   } else if (node->type->ty == TY_INT) {
+   } else if (size == 4) {
       snprintf(_str, 255, "dword ptr %s[rip]", name);
    } else {
       snprintf(_str, 255, "qword ptr %s[rip]", name);
@@ -1138,11 +1138,27 @@ char *gvar_node2reg(Node *node, char* name) {
    return _str;
 }
 
-char *node2reg(Node *node, Register *reg) {
+char *node2specifier(Node* node) {
+   int size;
+   size = type2size(node->type);
+   if (size == 1) {
+      return "byte ptr";
+   } else if (size == 4) {
+      return "dword ptr";
+   } else {
+      return "qword ptr";
+   }
+}
+
+char *gvar_node2reg(Node* node, char* name) {
+   return gvar_size2reg(type2size(node->type), name);
+}
+
+char *size2reg(int size, Register *reg) {
    if (reg->kind == R_REGISTER) {
-      if (node->type->ty == TY_CHAR) {
+      if (size == 1) {
          return id2reg8(reg->id);
-      } else if (node->type->ty == TY_INT) {
+      } else if (size == 4) {
          return id2reg32(reg->id);
       } else {
          return id2reg64(reg->id);
@@ -1150,19 +1166,22 @@ char *node2reg(Node *node, Register *reg) {
       // with type specifier.
    } else if (reg->kind == R_LVAR) {
       char *_str = malloc(sizeof(char) * 256);
-      if (node->type->ty == TY_CHAR) {
+      if (size == 1) {
          snprintf(_str, 255, "byte ptr [rbp-%d]", reg->id);
-      } else if (node->type->ty == TY_INT) {
+      } else if (size == 4) {
          snprintf(_str, 255, "dword ptr [rbp-%d]", reg->id);
       } else {
          snprintf(_str, 255, "qword ptr [rbp-%d]", reg->id);
       }
       return _str;
    } else if (reg->kind == R_GVAR) {
-      return gvar_node2reg(node, reg->name);
+      return gvar_size2reg(size, reg->name);
    }
    fprintf(stderr, "Error: Cannot Have Register\n");
    exit(1);
+}
+char *node2reg(Node *node, Register *reg) {
+   return size2reg(type2size(node->type), reg);
 }
 
 Register *use_temp_reg() {
@@ -1192,6 +1211,7 @@ void secure_mutable(Register *reg) {
    // to enable to change
    if (reg->kind != R_REGISTER) {
       Register *new_reg = use_temp_reg();
+      printf("mov %s, %s\n", size2reg(8, new_reg), size2reg(8, reg));
       reg->id = new_reg->id;
       reg->kind = new_reg->kind;
       reg->name = new_reg->name;
@@ -1207,7 +1227,7 @@ Register *gen_register_3(Node *node) {
    switch (node->ty) {
       case ND_IDENT:
          temp_reg = use_temp_reg();
-         printf("lea %s, [rbp-%d]\n", node2reg(node, temp_reg),
+         printf("lea %s, [rbp-%d]\n", id2reg64(temp_reg->id),
                 get_lval_offset(node));
          return temp_reg;
 
@@ -1216,7 +1236,7 @@ Register *gen_register_3(Node *node) {
 
       case ND_GLOBAL_IDENT:
          temp_reg = use_temp_reg();
-         printf("lea %s, %s\n", node2reg(node, temp_reg), gvar_node2reg(node, node->name));
+         printf("lea %s, %s\n", id2reg64(temp_reg->id), gvar_node2reg(node, node->name));
          return temp_reg;
 
       default:
@@ -1512,6 +1532,24 @@ Register *gen_register_2(Node *node) {
          lhs_reg = gen_register_2(node->lhs);
          printf("neg %s\n", node2reg(node, lhs_reg));
          return lhs_reg;
+
+      case ND_FPLUSPLUS:
+         lhs_reg = gen_register_3(node->lhs);
+         temp_reg = use_temp_reg();
+         secure_mutable(lhs_reg);
+
+         printf("mov %s, [%s]\n", node2reg(node, temp_reg), id2reg64(lhs_reg->id));
+         printf("add %s [%s], %d\n", node2specifier(node), id2reg64(lhs_reg->id), node->num_val);
+         return temp_reg;
+
+      case ND_FSUBSUB:
+         lhs_reg = gen_register_3(node->lhs);
+         temp_reg = use_temp_reg();
+         secure_mutable(lhs_reg);
+
+         printf("mov %s, [%s]\n", node2reg(node, temp_reg), id2reg64(lhs_reg->id));
+         printf("sub %s [%s], %d\n", node2specifier(node), id2reg64(lhs_reg->id), node->num_val);
+         return temp_reg;
 
       case ND_FDEF:
          prev_env = env;

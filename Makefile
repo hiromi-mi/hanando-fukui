@@ -82,14 +82,14 @@ test7:
 	sh test.sh 'int a;a=3;a%=2;return a;' 1
 
 test8:
-	sh test.sh 'int a;a=1;++a;a;' 2
-	sh test.sh 'int a;a=4;--a;a;' 3
-	sh test.sh 'int a;a=1;a++;a;' 2
-	sh test.sh 'int a;a=4;a--;a;' 3
-	sh test.sh 'int a;a=1;a++;' 1
-	sh test.sh 'int a;a=4;a--;' 4
-	sh test.sh 'int a;a=1;++a;' 2
-	sh test.sh 'int a;a=4;--a;' 3
+	sh testfdef.sh 'int main(){int a;a=1;++a;return a;}' 2 -r
+	sh testfdef.sh 'int main(){int a;a=4;--a;return a;}' 3 -r
+	sh testfdef.sh 'int main(){int a;a=1;a++;return a;}' 2 -r
+	sh testfdef.sh 'int main(){int a;a=4;a--;return a;}' 3 -r
+	sh testfdef.sh 'int main(){int a;a=1;return a++;}' 1 -r
+	sh testfdef.sh 'int main(){int a;a=4;return a--;}' 4 -r
+	sh testfdef.sh 'int main(){int a;a=1;return ++a;}' 2 -r
+	sh testfdef.sh 'int main(){int a;a=4;return --a;}' 3 -r
 
 test9:
 	sh testfdef.sh 'int main(){return 2<0;}' 0 -r
