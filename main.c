@@ -58,7 +58,6 @@ char *expect_ident();
 void program(Node *block_node);
 Type *find_typed_db(char *input, Map *db);
 int cnt_size(Type *type);
-int get_lval_offset(Node *node);
 Type *get_type_local(Node *node);
 void gen(Node *node);
 
@@ -237,6 +236,13 @@ int cnt_size(Type *type) {
    }
 }
 
+void update_rsp_offset(int size) {
+   env->rsp_offset += size;
+   if (*env->rsp_offset_max < env->rsp_offset) {
+      *env->rsp_offset_max = env->rsp_offset;
+   }
+}
+
 Node *new_ident_node_with_new_variable(char *name, Type *type) {
    Node *node = malloc(sizeof(Node));
    node->ty = ND_IDENT;
@@ -247,7 +253,8 @@ Node *new_ident_node_with_new_variable(char *name, Type *type) {
    if (size % 8 != 0) {
       size += (8 - size % 8);
    }
-   env->rsp_offset += size;
+   update_rsp_offset(size);
+   node->lvar_offset = env->rsp_offset;
    type->offset = env->rsp_offset;
    printf("#define: %s on %d\n", name, env->rsp_offset);
    map_put(env->idents, name, type);
@@ -269,6 +276,7 @@ Node *new_ident_node(char *name) {
    }
    node->type = get_type_local(node);
    if (node->type) {
+      node->lvar_offset = node->type->offset;
       return node;
    }
 
@@ -304,14 +312,16 @@ Env *new_env(Env *prev_env) {
    _env->idents = new_map();
    _env->rsp_offset = 0;
    if (prev_env) {
-      _env->rsp_offset_all = prev_env->rsp_offset_all + prev_env->rsp_offset;
+      _env->rsp_offset = prev_env->rsp_offset;
+      _env->rsp_offset_max = prev_env->rsp_offset_max;
    } else {
-      _env->rsp_offset_all = 0;
+      _env->rsp_offset_max = malloc(sizeof(int));
+      *_env->rsp_offset_max = 0;
    }
    return _env;
 }
 
-Node *new_fdef_node(char *name, Env *prev_env, Type *type) {
+Node *new_fdef_node(char *name, Type *type) {
    Node *node = malloc(sizeof(Node));
    node->type = type;
    node->ty = ND_FDEF;
@@ -319,7 +329,7 @@ Node *new_fdef_node(char *name, Env *prev_env, Type *type) {
    node->lhs = NULL;
    node->rhs = NULL;
    node->argc = 0;
-   node->env = new_env(prev_env);
+   node->env = new_env(NULL);
    node->code = new_vector();
    map_put(funcdefs, name, node);
    return node;
@@ -956,19 +966,6 @@ Type *get_type_local(Node *node) {
    return type;
 }
 
-// should be abolished
-int get_lval_offset(Node *node) {
-   Env *local_env = env;
-   while (local_env != NULL) {
-      node->type = map_get(local_env->idents, node->name);
-      if (node->type) {
-         return local_env->rsp_offset_all + node->type->offset;
-      }
-      local_env = local_env->env;
-   }
-   return 0;
-}
-
 char *_rax(Node *node) {
    if (node->type->ty == TY_CHAR) {
       return "al";
@@ -1026,7 +1023,7 @@ void gen_lval(Node *node) {
       return;
    }
    if (node->ty == ND_IDENT) {
-      int offset = get_lval_offset(node);
+      int offset = node->lvar_offset;
       puts("mov rax, rbp");
       printf("sub rax, %d\n", offset);
       puts("push rax");
@@ -1227,8 +1224,7 @@ Register *gen_register_3(Node *node) {
    switch (node->ty) {
       case ND_IDENT:
          temp_reg = use_temp_reg();
-         printf("lea %s, [rbp-%d]\n", id2reg64(temp_reg->id),
-                get_lval_offset(node));
+         printf("lea %s, [rbp-%d]\n", id2reg64(temp_reg->id), node->lvar_offset);
          return temp_reg;
 
       case ND_DEREF:
@@ -1275,14 +1271,16 @@ Register *gen_register_2(Node *node) {
 
       case ND_STRING:
          temp_reg = malloc(sizeof(Register));
-         temp_reg->id = get_lval_offset(node);
+         temp_reg->id = 0;
+         temp_reg->name = node->name;
          temp_reg->kind = R_GVAR;
          return temp_reg;
          // return with toplevel char ptr.
 
       case ND_IDENT:
          temp_reg = malloc(sizeof(Register));
-         temp_reg->id = get_lval_offset(node);
+         temp_reg->id = node->lvar_offset;
+         //get_lval_offset(node);
          temp_reg->kind = R_LVAR;
          temp_reg->name = NULL;
          return temp_reg;
@@ -1560,7 +1558,7 @@ Register *gen_register_2(Node *node) {
          printf("%s:\n", node->name);
          puts("push rbp");
          puts("mov rbp, rsp");
-         printf("sub rsp, %d\n", env->rsp_offset);
+         printf("sub rsp, %d\n", *env->rsp_offset_max);
          for (j = 0; node->code->data[j]; j++) {
             // read inside functions.
             gen_register_2(node->code->data[j]);
@@ -1709,7 +1707,7 @@ void gen(Node *node) {
       printf("%s:\n", node->name);
       puts("push rbp");
       puts("mov rbp, rsp");
-      printf("sub rsp, %d\n", env->rsp_offset);
+      printf("sub rsp, %d\n", *env->rsp_offset_max);
       // char registers[6][4] = {"rdi", "rsi", "rdx", "rcx", "r8", "r9"};
       for (int j = 0; j < node->argc; j++) {
          gen_lval(node->args[j]);
@@ -2415,7 +2413,8 @@ void toplevel() {
    funcdefs = new_map();
    consts = new_map();
    strs = new_vector();
-   env = new_env(NULL);
+   //env = new_env(NULL);
+   env = NULL;
 
    while (!consume_node(TK_EOF)) {
       if (consume_node(TK_EXTERN)) {
@@ -2480,7 +2479,7 @@ void toplevel() {
          char *name = NULL;
          Type *type = read_type(&name);
          if (consume_node('(')) {
-            code[i] = new_fdef_node(name, env, type);
+            code[i] = new_fdef_node(name, type);
             // Function definition because toplevel func call
 
             // TODO env should be treated as cooler bc. of splitted namespaces

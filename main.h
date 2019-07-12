@@ -155,7 +155,7 @@ typedef struct Type {
 typedef struct Env {
    struct Env *env;
    Map *idents;
-   int rsp_offset_all;
+   int* rsp_offset_max;
    int rsp_offset;
 } Env;
 
@@ -170,6 +170,7 @@ typedef struct Node {
    char *name;
    Env *env;
    Type *type;
+   int lvar_offset;
 } Node;
 
 // Extended Register. with global variables, local variables, memory map,
