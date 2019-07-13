@@ -116,8 +116,8 @@ test11:
 	sh testfdef.sh "int main(){func()+2;} int func(){return 4;}" 6
 
 test19:
-	sh testfdef.sh "int main(){func(8)+2;} int func(int a){return a-4;}" 6
-	sh testfdef.sh "int main(){func(6+2)+2;} int func(int a){return a-4;}" 6
+	sh testfdef.sh "int main(){func(8)+2;} int func(int a){return a-4;}" 6 -r
+	sh testfdef.sh "int main(){func(6+2)+2;} int func(int a){return a-4;}" 6 -r
 	sh testfdef.sh "int main(){func(5);} int func(int a){ if (a==1){1;} 2;}" 2
 
 test21:
@@ -158,15 +158,15 @@ test16:
 	sh test.sh "(1==2);" 0
 
 test20:
-	sh test.sh "((1==1) || (2==2));" 1
-	sh test.sh "((1==2) || (2==2));" 1
-	sh test.sh "((1==1) || (1==2));" 1
-	sh test.sh "((1==2) || (3==2));" 0
-	sh test.sh "((1==1) && (2==2));" 1
-	sh test.sh "((1==2) && (2==2));" 0
-	sh test.sh "((1==1) && (1==2));" 0
-	sh test.sh "((1==2) && (3==2));" 0
-	sh test.sh "(2 && 1);" 1
+	sh testfdef.sh "int main(){return ((1==1) || (2==2));}" 1 -r
+	sh testfdef.sh "int main(){return ((1==2) || (2==2));}" 1 -r
+	sh testfdef.sh "int main(){return ((1==1) || (1==2));}" 1 -r
+	sh testfdef.sh "int main(){return ((1==2) || (3==2));}" 0 -r
+	sh testfdef.sh "int main(){return ((1==1) && (2==2));}" 1 -r
+	sh testfdef.sh "int main(){return ((1==2) && (2==2));}" 0 -r
+	sh testfdef.sh "int main(){return ((1==1) && (1==2));}" 0 -r
+	sh testfdef.sh "int main(){return ((1==2) && (3==2));}" 0 -r
+	sh testfdef.sh "int main(){return (2 && 1);}" 1 -r
 
 test17:
 	sh testfdef.sh 'int main(){char a;return a=1;}' 1 -r

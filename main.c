@@ -44,7 +44,7 @@ int env_for_while_switch = 0;
 Env *env;
 int if_cnt = 0;
 int for_while_cnt = 0;
-char registers[6][4];
+char arg_registers[6][4];
 
 int type2size(Type *type);
 Type *read_type(char **input);
@@ -1553,6 +1553,15 @@ Register *gen_register_2(Node *node) {
          printf("sub %s [%s], %d\n", node2specifier(node), id2reg64(lhs_reg->id), node->num_val);
          return temp_reg;
 
+      case ND_APOS:
+         lhs_reg = gen_register_2(node->lhs);
+         printf("cmp %s, 0\n", node2reg(node->lhs, lhs_reg));
+         puts("sete al");
+         finish_reg(lhs_reg);
+         temp_reg = use_temp_reg();
+         extend_al_ifneeded(node, temp_reg);
+         return temp_reg;
+
       case ND_FDEF:
          printf(".type %s,@function\n", node->name);
          printf(".global %s\n", node->name); // to visible for ld
@@ -1560,6 +1569,11 @@ Register *gen_register_2(Node *node) {
          puts("push rbp");
          puts("mov rbp, rsp");
          printf("sub rsp, %d\n", *node->env->rsp_offset_max);
+         for (int j = 0; j < node->argc; j++) {
+            temp_reg = gen_register_2(node->args[j]);
+            printf("mov %s, %s\n",size2reg(node->args[j], temp_reg) ,arg_registers[j]);
+            puts("push rax");
+         }
          for (j = 0; node->code->data[j]; j++) {
             // read inside functions.
             gen_register_2(node->code->data[j]);
@@ -1572,7 +1586,6 @@ Register *gen_register_2(Node *node) {
 
       case ND_BLOCK:
          for (j = 0; node->code->data[j]; j++) {
-            // read inside functions.
             gen_register_2(node->code->data[j]);
          }
          return NO_REGISTER;
@@ -1586,7 +1599,7 @@ Register *gen_register_2(Node *node) {
          }
          for (j = node->argc - 1; j >= 0; j--) {
             // because of function call will break these registers
-            printf("pop %s\n", registers[j]);
+            printf("pop %s\n", arg_registers[j]);
          }
          // FIXME: alignment should be 64-bit
          puts("mov al, 0");               // TODO to preserve float
@@ -1632,7 +1645,9 @@ void gen_register_top() {
    init_reg_table();
    init_reg_registers();
    // consume code[j] and get
-   gen_register(code[0]);
+   for (int j = 0; code[j]; j++) {
+      gen_register(code[j]);
+   }
 }
 
 void gen(Node *node) {
@@ -1715,11 +1730,11 @@ void gen(Node *node) {
       puts("push rbp");
       puts("mov rbp, rsp");
       printf("sub rsp, %d\n", env->rsp_offset_max);
-      // char registers[6][4] = {"rdi", "rsi", "rdx", "rcx", "r8", "r9"};
+      // char arg_registers[6][4] = {"rdi", "rsi", "rdx", "rcx", "r8", "r9"};
       for (int j = 0; j < node->argc; j++) {
          gen_lval(node->args[j]);
          puts("pop rax");
-         printf("mov [rax], %s\n", registers[j]);
+         printf("mov [rax], %s\n", arg_registers[j]);
          puts("push rax");
       }
       for (int j = 0; node->code->data[j]; j++) {
@@ -1795,7 +1810,7 @@ void gen(Node *node) {
       }
       for (int j = node->argc - 1; j >= 0; j--) {
          // because of function call will break these registers
-         printf("pop %s\n", registers[j]);
+         printf("pop %s\n", arg_registers[j]);
       }
       // printf("sub rsp, %d\n", (int)(ceil(4 * node->argc / 16.)) * 16);
       // FIXME: alignment should be 64-bit
@@ -2404,12 +2419,12 @@ void define_enum(int assign_name) {
 }
 
 void toplevel() {
-   strcpy(registers[0], "rdi");
-   strcpy(registers[1], "rsi");
-   strcpy(registers[2], "rdx");
-   strcpy(registers[3], "rcx");
-   strcpy(registers[4], "r8");
-   strcpy(registers[5], "r9");
+   strcpy(arg_registers[0], "rdi");
+   strcpy(arg_registers[1], "rsi");
+   strcpy(arg_registers[2], "rdx");
+   strcpy(arg_registers[3], "rcx");
+   strcpy(arg_registers[4], "r8");
+   strcpy(arg_registers[5], "r9");
 
    int i = 0;
    // consume_node('{')

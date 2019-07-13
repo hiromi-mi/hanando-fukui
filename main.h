@@ -78,6 +78,7 @@ typedef enum {
    ND_LESS = '<',
    ND_GREATER = '>',
    ND_COMMA = ',',
+   ND_APOS = '!',
    ND_NUM = 256,
    ND_FLOAT,
    ND_IDENT,
