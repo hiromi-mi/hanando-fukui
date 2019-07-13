@@ -1231,6 +1231,7 @@ Register *gen_register_3(Node *node) {
          return gen_register_2(node->lhs);
 
       case ND_GLOBAL_IDENT:
+      case ND_STRING:
          temp_reg = use_temp_reg();
          printf("lea %s, %s\n", id2reg64(temp_reg->id), gvar_node2reg(node, node->name));
          return temp_reg;
@@ -1270,10 +1271,8 @@ Register *gen_register_2(Node *node) {
          return temp_reg;
 
       case ND_STRING:
-         temp_reg = malloc(sizeof(Register));
-         temp_reg->id = 0;
-         temp_reg->name = node->name;
-         temp_reg->kind = R_GVAR;
+         temp_reg = use_temp_reg();
+         printf("lea %s, qword ptr %s[rip]\n", size2reg(8, temp_reg), node->name);
          return temp_reg;
          // return with toplevel char ptr.
 
@@ -1324,6 +1323,11 @@ Register *gen_register_2(Node *node) {
                break;
          }
          return temp_reg;
+
+      case ND_COMMA:
+         lhs_reg = gen_register_2(node->lhs);
+         rhs_reg = gen_register_2(node->rhs);
+         return rhs_reg;
 
       case ND_ADD:
          lhs_reg = gen_register_2(node->lhs);
@@ -1550,15 +1554,12 @@ Register *gen_register_2(Node *node) {
          return temp_reg;
 
       case ND_FDEF:
-         prev_env = env;
-         env = node->env;
-
          printf(".type %s,@function\n", node->name);
          printf(".global %s\n", node->name); // to visible for ld
          printf("%s:\n", node->name);
          puts("push rbp");
          puts("mov rbp, rsp");
-         printf("sub rsp, %d\n", *env->rsp_offset_max);
+         printf("sub rsp, %d\n", *node->env->rsp_offset_max);
          for (j = 0; node->code->data[j]; j++) {
             // read inside functions.
             gen_register_2(node->code->data[j]);
@@ -1567,7 +1568,13 @@ Register *gen_register_2(Node *node) {
          puts("pop rbp");
          puts("ret");
 
-         env = prev_env;
+         return NO_REGISTER;
+
+      case ND_BLOCK:
+         for (j = 0; node->code->data[j]; j++) {
+            // read inside functions.
+            gen_register_2(node->code->data[j]);
+         }
          return NO_REGISTER;
 
       case ND_FUNC:
@@ -1707,7 +1714,7 @@ void gen(Node *node) {
       printf("%s:\n", node->name);
       puts("push rbp");
       puts("mov rbp, rsp");
-      printf("sub rsp, %d\n", *env->rsp_offset_max);
+      printf("sub rsp, %d\n", env->rsp_offset_max);
       // char registers[6][4] = {"rdi", "rsi", "rdx", "rcx", "r8", "r9"};
       for (int j = 0; j < node->argc; j++) {
          gen_lval(node->args[j]);

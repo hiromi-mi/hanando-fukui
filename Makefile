@@ -46,13 +46,13 @@ test2:
 	sh testfdef.sh 'int main() {int DE;DE=2;return DE;}' 2 -r
 
 test3:
-	sh test.sh '3==3;' 1
-	sh test.sh '3==4;' 0
-	sh test.sh '3!=3+8;' 1
-	sh test.sh "{3;}" 3
-	sh test.sh "!(2==2);" 0
-	sh test.sh "4==2;" 0
-	sh test.sh "!(4==2);" 1
+	sh testfdef.sh "int main(){return 3==3;}" 1 -r
+	sh testfdef.sh "int main(){return 3==4;}" 0 -r
+	sh testfdef.sh "int main(){return 3!=3+8;}" 1 -r
+	sh testfdef.sh "int main(){{return 3;}}" 3 -r
+	sh testfdef.sh "int main(){return !(2==2);}" 0 -r
+	sh testfdef.sh "int main(){return 4==2;}" 0 -r
+	sh testfdef.sh "int main(){return !(4==2);}" 1 -r
 
 test4:
 	sh testfunccall.sh 'int main(){return func(4);}' OK4 4 -r
@@ -172,37 +172,37 @@ test17:
 	sh testfdef.sh 'int main(){char a;return a=1;}' 1 -r
 
 test18:
-	sh test.sh "char a='a';a;" 97
-	sh test.sh "char a='\n';a;" 10
-	sh test.sh "(3,4);" 4
-	sh test.sh "puts(\"a\");0;" 0
-	sh test.sh "puts(\"Test OK\");0;" 0
-	sh test.sh "printf(\"Test OK\n\");0;" 0
+	sh testfdef.sh "int main(){char a='a';return a;}" 97 -r
+	sh testfdef.sh "int main(){char a='\n';return a;}" 10 -r
+	sh testfdef.sh 'int main(){return (3,4);}' 4 -r
+	sh testfdef.sh "int main(){puts(\"a\");return 0;}" 0 -r
+	sh testfdef.sh "int main(){puts(\"Test OK\");return 0;}" 0 -r
+	sh testfdef.sh "int main(){printf(\"Test OK\n\");return 0;}" 0 -r
 
 test22:
-	sh test.sh "1 <= 2;" 1
-	sh test.sh "1 <= 1;" 1
-	sh test.sh "4 <= 1;" 0
-	sh test.sh "1 >= 2;" 0
-	sh test.sh "1 >= 1;" 1
-	sh test.sh "4 >= 1;" 1
-	sh test.sh "-4 >= 1;" 0
-	sh test.sh "-4 <= 1;" 1
+	sh testfdef.sh "int main(){return 1 <= 2;}" 1 -r
+	sh testfdef.sh "int main(){return 1 <= 1;}" 1 -r
+	sh testfdef.sh "int main(){return 4 <= 1;}" 0 -r
+	sh testfdef.sh "int main(){return 1 >= 2;}" 0 -r
+	sh testfdef.sh "int main(){return 1 >= 1;}" 1 -r
+	sh testfdef.sh "int main(){return 4 >= 1;}" 1 -r
+	sh testfdef.sh "int main(){return -4 >= 1;}" 0 -r
+	sh testfdef.sh "int main(){return -4 <= 1;}" 1 -r
 
 test23:
-	sh test.sh "if (2 <= 1) 1; 7;" 7
-	sh test.sh "if (1 <= 2) 1;" 1
-	sh test.sh "NULL;" 0
+	sh testfdef.sh "int main(){if (2 <= 1) return 1; return 7;}" 7 -r
+	sh testfdef.sh "int main(){if (1 <= 2) return 1;}" 1 -r
+	sh testfdef.sh "int main(){return NULL;}" 0 -r
 
 test24:
-	sh test.sh "/* test */ 3;" 3
-	sh test.sh "-(-1);" 1
+	sh testfdef.sh "int main(){return /* test */ 3;}" 3 -r
+	sh testfdef.sh "int main(){return -(-1);}" 1 -r
 
 test25:
-	sh test.sh "((int*)3)+1;" 7
-	sh test.sh "((int**)3)+1;" 11
-	sh test.sh "((char*)3)+1;" 4
-	sh test.sh "((int)3)+1;" 4
+	sh testfdef.sh "int main(){return ((int*)3)+1;}" 7 -r
+	sh testfdef.sh "int main(){return ((int**)3)+1;}" 11 -r
+	sh testfdef.sh "int main(){return ((char*)3)+1;}" 4 -r
+	sh testfdef.sh "int main(){return ((int)3)+1;}" 4 -r
 
 test26:
 	sh test.sh "switch(3){case 4: return 5; }" 5
