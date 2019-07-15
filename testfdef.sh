@@ -3,6 +3,7 @@
 tmps=$(mktemp --tmpdir XXXXXX.s)
 tmprun=$(mktemp --tmpdir XXXXXX.run)
 # Not safe for exception trapping.
+echo $(printf "$1")
 ./hanando $3 "$(printf "$1")" > $tmps
 clang $tmps -g -o $tmprun
 $tmprun

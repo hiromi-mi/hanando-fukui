@@ -38,7 +38,7 @@ test1:
 
 test2:
 	sh testfdef.sh 'int main() {return 1*9;}' 9 -r
-	sh testfdef.sh 'int main() {return 18/9;}' 2
+	sh testfdef.sh 'int main() {return 18/9;}' 2 -r
 	sh testfdef.sh 'int main() {return (11-9)*34;}' 68 -r
 	sh testfdef.sh 'int main() {int a;a=3;return a;}' 3 -r
 	sh testfdef.sh 'int main() {int X;X=3;return X;}' 3 -r
@@ -74,12 +74,12 @@ test6:
 	sh testfdef.sh 'int main(){return 1>>1;}' 0 -r
 
 test7:
-	sh test.sh 'int a;a=1;a-=1;return a;' 0
-	sh test.sh 'int a;a=1;a+=1;return a;' 2
-	#sh test.sh 'int a;a=1;a<<=1;a;' 2
-	sh test.sh 'int a;a=3;a*=2;return a;' 6
-	sh test.sh 'int a;a=6;a/=2;return a;' 3
-	sh test.sh 'int a;a=3;a%=2;return a;' 1
+	sh testfdef.sh "int main(){ int a;a=1;a-=1;return a ;}" 0  -r
+	sh testfdef.sh "int main(){ int a;a=1;a+=1;return a ;}" 2 -r
+	#sh testfdef.sh "int main(){ int a;a=1;a<<=1;a ;}" 2 -r
+	sh testfdef.sh "int main(){ int a;a=3;a*=2;return a ;}" 6 -r
+	sh testfdef.sh "int main(){ int a;a=6;a/=2;return a ;}" 3 -r
+	sh testfdef.sh "int main(){ int a;a=3;a%%=2;return a ;}" 1 -r
 
 test8:
 	sh testfdef.sh 'int main(){int a;a=1;++a;return a;}' 2 -r
@@ -110,14 +110,14 @@ test10:
 	sh test.sh "int a=0;do{a+=1;}while(a<0); return a;" 1
 
 test11:
-	sh testfdef.sh "int main(){func()+2;} int func(){4;}" 6
-	sh testfdef.sh "int main(){func(1,2,3,4,5);} int func(int a,int b,int c,int d, int e){a+b+c+d+e;}" 15
-	sh testfdef.sh "int main(){func(1,2,3,4,5,6);} int func(int a,int b,int c,int d, int e, int f){a+b+c+d+e+f;}" 21
-	sh testfdef.sh "int main(){func()+2;} int func(){return 4;}" 6
+	sh testfdef.sh "int main(){return func()+2;} int func(){return 4;}" 6 -r
+	sh testfdef.sh "int main(){return func(1,2,3,4,5);} int func(int a,int b,int c,int d, int e){return a+b+c+d+e;}" 15 -r
+	sh testfdef.sh "int main(){return func(1,2,3,4,5,6);} int func(int a,int b,int c,int d, int e, int f){return a+b+c+d+e+f;}" 21 -r
+	sh testfdef.sh "int main(){return func()+2;} int func(){return 4;}" 6 -r
 
 test19:
-	sh testfdef.sh "int main(){func(8)+2;} int func(int a){return a-4;}" 6 -r
-	sh testfdef.sh "int main(){func(6+2)+2;} int func(int a){return a-4;}" 6 -r
+	sh testfdef.sh "int main(){return func(8)+2;} int func(int a){return a-4;}" 6 -r
+	sh testfdef.sh "int main(){return func(6+2)+2;} int func(int a){return a-4;}" 6 -r
 	sh testfdef.sh "int main(){func(5);} int func(int a){ if (a==1){1;} 2;}" 2
 
 test21:
@@ -130,12 +130,12 @@ test12:
 	sh test.sh "int* y;int x;x=3;y=&x;*y;" 3
 
 test13:
-	sh test.sh "int x[10];1;" 1
-	sh test.sh "int x[10];*x=3;*x;" 3
-	sh test.sh "int x[10];*(x+1)=3;*x=2;*x;" 2
-	sh test.sh "int x[10];x[1]=3;x[1];" 3
-	sh test.sh "int x[10];x[0]=2;x[1]=3;x[1];" 3
-	sh test.sh "int x[10];x[0]=2;x[1]=3;x[0];" 2
+	sh testfdef.sh "int main(){ int x[10];return 1  ;}" 1 -r
+	sh testfdef.sh "int main(){ int x[10];*x=3; return *x ;}" 3 -r
+	sh testfdef.sh "int main(){ int x[10];*(x+1)=3;*x=2;return *x;}" 2 -r
+	sh testfdef.sh "int main(){ int x[10];x[1]=3;x[1]  return x[1] ;}" 3 -r
+	sh testfdef.sh "int main(){ int x[10];x[0]=2;x[1]=3;return x[1] ;}" 3 -r
+	sh testfdef.sh "int main(){ int x[10];x[0]=2;x[1]=3;return x[0] ;}" 2 -r
 
 test14:
 	sh testfdef.sh "int a;int main(){a=1;return a;}" 1 -r
@@ -223,8 +223,8 @@ test28:
 	sh testfdef.sh "typedef enum {TY_INT, TY_CHAR} TypeConst; int main(){TY_INT;}" 0
 
 test29:
-	sh testfdef.sh "int func(char* a){ puts(a); return 1; }int main(){func(\"aaa\");}" 1
-	sh test.sh "char a[3]; a[0]='a'; a[1]='b';a[2]='\0';puts(a);printf(\"%c%c\", *a, *(a+1));" 2
+	sh testfdef.sh "int func(char* a){ puts(a); return 1; }int main(){func(\"aaa\");}" 1 -r
+	sh testfdef.sh "int main(){char a[3]; a[0]='a'; a[1]='b';a[2]='\\\0';puts(a);printf(\"%%c%%c\", *a, *(a+1));return 0;}" 2 -r
 	sh test.sh "int a[3]; a[0]=8; a[1]=2;a[2]=4;puts(a);printf(\"%d%d\", *a, *(a+1));" 2
 	sh test.sh "char a[12]; a[0]='a'; a[1]='c';a[2]='d';a[3]='g';a[4]='h';a[5]='f';a[6]='k';a[7]='p';a[8]='l';a[9]='\0';puts(a);strcmp(a, \"acdghfkpl\");" 0
 
