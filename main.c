@@ -190,6 +190,22 @@ Node *new_char_node(long num_val) {
    return node;
 }
 
+Node *new_num_node_from_token(Token* token) {
+   Node *node = malloc(sizeof(Node));
+   node->ty = ND_NUM;
+   node->num_val = token->num_val;
+   switch (token->type_size) {
+      case 1:
+         node->type = find_typed_db("char", typedb);
+      case 4:
+         node->type = find_typed_db("int", typedb);
+      default:
+         // including case 8:
+         node->type = find_typed_db("long", typedb);
+   }
+   return node;
+}
+
 Node *new_num_node(long num_val) {
    Node *node = malloc(sizeof(Node));
    node->ty = ND_NUM;
@@ -458,6 +474,7 @@ Vector *tokenize(char *p) {
       }
       if (*p == '\'') {
          Token *token = new_token(TK_NUM, p);
+         token->type_size = 1; // to treat 'a' as char
          if (*(p + 1) != '\\') {
             token->num_val = *(p + 1);
          } else {
@@ -578,6 +595,7 @@ Vector *tokenize(char *p) {
       if (isdigit(*p)) {
          Token *token = new_token(TK_NUM, p);
          token->num_val = strtol(p, &p, 10);
+         token->type_size = 4; // to treat as int
 
          // if there are DOUBLE
          if (*p == '.') {
@@ -640,6 +658,7 @@ Vector *tokenize(char *p) {
          } else if (strcmp(token->input, "__LINE__") == 0) {
             token->ty = TK_NUM;
             token->num_val = pline;
+            token->type_size = 8;
          }
 
          vec_push(pre_tokens, token);
@@ -2448,7 +2467,7 @@ void define_enum(int assign_name) {
       char *itemname = expect_ident();
       Node *itemnode = NULL;
       if (consume_node('=')) {
-         itemnode = new_num_node(tokens->data[pos]->num_val);
+         itemnode = new_num_node_from_token(tokens->data[pos]);
          cnt = tokens->data[pos]->num_val;
          expect_node(TK_NUM);
       } else {
