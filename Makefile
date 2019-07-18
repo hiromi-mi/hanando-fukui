@@ -31,6 +31,10 @@ test:	test1 test2 test3 test4 \
    test28 test30 test29 test31
 	+ make -C samples/
 
+testreg: test1 test2 test3 test4 \
+   test5 test6 test7 test8 test9 \
+   test10 test11 test12 test13 test14 test19
+
 test1:
 	sh testfdef.sh 'int main() {return 1;}' 1 -r
 	sh testfdef.sh 'int main() {return 1+9;}' 10 -r
@@ -133,7 +137,7 @@ test13:
 	sh testfdef.sh "int main(){ int x[10];return 1  ;}" 1 -r
 	sh testfdef.sh "int main(){ int x[10];*x=3; return *x ;}" 3 -r
 	sh testfdef.sh "int main(){ int x[10];*(x+1)=3;*x=2;return *x;}" 2 -r
-	sh testfdef.sh "int main(){ int x[10];x[1]=3;x[1]  return x[1] ;}" 3 -r
+	sh testfdef.sh "int main(){ int x[10];x[1]=3; return x[1] ;}" 3 -r
 	sh testfdef.sh "int main(){ int x[10];x[0]=2;x[1]=3;return x[1] ;}" 3 -r
 	sh testfdef.sh "int main(){ int x[10];x[0]=2;x[1]=3;return x[0] ;}" 2 -r
 

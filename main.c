@@ -226,9 +226,10 @@ Node *new_addsub_node(NodeType ty, Node *lhs_node, Node *rhs_node) {
    Node *rhs = rhs_node;
    Node *node = NULL;
    if (lhs->type->ty == TY_PTR || lhs->type->ty == TY_ARRAY) {
-      rhs = new_node_with_cast('*', rhs, new_num_node(cnt_size(lhs->type->ptrof)));
+      // This should be becasuse of pointer types should be long
+      rhs = new_node_with_cast('*', rhs, new_long_num_node(cnt_size(lhs->type->ptrof)));
    } else if (rhs->type->ty == TY_PTR || rhs->type->ty == TY_ARRAY) {
-      lhs = new_node_with_cast('*', lhs, new_num_node(cnt_size(rhs->type->ptrof)));
+      lhs = new_node_with_cast('*', lhs, new_long_num_node(cnt_size(rhs->type->ptrof)));
    }
    node = new_node(ty, lhs, rhs);
    if (rhs->type->ty == TY_PTR || rhs->type->ty == TY_ARRAY) {
@@ -1085,7 +1086,8 @@ int type2size(Type *type) {
       case TY_CHAR:
          return 1;
       case TY_ARRAY:
-         return cnt_size(type->ptrof);
+         return 8;
+         //return cnt_size(type->ptrof);
       case TY_STRUCT:
          return cnt_size(type);
       default:
@@ -1302,11 +1304,15 @@ Register *gen_register_2(Node *node) {
          // return with toplevel char ptr.
 
       case ND_IDENT:
-         temp_reg = malloc(sizeof(Register));
-         temp_reg->id = node->lvar_offset;
-         temp_reg->kind = R_LVAR;
-         temp_reg->name = NULL;
-         return temp_reg;
+         if (node->type->ty == TY_ARRAY) {
+            return gen_register_3(node);
+         } else {
+            temp_reg = malloc(sizeof(Register));
+            temp_reg->id = node->lvar_offset;
+            temp_reg->kind = R_LVAR;
+            temp_reg->name = NULL;
+            return temp_reg;
+         }
 
       case ND_GLOBAL_IDENT:
          temp_reg = malloc(sizeof(Register));
@@ -1595,9 +1601,6 @@ Register *gen_register_2(Node *node) {
 
       case ND_DEREF:
          lhs_reg = gen_register_2(node->lhs);
-         if (node->lhs->type && node->lhs->type->ty == TY_ARRAY) {
-            return lhs_reg; // continuous array will be ignored.
-         }
 
          // this is because we cannot [[lhs_reg]] (double deref)
          secure_mutable(lhs_reg);
