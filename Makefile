@@ -34,8 +34,8 @@ test:	test1 test2 test3 test4 \
 testreg: test1 test2 test3 test4 \
    test5 test6 test7 test8 test9 \
    test10 test11 test12 test13 test14 test15\
-   test17 test18 test19 test20\
-   test22 test23 test24 test25\
+   test17 test18 test19 \
+   test22 test24 test25\
    test28
 
 test1:
@@ -220,8 +220,8 @@ test26:
 	sh test.sh '__LINE__;' 1
 
 test27:
-	sh testfdef.sh "typedef struct { int a;int c;} Type; int main(){Type b;b.a = 2;b.c=4;b.c;}" 4
-	sh testfdef.sh "typedef struct { int a;int c;} Type; int main(){Type b;b.a = 2;b.c=4;b.a;}" 2
+	sh testfdef.sh "typedef struct { int a;int c;} Type; int main(){Type b;b.a = 2;b.c=4;b.c;}" 4 -r
+	sh testfdef.sh "typedef struct { int a;int c;} Type; int main(){Type b;b.a = 2;b.c=4;b.a;}" 2 -r
 	sh testfdef.sh "typedef struct { int a;int c;} Type; int main(){Type b;Type* e; e=&b;e->a = 2;e->c=4;b.a;}" 2
 	sh testfdef.sh "typedef struct { int a;int c;int d;} Type; int main(){Type b;Type* e; e=&b;e->a = 2;e->c=4;b.d=5;e->d;}" 5
 
@@ -241,7 +241,8 @@ test30:
 	sh test.sh "char a;a='h';('a'<=a&&a<='z')||('0'<=a&&a<='9');" 1
 
 test31:
-	sh test.sh "(int)-1 == (long)(-1);" 1
+	sh testfdef.sh "int main(){return ((int)-1 == (long)(-1));}" 1 -r
+	sh testfdef.sh "int main(){return ((int)-1 == (long)(4));}" 0 -r
 
 clean:
 	$(RM) -f $(target) $(objects) main.s main2.s main3.s main2 main3

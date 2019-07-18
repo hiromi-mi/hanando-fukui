@@ -1974,10 +1974,6 @@ void gen(Node *node) {
 
    if (node->ty == ND_DEREF) {
       gen(node->lhs); // Compile as RVALUE
-      if (node->lhs->type&& node->lhs->type->ty == TY_ARRAY) {
-         return;
-         // continuous array will be ignored.
-      }
       puts("pop rax");
       printf("mov %s, [rax]\n", _rax(node));
       // when reading char, we should read just 1 byte
