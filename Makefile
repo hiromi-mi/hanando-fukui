@@ -35,8 +35,8 @@ testreg: test1 test2 test3 test4 \
    test5 test6 test7 test8 test9 \
    test10 test11 test12 test13 test14 test15\
    test17 test18 test19 \
-   test22 test24 test25\
-   test28 test29 \
+   test21 test22 test24 test25\
+   test27 test28 test29 \
    test31
 
 test1:
@@ -110,9 +110,9 @@ test9:
 	sh testfdef.sh 'int main(){return 2<(-1);}' 0 -r
 
 test10:
-	sh test.sh "{if(1){3;}}" 3
-	sh test.sh "{if(1){3;}else{4;}}" 3
-	sh test.sh "{if(0){3;}else{4;}}" 4
+	sh test.sh "{if(1){return 3;}}" 3 -r
+	sh test.sh "{if(1){return 3;}else{return 4;}}" 3 -r
+	sh test.sh "{if(0){return 3;}else{return 4;}}" 4 -r
 	sh test.sh "int a;a=0;while(a<3){a+=1;} return a;" 3
 	sh test.sh "int a;a=0;do{a+=1;}while(a<3); return a;" 3
 	sh test.sh "int a=0;do{a+=1;}while(a<0); return a;" 1
@@ -129,9 +129,9 @@ test19:
 	sh testfdef.sh "int main(){func(5);} int func(int a){ if (a==1){1;} 2;}" 2
 
 test21:
-	sh testfdef.sh "int main(){func(3);} int func(int a){if (a==1) {1;} else {func(a-1)*a;}}" 6
-	sh testfdef.sh "int main(){func(3,4);} int func(int a, int b){if (a==1) {1;} else {return func(a-1)*a+b-b;}}" 6
-	sh testfdef.sh "int func(int a, int b); int main(){func(3,4);} int func(int a, int b){if (a==1) {1;} else {return func(a-1)*a+b-b;}}" 6
+	sh testfdef.sh "int main(){return func(3);} int func(int a){if (a==1) {return 1;} else {return func(a-1)*a;}}" 6 -r
+	sh testfdef.sh "int main(){return func(3,4);} int func(int a, int b){if (a==1) {1;} else {return func(a-1)*a+b-b;}}" 6 -r
+	sh testfdef.sh "int func(int a, int b); int main(){return func(3,4);} int func(int a, int b){if (a==1) {return 1;} else {return func(a-1)*a+b-b;}}" 6 -r
  
 test12:
 	sh testfdef.sh "int main() {int x;int y;x=1;y=2;return x+y;}" 3 -r

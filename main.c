@@ -2196,9 +2196,6 @@ void gen(Node *node) {
    puts("push rax");
 }
 
-// TODO : removing this will cause error
-int expect(int a);
-
 Node *assign() {
    Node *node = node_mathexpr();
    if (consume_node('=')) {
