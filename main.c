@@ -1357,7 +1357,7 @@ Register *gen_register_2(Node *node, int unused_eval) {
             rhs_reg = gen_register_2(node->rhs, 0);
             //if (lhs_reg->kind == R_REGISTER) {
             printf("mov %s [%s], %s\n", node2specifier(node), id2reg64(lhs_reg->id),
-                   node2reg(node->rhs, rhs_reg));
+                   node2reg(node->lhs, rhs_reg));
             /*
             } else {
                temp_reg = retain_reg();
