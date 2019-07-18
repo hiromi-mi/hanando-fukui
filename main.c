@@ -1617,7 +1617,8 @@ Register *gen_register_2(Node *node) {
          printf("sub rsp, %d\n", *node->env->rsp_offset_max);
          for (int j = 0; j < node->argc; j++) {
             temp_reg = gen_register_2(node->args[j]);
-            printf("mov %s, %s\n",node2reg(node->args[j], temp_reg) ,arg_registers[j]);
+            // TODO : not to use eax, so on
+            printf("mov %s, %s\n",size2reg(8, temp_reg) ,arg_registers[j]);
             puts("push rax");
          }
          for (j = 0; node->code->data[j]; j++) {

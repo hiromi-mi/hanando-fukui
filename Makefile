@@ -126,8 +126,8 @@ test21:
 	sh testfdef.sh "int func(int a, int b); int main(){func(3,4);} int func(int a, int b){if (a==1) {1;} else {return func(a-1)*a+b-b;}}" 6
  
 test12:
-	sh test.sh "int x;int y;x=1;y=2;x+y;" 3
-	sh test.sh "int* y;int x;x=3;y=&x;*y;" 3
+	sh testfdef.sh "int main() {int x;int y;x=1;y=2;return x+y;}" 3 -r
+	sh testfdef.sh "int main() {int* y;int x;x=3;y=&x;return *y;}" 3 -r
 
 test13:
 	sh testfdef.sh "int main(){ int x[10];return 1  ;}" 1 -r
