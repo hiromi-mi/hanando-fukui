@@ -33,7 +33,10 @@ test:	test1 test2 test3 test4 \
 
 testreg: test1 test2 test3 test4 \
    test5 test6 test7 test8 test9 \
-   test10 test11 test12 test13 test14 test19
+   test10 test11 test12 test13 test14 test15\
+   test17 test18 test19 test20\
+   test22 test23 test24 test25\
+   test28
 
 test1:
 	sh testfdef.sh 'int main() {return 1;}' 1 -r
@@ -148,10 +151,10 @@ test14:
 	sh testfdef.sh "int a=2;int main(){a=3;return a;}" 3 -r
 
 test15:
-	sh test.sh "char a;a=1;" 1
-	sh test.sh "sizeof 3;" 4
-	sh test.sh "sizeof(int);" 4
-	sh test.sh "int a=1;a;" 1
+	sh testfdef.sh "int main(){char a;return a=1;}" 1 -r
+	sh testfdef.sh "int main(){return sizeof 3;}" 4 -r
+	sh testfdef.sh "int main(){return sizeof(int);}" 4 -r
+	sh testfdef.sh "int main(){int a=1;return a;}" 1 -r
 
 test16:
 	sh test.sh "int i;int j=0;for(i=1;i<5;++i) { j+=i;} j;" 10
@@ -223,14 +226,14 @@ test27:
 	sh testfdef.sh "typedef struct { int a;int c;int d;} Type; int main(){Type b;Type* e; e=&b;e->a = 2;e->c=4;b.d=5;e->d;}" 5
 
 test28:
-	sh testfdef.sh "typedef enum {TY_INT, TY_CHAR} TypeConst; int main(){TY_CHAR;}" 1
-	sh testfdef.sh "typedef enum {TY_INT, TY_CHAR} TypeConst; int main(){TY_INT;}" 0
+	sh testfdef.sh "typedef enum {TY_INT, TY_CHAR} TypeConst; int main(){return TY_CHAR;}" 1 -r
+	sh testfdef.sh "typedef enum {TY_INT, TY_CHAR} TypeConst; int main(){return TY_INT;}" 0 -r
 
 test29:
 	sh testfdef.sh "int func(char* a){ puts(a); return 1; }int main(){func(\"aaa\");}" 1 -r
 	sh testfdef.sh "int main(){char a[3]; a[0]='a'; a[1]='b';a[2]='\\\0';puts(a);printf(\"%%c%%c\", *a, *(a+1));return 0;}" 2 -r
-	sh test.sh "int a[3]; a[0]=8; a[1]=2;a[2]=4;puts(a);printf(\"%d%d\", *a, *(a+1));" 2
-	sh test.sh "char a[12]; a[0]='a'; a[1]='c';a[2]='d';a[3]='g';a[4]='h';a[5]='f';a[6]='k';a[7]='p';a[8]='l';a[9]='\0';puts(a);strcmp(a, \"acdghfkpl\");" 0
+	sh test.sh "int a[3]; a[0]=8; a[1]=2;a[2]=4;puts(a);return printf(\"%d%d\", *a, *(a+1));" 2 -r
+	sh test.sh "char a[12]; a[0]='a'; a[1]='c';a[2]='d';a[3]='g';a[4]='h';a[5]='f';a[6]='k';a[7]='p';a[8]='l';a[9]='\0';puts(a);return strcmp(a, \"acdghfkpl\");" 0 -r
 
 test30:
 	sh test.sh "char a;a='h';('a'<=a&&a<='z');" 1
