@@ -1285,6 +1285,11 @@ Register *gen_register_3(Node *node) {
          printf("lea %s, %s\n", id2reg64(temp_reg->id), gvar_node2reg(node, node->name));
          return temp_reg;
 
+      case ND_DOT:
+         lhs_reg = gen_register_3(node->lhs);
+         printf("add %s, %d\n", size2reg(8, lhs_reg), node->type->offset);
+         return lhs_reg;
+
       default:
          error("Error: NOT lvalue");
          return NO_REGISTER;
@@ -1341,6 +1346,11 @@ Register *gen_register_2(Node *node, int unused_eval) {
          temp_reg->id = 0;
          temp_reg->kind = R_GVAR;
          temp_reg->name = node->name;
+         return temp_reg;
+
+      case ND_DOT:
+         temp_reg = gen_register_3(node);
+         printf("mov %s, [%s]\n", node2reg(node, temp_reg), id2reg64(temp_reg->id));
          return temp_reg;
 
       case ND_EQUAL:
@@ -1694,6 +1704,23 @@ Register *gen_register_2(Node *node, int unused_eval) {
 
       case ND_GOTO:
          printf("jmp %s\n", node->name);
+         return NO_REGISTER;
+
+      case ND_IF:
+         temp_reg = gen_register_2(node->args[0], 0);
+         printf("cmp %s, 0\n", node2reg(node->args[0], temp_reg));
+         int cur_if_cnt = if_cnt++;
+         printf("je .Lendif%d\n", cur_if_cnt);
+         gen_register_2(node->lhs, 1);
+         if (node->rhs) {
+            printf("jmp .Lelseend%d\n", cur_if_cnt);
+         }
+         printf(".Lendif%d:\n", cur_if_cnt);
+         if (node->rhs) {
+            // There are else
+            gen_register_2(node->rhs, 1);
+            printf(".Lelseend%d:\n", cur_if_cnt);
+         }
          return NO_REGISTER;
 
       case ND_BREAK:

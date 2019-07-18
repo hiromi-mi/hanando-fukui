@@ -221,10 +221,10 @@ test26:
 	sh test.sh '__LINE__;' 1
 
 test27:
-	sh testfdef.sh "typedef struct { int a;int c;} Type; int main(){Type b;b.a = 2;b.c=4;b.c;}" 4 -r
-	sh testfdef.sh "typedef struct { int a;int c;} Type; int main(){Type b;b.a = 2;b.c=4;b.a;}" 2 -r
-	sh testfdef.sh "typedef struct { int a;int c;} Type; int main(){Type b;Type* e; e=&b;e->a = 2;e->c=4;b.a;}" 2
-	sh testfdef.sh "typedef struct { int a;int c;int d;} Type; int main(){Type b;Type* e; e=&b;e->a = 2;e->c=4;b.d=5;e->d;}" 5
+	sh testfdef.sh "typedef struct { int a;int c;} Type; int main(){Type b;b.a = 2;b.c=4;return b.c;}" 4 -r
+	sh testfdef.sh "typedef struct { int a;int c;} Type; int main(){Type b;b.a = 2;b.c=4;return b.a;}" 2 -r
+	sh testfdef.sh "typedef struct { int a;int c;} Type; int main(){Type b;Type* e; e=&b;e->a = 2;e->c=4;return b.a;}" 2
+	sh testfdef.sh "typedef struct { int a;int c;int d;} Type; int main(){Type b;Type* e; e=&b;e->a = 2;e->c=4;b.d=5;return e->d;}" 5
 
 test28:
 	sh testfdef.sh "typedef enum {TY_INT, TY_CHAR} TypeConst; int main(){return TY_CHAR;}" 1 -r

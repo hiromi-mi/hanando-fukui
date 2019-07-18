@@ -75,6 +75,7 @@ typedef enum {
    ND_XOR = '^',
    ND_OR = '|',
    ND_AND = '&',
+   ND_DOT = '.',
    ND_LESS = '<',
    ND_GREATER = '>',
    ND_COMMA = ',',
