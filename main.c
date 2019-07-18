@@ -176,7 +176,7 @@ Node *new_node_with_cast(NodeType ty, Node* lhs, Node* rhs) {
 }
 
 Node *new_assign_node(Node* lhs, Node* rhs) {
-   if (type2size(lhs->type) > type2size(rhs->type)) {
+   if (type2size(lhs->type) != type2size(rhs->type)) {
       rhs = new_node(ND_CAST, rhs, NULL);
       rhs->type = lhs->type;
    }
@@ -197,13 +197,15 @@ Node *new_num_node_from_token(Token* token) {
    switch (token->type_size) {
       case 1:
          node->type = find_typed_db("char", typedb);
+         return node;
       case 4:
          node->type = find_typed_db("int", typedb);
+         return node;
       default:
          // including case 8:
          node->type = find_typed_db("long", typedb);
+         return node;
    }
-   return node;
 }
 
 Node *new_num_node(long num_val) {
@@ -1285,6 +1287,7 @@ Register *gen_register_3(Node *node) {
 
       default:
          error("Error: NOT lvalue");
+         return NO_REGISTER;
    }
 }
 
