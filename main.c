@@ -856,7 +856,7 @@ Node *node_mul() {
    Node *node = node_cast();
    while (1) {
       if (consume_node('*')) {
-         node = new_node('*', node, node_cast());
+         node = new_node_with_cast('*', node, node_cast());
       } else if (consume_node('/')) {
          node = new_node('/', node, node_cast());
       } else if (consume_node('%')) {
@@ -1384,16 +1384,15 @@ Register *gen_register_2(Node *node, int unused_eval) {
          } else {
             lhs_reg = gen_register_3(node->lhs);
             rhs_reg = gen_register_2(node->rhs, 0);
-            //if (lhs_reg->kind == R_REGISTER) {
+            // TODO
+            //if (rhs_reg->kind == R_REGISTER) {
             printf("mov %s [%s], %s\n", node2specifier(node), id2reg64(lhs_reg->id),
                    node2reg(node->lhs, rhs_reg));
-            /*
-            } else {
-               temp_reg = retain_reg();
-               printf("mov %s, %s\n", size2reg(8, temp_reg), size2reg(8, lhs_reg));
-               printf("mov [%s], %s\n", size2reg(8, temp_reg), node2reg(node->rhs, rhs_reg));
-            }
-            */
+            //} else {
+               //temp_reg = retain_reg();
+               //printf("mov %s, %s\n", size2reg(8, temp_reg), size2reg(8, lhs_reg));
+               //printf("mov [%s], %s\n", size2reg(8, temp_reg), node2reg(node->rhs, rhs_reg));
+            //}
             release_reg(lhs_reg);
             if (unused_eval) {
                release_reg(rhs_reg);
@@ -1836,6 +1835,10 @@ Register *gen_register_2(Node *node, int unused_eval) {
                snprintf(input, 255, ".L%dC%d", cur_if_cnt, j);
                curnode->name = input; // assign unique ID
 
+               if (type2size(node->lhs->type) != type2size(curnode->lhs->type)) {
+                  curnode->lhs = new_node(ND_CAST, curnode->lhs, NULL);
+                  curnode->lhs->type = node->lhs->type;
+               }
                temp_reg = gen_register_2(curnode->lhs, 0);
                gen(curnode->lhs);
                puts("pop rax");
