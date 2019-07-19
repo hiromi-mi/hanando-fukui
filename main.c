@@ -245,9 +245,11 @@ Node *new_addsub_node(NodeType ty, Node *lhs_node, Node *rhs_node) {
    Node *node = NULL;
    if (lhs->type->ty == TY_PTR || lhs->type->ty == TY_ARRAY) {
       // This should be becasuse of pointer types should be long
-      rhs = new_node_with_cast('*', rhs, new_long_num_node(cnt_size(lhs->type->ptrof)));
+      rhs = new_node(ND_MULTIPLY_IMMUTABLE_VALUE, rhs, NULL);
+      rhs->num_val = cnt_size(lhs->type->ptrof);
    } else if (rhs->type->ty == TY_PTR || rhs->type->ty == TY_ARRAY) {
-      lhs = new_node_with_cast('*', lhs, new_long_num_node(cnt_size(rhs->type->ptrof)));
+      lhs = new_node(ND_MULTIPLY_IMMUTABLE_VALUE, lhs, NULL);
+      lhs->num_val = cnt_size(rhs->type->ptrof);
    }
    node = new_node(ty, lhs, rhs);
    if (rhs->type->ty == TY_PTR || rhs->type->ty == TY_ARRAY) {
@@ -1447,6 +1449,13 @@ Register *gen_register_2(Node *node, int unused_eval) {
          } else {
             return lhs_reg;
          }
+
+      case ND_MULTIPLY_IMMUTABLE_VALUE:
+         // after optimizaion, this will be deleted.
+         lhs_reg = gen_register_2(node->lhs, 0);
+         secure_mutable(lhs_reg);
+         printf("imul %s, %ld\n", node2reg(node, lhs_reg), node->num_val);
+         return lhs_reg;
 
       case ND_MUL:
          lhs_reg = gen_register_2(node->lhs, 0);

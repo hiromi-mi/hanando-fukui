@@ -81,6 +81,7 @@ typedef enum {
    ND_COMMA = ',',
    ND_APOS = '!',
    ND_NUM = 256,
+   ND_MULTIPLY_IMMUTABLE_VALUE,
    ND_FLOAT,
    ND_IDENT,
    ND_GLOBAL_IDENT,
