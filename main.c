@@ -1748,6 +1748,7 @@ Register *gen_register_2(Node *node, int unused_eval) {
       case ND_IF:
          temp_reg = gen_register_2(node->args[0], 0);
          printf("cmp %s, 0\n", node2reg(node->args[0], temp_reg));
+         release_reg(temp_reg);
          cur_if_cnt = if_cnt++;
          printf("je .Lendif%d\n", cur_if_cnt);
          gen_register_2(node->lhs, 1);
@@ -1784,6 +1785,7 @@ Register *gen_register_2(Node *node, int unused_eval) {
                temp_reg = gen_register_2(node->args[1], 0);
 
                printf("cmp %s, 0\n", node2reg(node->args[1], temp_reg));
+               release_reg(temp_reg);
                printf("jne .Lbeginwork%d\n", cur_if_cnt);
                printf(".Lend%d:\n", cur_if_cnt);
                break;
@@ -1792,6 +1794,7 @@ Register *gen_register_2(Node *node, int unused_eval) {
                printf(".Lbegin%d:\n", cur_if_cnt);
                lhs_reg = gen_register_2(node->lhs, 0);
                printf("cmp %s, 0\n", node2reg(node->lhs, lhs_reg));
+               release_reg(lhs_reg);
                printf("je .Lend%d\n", cur_if_cnt);
                gen_register_2(node->rhs, 1);
                printf("jmp .Lbegin%d\n", cur_if_cnt);
@@ -1803,6 +1806,7 @@ Register *gen_register_2(Node *node, int unused_eval) {
                gen_register_2(node->rhs, 1);
                lhs_reg = gen_register_2(node->lhs, 0);
                printf("cmp %s, 0\n", node2reg(node->lhs, lhs_reg));
+               release_reg(lhs_reg);
                printf("jne .Lbegin%d\n", cur_if_cnt);
                printf(".Lend%d:\n", cur_if_cnt);
                break;
