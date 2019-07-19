@@ -1762,6 +1762,56 @@ Register *gen_register_2(Node *node, int unused_eval) {
          }
          return NO_REGISTER;
 
+      case ND_FOR:
+      case ND_WHILE:
+      case ND_DOWHILE:
+         cur_if_cnt = for_while_cnt++;
+         int prev_env_for_while = env_for_while;
+         int prev_env_for_while_switch = env_for_while_switch;
+         env_for_while = cur_if_cnt;
+         env_for_while_switch = cur_if_cnt;
+
+         // TODO dirty: compare node->ty twice
+         switch(node->ty) {
+            case ND_FOR:
+               gen_register_2(node->args[0], 1);
+               printf("jmp .Lcondition%d\n", cur_if_cnt);
+               printf(".Lbeginwork%d:\n", cur_if_cnt);
+               gen_register_2(node->rhs, 1);
+               printf(".Lbegin%d:\n", cur_if_cnt);
+               gen_register_2(node->args[2], 1);
+               printf(".Lcondition%d:\n", cur_if_cnt);
+               temp_reg = gen_register_2(node->args[1], 0);
+
+               printf("cmp %s, 0\n", node2reg(node->args[1], temp_reg));
+               printf("jne .Lbeginwork%d\n", cur_if_cnt);
+               printf(".Lend%d:\n", cur_if_cnt);
+               break;
+
+            case ND_WHILE:
+               printf(".Lbegin%d:\n", cur_if_cnt);
+               lhs_reg = gen_register_2(node->lhs, 0);
+               printf("cmp %s, 0\n", node2reg(node->lhs, lhs_reg));
+               printf("je .Lend%d\n", cur_if_cnt);
+               gen_register_2(node->rhs, 1);
+               printf("jmp .Lbegin%d\n", cur_if_cnt);
+               printf(".Lend%d:\n", cur_if_cnt);
+               break;
+
+            case ND_DOWHILE:
+               printf(".Lbegin%d:\n", cur_if_cnt);
+               gen_register_2(node->rhs, 1);
+               lhs_reg = gen_register_2(node->lhs, 0);
+               printf("cmp %s, 0\n", node2reg(node->lhs, lhs_reg));
+               printf("jne .Lbegin%d\n", cur_if_cnt);
+               printf(".Lend%d:\n", cur_if_cnt);
+               break;
+         }
+
+         env_for_while = prev_env_for_while;
+         env_for_while_switch = prev_env_for_while_switch;
+         return NO_REGISTER;
+
       case ND_BREAK:
          printf("jmp .Lend%d #break\n", env_for_while_switch);
          return NO_REGISTER;

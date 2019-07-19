@@ -34,7 +34,7 @@ test:	test1 test2 test3 test4 \
 testreg: test1 test2 test3 test4 \
    test5 test6 test7 test8 test9 \
    test10 test11 test12 test13 test14 test15\
-   test17 test18 test19 test20\
+   test16 test17 test18 test19 test20\
    test21 test22 test24 test25\
    test27 test28 test29 \
    test31
@@ -113,9 +113,9 @@ test10:
 	sh test.sh "{if(1){return 3;}}" 3 -r
 	sh test.sh "{if(1){return 3;}else{return 4;}}" 3 -r
 	sh test.sh "{if(0){return 3;}else{return 4;}}" 4 -r
-	sh test.sh "int a;a=0;while(a<3){a+=1;} return a;" 3
-	sh test.sh "int a;a=0;do{a+=1;}while(a<3); return a;" 3
-	sh test.sh "int a=0;do{a+=1;}while(a<0); return a;" 1
+	sh test.sh "int a;a=0;while(a<3){a+=1;} return a;" 3 -r
+	sh test.sh "int a;a=0;do{a+=1;}while(a<3); return a;" 3 -r
+	sh test.sh "int a=0;do{a+=1;}while(a<0); return a;" 1 -r
 
 test11:
 	sh testfdef.sh "int main(){return func()+2;} int func(){return 4;}" 6 -r
@@ -158,12 +158,12 @@ test15:
 	sh testfdef.sh "int main(){int a=1;return a;}" 1 -r
 
 test16:
-	sh test.sh "int i;int j=0;for(i=1;i<5;++i) { j+=i;} j;" 10
-	sh test.sh "int i;int j=0;for(i=1;i<5;++i) { break;} i;" 1
-	sh test.sh "int i;int j=0;for(i=1;i<5;++i) { j+=2;continue;} j;" 8
-	sh test.sh "(1==2 || 2==3);" 0
-	sh test.sh "(1==1);" 1
-	sh test.sh "(1==2);" 0
+	sh testfdef.sh "int main(){int i;int j=0;for(i=1;i<5;++i) { j+=i;} return j;}" 10 -r
+	sh testfdef.sh "int main(){int i;int j=0;for(i=1;i<5;++i) { break;} return i;}" 1 -r
+	sh testfdef.sh "int main(){int i;int j=0;for(i=1;i<5;++i) { j+=2;continue;} return j;}" 8 -r
+	sh testfdef.sh "int main(){return (1==2 || 2==3);}" 0 -r
+	sh testfdef.sh "int main(){return (1==1);}" 1 -r
+	sh testfdef.sh "int main(){return (1==2);}" 0 -r
 
 test20:
 	sh testfdef.sh "int main(){return ((1==1) || (2==2));}" 1 -r
