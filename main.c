@@ -1307,6 +1307,7 @@ void extend_al_ifneeded(Node *node, Register *reg) {
 Register *gen_register_2(Node *node, int unused_eval) {
    Register *temp_reg, *lhs_reg, *rhs_reg;
    int j = 0;
+   int cur_if_cnt;
 
    if (!node) {
       return NO_REGISTER;
@@ -1656,7 +1657,7 @@ Register *gen_register_2(Node *node, int unused_eval) {
          puts("push rbp");
          puts("mov rbp, rsp");
          printf("sub rsp, %d\n", *node->env->rsp_offset_max);
-         for (int j = 0; j < node->argc; j++) {
+         for (j = 0; j < node->argc; j++) {
             temp_reg = gen_register_2(node->args[j], 0);
             // TODO : not to use eax, so on
             printf("mov %s, %s\n",size2reg(8, temp_reg) ,arg_registers[j]);
@@ -1706,10 +1707,48 @@ Register *gen_register_2(Node *node, int unused_eval) {
          printf("jmp %s\n", node->name);
          return NO_REGISTER;
 
+      case ND_LOR:
+         lhs_reg = gen_register_2(node->lhs, 0);
+         printf("cmp %s, 0\n", node2reg(node->lhs, lhs_reg));
+         release_reg(lhs_reg);
+         cur_if_cnt = if_cnt++;
+         printf("jne .Lorend%d\n", cur_if_cnt);
+         rhs_reg = gen_register_2(node->rhs, 0);
+         printf("cmp %s, 0\n", node2reg(node->rhs, rhs_reg));
+         release_reg(rhs_reg);
+         printf(".Lorend%d:\n", cur_if_cnt);
+         puts("setne al");
+         temp_reg = retain_reg();
+         if (type2size(node->type) == 1) {
+            printf("mov %s, al\n", node2reg(node, temp_reg));
+         } else {
+            printf("movzx %s, al\n", node2reg(node, temp_reg));
+         }
+         return temp_reg;
+
+      case ND_LAND:
+         lhs_reg = gen_register_2(node->lhs, 0);
+         printf("cmp %s, 0\n", node2reg(node->lhs, lhs_reg));
+         release_reg(lhs_reg);
+         cur_if_cnt = if_cnt++;
+         printf("je .Lorend%d\n", cur_if_cnt);
+         rhs_reg = gen_register_2(node->rhs, 0);
+         printf("cmp %s, 0\n", node2reg(node->rhs, rhs_reg));
+         release_reg(rhs_reg);
+         printf(".Lorend%d:\n", cur_if_cnt);
+         puts("setne al");
+         temp_reg = retain_reg();
+         if (type2size(node->type) == 1) {
+            printf("mov %s, al\n", node2reg(node, temp_reg));
+         } else {
+            printf("movzx %s, al\n", node2reg(node, temp_reg));
+         }
+         return temp_reg;
+
       case ND_IF:
          temp_reg = gen_register_2(node->args[0], 0);
          printf("cmp %s, 0\n", node2reg(node->args[0], temp_reg));
-         int cur_if_cnt = if_cnt++;
+         cur_if_cnt = if_cnt++;
          printf("je .Lendif%d\n", cur_if_cnt);
          gen_register_2(node->lhs, 1);
          if (node->rhs) {
