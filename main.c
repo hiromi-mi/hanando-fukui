@@ -1246,6 +1246,12 @@ void release_reg(Register *reg) {
    free(reg);
 }
 
+void release_all_reg() {
+   for (int j = 0; j < 6; j++) {
+      reg_table[j] = 0;
+   }
+}
+
 void secure_mutable(Register *reg) {
    // to enable to change
    if (reg->kind != R_REGISTER) {
@@ -1258,7 +1264,8 @@ void secure_mutable(Register *reg) {
 }
 
 Register *gen_register_3(Node *node) {
-   Register *temp_reg, *lhs_reg;
+   Register *temp_reg;
+   Register *lhs_reg;
    // Treat as lvalue.
    if (!node) {
       return NO_REGISTER;
@@ -1305,7 +1312,9 @@ void extend_al_ifneeded(Node *node, Register *reg) {
 }
 
 Register *gen_register_2(Node *node, int unused_eval) {
-   Register *temp_reg, *lhs_reg, *rhs_reg;
+   Register *temp_reg;
+   Register *lhs_reg;
+   Register *rhs_reg;
    int j = 0;
    int cur_if_cnt;
 
@@ -1763,12 +1772,56 @@ Register *gen_register_2(Node *node, int unused_eval) {
          }
          return NO_REGISTER;
 
+      case ND_SWITCH:
+         // TODO: quite dirty
+         cur_if_cnt = for_while_cnt++;
+         int prev_env_for_while_switch = env_for_while_switch;
+         env_for_while_switch = cur_if_cnt;
+
+         lhs_reg = gen_register_2(node->lhs, 0);
+         // find CASE Labels and lookup into args[0]->code->data
+         for (j = 0; node->rhs->code->data[j]; j++) {
+            Node *curnode = (Node *)node->rhs->code->data[j];
+            if (curnode->ty == ND_CASE) {
+               char *input = malloc(sizeof(char) * 256);
+               snprintf(input, 255, ".L%dC%d", cur_if_cnt, j);
+               curnode->name = input; // assign unique ID
+
+               temp_reg = gen_register_2(curnode->lhs, 0);
+               gen(curnode->lhs);
+               puts("pop rax");
+               printf("cmp %s, %s\n", node2reg(node->lhs, lhs_reg), node2reg(curnode->lhs, temp_reg));
+               printf("je %s\n", input);
+            }
+            if (curnode->ty == ND_DEFAULT) {
+               char *input = malloc(sizeof(char) * 256);
+               snprintf(input, 255, ".L%dC%d", cur_if_cnt, j);
+               curnode->name = input;
+               printf("jmp %s\n", input);
+            }
+         }
+         // content
+         gen_register_2(node->rhs, 1);
+         printf(".Lend%d:\n", cur_if_cnt);
+         env_for_while_switch = prev_env_for_while_switch;
+         return NO_REGISTER;
+
+      case ND_CASE:
+      case ND_DEFAULT:
+         // just an def. of goto
+         // saved with input
+         if (!node->name) {
+            error("Error: case statement without switch\n");
+         }
+         printf("%s:\n", node->name);
+         return NO_REGISTER;
+
       case ND_FOR:
       case ND_WHILE:
       case ND_DOWHILE:
          cur_if_cnt = for_while_cnt++;
          int prev_env_for_while = env_for_while;
-         int prev_env_for_while_switch = env_for_while_switch;
+         prev_env_for_while_switch = env_for_while_switch;
          env_for_while = cur_if_cnt;
          env_for_while_switch = cur_if_cnt;
 
@@ -1809,6 +1862,8 @@ Register *gen_register_2(Node *node, int unused_eval) {
                release_reg(lhs_reg);
                printf("jne .Lbegin%d\n", cur_if_cnt);
                printf(".Lend%d:\n", cur_if_cnt);
+               break;
+            default:
                break;
          }
 
@@ -1950,6 +2005,9 @@ void gen(Node *node) {
       puts("pop rbp");
       puts("ret");
       env = prev_env;
+
+      // Release All Registers.
+      release_all_reg();
       return;
    }
 

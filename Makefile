@@ -213,12 +213,12 @@ test25:
 	sh testfdef.sh "int main(){return ((int)3)+1;}" 4 -r
 
 test26:
-	sh test.sh "switch(3){case 4: return 5; }" 5
-	sh test.sh "switch(3){case 4: return 5; case 8: return 7; }" 5
-	sh test.sh "switch(3){case 4: return 5; case 8: return 7; default: return 10;}" 10
-	sh test.sh "-1;" 255
-	sh test.sh "+1;" 1
-	sh test.sh '__LINE__;' 1
+	sh testfdef.sh "int main(){switch(3){case 4: return 5; }}" 5 -r
+	sh testfdef.sh "int main(){switch(3){case 4: return 5; case 8: return 7; }}" 5 -r
+	sh testfdef.sh "int main(){switch(3){case 4: return 5; case 8: return 7; default: return 10;}}" 10 -r
+	sh testfdef.sh "int main(){return -1;}" 255 -r
+	sh testfdef.sh "int main(){return +1;}" 1 -r
+	sh testfdef.sh 'int main(){return __LINE__;}' 1 -r
 
 test27:
 	sh testfdef.sh "typedef struct { int a;int c;} Type; int main(){Type b;b.a = 2;b.c=4;return b.c;}" 4 -r
