@@ -1,13 +1,6 @@
 #CC = ../main
 CC = ../hanando
-test:
-	$(CC) -f 3.c > 3.s
-	gcc -S 4.c -masm=intel
-	gcc 3.s 4.s -o 3
-	./3
-	$(CC) -f 8.c > 8.s
-	gcc 8.s -o 8
-	./8
+test:	test3 test8
 	$(CC) -f 9.c > 9.s
 	gcc 9.s -o 9
 	./9
@@ -24,3 +17,15 @@ test:
 	$(CC) -f 14.c > 14.s
 	gcc 14.s -o 14
 	./14
+
+test3:
+	$(CC) -r -f 3.c > 3.s
+	gcc -S 4.c -masm=intel
+	gcc 3.s 4.s -o 3
+	./3
+test8:
+	$(CC) -r -f 8.c > 8.s
+	gcc 8.s -o 8
+	./8
+
+.PHONY:	test3 test8

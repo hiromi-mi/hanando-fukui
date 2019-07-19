@@ -5,7 +5,7 @@ FILE* fopen(char* name, char* type);
 #endif
 int main() {
    FILE* fp;
-   fp = fopen("main.c", "r");
+   fp = fopen("1.c", "r");
    fclose(fp);
    return 0;
 }

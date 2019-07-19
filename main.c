@@ -2899,8 +2899,18 @@ int main(int argc, char **argv) {
    test_map();
 
    tokens = new_vector();
-   if (strcmp(argv[1], "-f") == 0) {
-      preprocess(read_tokenize(argv[2]));
+   int is_from_file = 0;
+   int is_register = 0;
+   int i;
+   for (i=argc-2;i>=1;i--) {
+      if (strcmp(argv[i], "-f") == 0) {
+         is_from_file = 1;
+      } else if (strcmp(argv[i], "-r") == 0) {
+         is_register = 1;
+      }
+   }
+   if (is_from_file) {
+      preprocess(read_tokenize(argv[argc-1]));
    } else {
       preprocess(tokenize(argv[argc - 1]));
    }
@@ -2915,7 +2925,7 @@ int main(int argc, char **argv) {
    globalvar_gen();
 
    // TODO support ./hanando -r -f main.c
-   if (strcmp(argv[1], "-r") == 0) {
+   if (is_register) {
       gen_register_top();
    } else {
       for (int j = 0; code[j]; j++) {
