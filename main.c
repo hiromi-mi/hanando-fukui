@@ -152,7 +152,6 @@ Node *new_string_node(char *_id) {
    return _node;
 }
 
-
 Node *new_node(NodeType ty, Node *lhs, Node *rhs) {
    Node *node = malloc(sizeof(Node));
    node->ty = ty;
@@ -164,7 +163,8 @@ Node *new_node(NodeType ty, Node *lhs, Node *rhs) {
    return node;
 }
 
-Node *new_node_with_cast(NodeType ty, Node* lhs, Node* rhs) {
+Node *new_node_with_cast(NodeType ty, Node *lhs, Node *rhs) {
+   // TODO This has problem like: long + pointer -> pointer + pointer
    if (type2size(lhs->type) < type2size(rhs->type)) {
       lhs = new_node(ND_CAST, lhs, NULL);
       lhs->type = rhs->type;
@@ -175,7 +175,7 @@ Node *new_node_with_cast(NodeType ty, Node* lhs, Node* rhs) {
    return new_node(ty, lhs, rhs);
 }
 
-Node *new_assign_node(Node* lhs, Node* rhs) {
+Node *new_assign_node(Node *lhs, Node *rhs) {
    if (type2size(lhs->type) != type2size(rhs->type)) {
       rhs = new_node(ND_CAST, rhs, NULL);
       rhs->type = lhs->type;
@@ -190,7 +190,7 @@ Node *new_char_node(long num_val) {
    return node;
 }
 
-Node *new_num_node_from_token(Token* token) {
+Node *new_num_node_from_token(Token *token) {
    Node *node = malloc(sizeof(Node));
    node->ty = ND_NUM;
    node->num_val = token->num_val;
@@ -1110,7 +1110,7 @@ int type2size(Type *type) {
          return 1;
       case TY_ARRAY:
          return 8;
-         //return cnt_size(type->ptrof);
+         // return cnt_size(type->ptrof);
       case TY_STRUCT:
          return cnt_size(type);
       default:
@@ -1167,7 +1167,7 @@ void init_reg_table() {
    }
 }
 
-char *gvar_size2reg(int size, char* name) {
+char *gvar_size2reg(int size, char *name) {
    char *_str = malloc(sizeof(char) * 256);
    if (size == 1) {
       snprintf(_str, 255, "byte ptr %s[rip]", name);
@@ -1179,7 +1179,7 @@ char *gvar_size2reg(int size, char* name) {
    return _str;
 }
 
-char *node2specifier(Node* node) {
+char *node2specifier(Node *node) {
    int size;
    size = type2size(node->type);
    if (size == 1) {
@@ -1191,7 +1191,7 @@ char *node2specifier(Node* node) {
    }
 }
 
-char *gvar_node2reg(Node* node, char* name) {
+char *gvar_node2reg(Node *node, char *name) {
    return gvar_size2reg(type2size(node->type), name);
 }
 
@@ -1275,14 +1275,16 @@ Register *gen_register_3(Node *node) {
    switch (node->ty) {
       case ND_IDENT:
          temp_reg = retain_reg();
-         printf("lea %s, [rbp-%d]\n", id2reg64(temp_reg->id), node->lvar_offset);
+         printf("lea %s, [rbp-%d]\n", id2reg64(temp_reg->id),
+                node->lvar_offset);
          return temp_reg;
 
       case ND_DEREF:
          lhs_reg = gen_register_2(node->lhs, 0);
          if (lhs_reg->kind != R_REGISTER) {
             temp_reg = retain_reg();
-            printf("lea %s, %s\n", size2reg(8, temp_reg), node2reg(node->lhs, lhs_reg));
+            printf("lea %s, %s\n", size2reg(8, temp_reg),
+                   node2reg(node->lhs, lhs_reg));
             release_reg(lhs_reg);
             lhs_reg = temp_reg;
          }
@@ -1291,7 +1293,8 @@ Register *gen_register_3(Node *node) {
       case ND_GLOBAL_IDENT:
       case ND_STRING:
          temp_reg = retain_reg();
-         printf("lea %s, %s\n", id2reg64(temp_reg->id), gvar_node2reg(node, node->name));
+         printf("lea %s, %s\n", id2reg64(temp_reg->id),
+                gvar_node2reg(node, node->name));
          return temp_reg;
 
       case ND_DOT:
@@ -1326,26 +1329,21 @@ Register *gen_register_2(Node *node, int unused_eval) {
    switch (node->ty) {
       case ND_NUM:
          temp_reg = retain_reg();
-         switch (node->type->ty) {
-            case TY_CHAR:
-               printf("movxz %s, %ld\n", node2reg(node, temp_reg),
-                      node->num_val);
-               break;
-            default:
-               printf("mov %s, %ld\n", node2reg(node, temp_reg), node->num_val);
-         }
+         printf("mov %s, %ld\n", node2reg(node, temp_reg), node->num_val);
          return temp_reg;
 
       case ND_STRING:
          temp_reg = retain_reg();
-         printf("lea %s, qword ptr %s[rip]\n", size2reg(8, temp_reg), node->name);
+         printf("lea %s, qword ptr %s[rip]\n", size2reg(8, temp_reg),
+                node->name);
          return temp_reg;
          // return with toplevel char ptr.
 
       case ND_EXTERN_SYMBOL:
          // TODO should delete
          temp_reg = retain_reg();
-         printf("mov %s, qword ptr [rip + %s@GOTPCREL]\n", size2reg(8, temp_reg), node->name);
+         printf("mov %s, qword ptr [rip + %s@GOTPCREL]\n",
+                size2reg(8, temp_reg), node->name);
          return temp_reg;
 
       case ND_IDENT:
@@ -1368,7 +1366,8 @@ Register *gen_register_2(Node *node, int unused_eval) {
 
       case ND_DOT:
          temp_reg = gen_register_3(node);
-         printf("mov %s, [%s]\n", node2reg(node, temp_reg), id2reg64(temp_reg->id));
+         printf("mov %s, [%s]\n", node2reg(node, temp_reg),
+                id2reg64(temp_reg->id));
          return temp_reg;
 
       case ND_EQUAL:
@@ -1387,14 +1386,8 @@ Register *gen_register_2(Node *node, int unused_eval) {
             lhs_reg = gen_register_3(node->lhs);
             rhs_reg = gen_register_2(node->rhs, 0);
             // TODO
-            //if (rhs_reg->kind == R_REGISTER) {
-            printf("mov %s [%s], %s\n", node2specifier(node), id2reg64(lhs_reg->id),
-                   node2reg(node->lhs, rhs_reg));
-            //} else {
-               //temp_reg = retain_reg();
-               //printf("mov %s, %s\n", size2reg(8, temp_reg), size2reg(8, lhs_reg));
-               //printf("mov [%s], %s\n", size2reg(8, temp_reg), node2reg(node->rhs, rhs_reg));
-            //}
+            printf("mov %s [%s], %s\n", node2specifier(node),
+                   id2reg64(lhs_reg->id), node2reg(node->lhs, rhs_reg));
             release_reg(lhs_reg);
             if (unused_eval) {
                release_reg(rhs_reg);
@@ -1663,15 +1656,18 @@ Register *gen_register_2(Node *node, int unused_eval) {
          lhs_reg = gen_register_3(node->lhs);
          if (unused_eval) {
             secure_mutable(lhs_reg);
-            printf("add %s [%s], %ld\n", node2specifier(node), id2reg64(lhs_reg->id), node->num_val);
+            printf("add %s [%s], %ld\n", node2specifier(node),
+                   id2reg64(lhs_reg->id), node->num_val);
             release_reg(lhs_reg);
             return NO_REGISTER;
          } else {
             temp_reg = retain_reg();
             secure_mutable(lhs_reg);
 
-            printf("mov %s, [%s]\n", node2reg(node, temp_reg), id2reg64(lhs_reg->id));
-            printf("add %s [%s], %ld\n", node2specifier(node), id2reg64(lhs_reg->id), node->num_val);
+            printf("mov %s, [%s]\n", node2reg(node, temp_reg),
+                   id2reg64(lhs_reg->id));
+            printf("add %s [%s], %ld\n", node2specifier(node),
+                   id2reg64(lhs_reg->id), node->num_val);
             release_reg(lhs_reg);
             return temp_reg;
          }
@@ -1680,15 +1676,18 @@ Register *gen_register_2(Node *node, int unused_eval) {
          lhs_reg = gen_register_3(node->lhs);
          if (unused_eval) {
             secure_mutable(lhs_reg);
-            printf("add %s [%s], %ld\n", node2specifier(node), id2reg64(lhs_reg->id), node->num_val);
+            printf("add %s [%s], %ld\n", node2specifier(node),
+                   id2reg64(lhs_reg->id), node->num_val);
             release_reg(lhs_reg);
             return NO_REGISTER;
          } else {
             temp_reg = retain_reg();
             secure_mutable(lhs_reg);
 
-            printf("mov %s, [%s]\n", node2reg(node, temp_reg), id2reg64(lhs_reg->id));
-            printf("add %s [%s], %ld\n", node2specifier(node), id2reg64(lhs_reg->id), node->num_val);
+            printf("mov %s, [%s]\n", node2reg(node, temp_reg),
+                   id2reg64(lhs_reg->id));
+            printf("add %s [%s], %ld\n", node2specifier(node),
+                   id2reg64(lhs_reg->id), node->num_val);
             release_reg(lhs_reg);
             return temp_reg;
          }
@@ -1707,7 +1706,8 @@ Register *gen_register_2(Node *node, int unused_eval) {
 
          // this is because we cannot [[lhs_reg]] (double deref)
          secure_mutable(lhs_reg);
-         printf("mov %s, [%s]\n", node2reg(node, lhs_reg), size2reg(8, lhs_reg));
+         printf("mov %s, [%s]\n", node2reg(node, lhs_reg),
+                size2reg(8, lhs_reg));
          // when reading char, we should read just 1 byte
          if (node->type->ty == TY_CHAR) {
             printf("movzx rax, al\n");
@@ -1724,7 +1724,7 @@ Register *gen_register_2(Node *node, int unused_eval) {
          for (j = 0; j < node->argc; j++) {
             temp_reg = gen_register_2(node->args[j], 0);
             // TODO : not to use eax, so on
-            printf("mov %s, %s\n",size2reg(8, temp_reg) ,arg_registers[j]);
+            printf("mov %s, %s\n", size2reg(8, temp_reg), arg_registers[j]);
             puts("push rax");
          }
          for (j = 0; node->code->data[j]; j++) {
@@ -1844,14 +1844,16 @@ Register *gen_register_2(Node *node, int unused_eval) {
                snprintf(input, 255, ".L%dC%d", cur_if_cnt, j);
                curnode->name = input; // assign unique ID
 
-               if (type2size(node->lhs->type) != type2size(curnode->lhs->type)) {
+               if (type2size(node->lhs->type) !=
+                   type2size(curnode->lhs->type)) {
                   curnode->lhs = new_node(ND_CAST, curnode->lhs, NULL);
                   curnode->lhs->type = node->lhs->type;
                }
                temp_reg = gen_register_2(curnode->lhs, 0);
                gen(curnode->lhs);
                puts("pop rax");
-               printf("cmp %s, %s\n", node2reg(node->lhs, lhs_reg), node2reg(curnode->lhs, temp_reg));
+               printf("cmp %s, %s\n", node2reg(node->lhs, lhs_reg),
+                      node2reg(curnode->lhs, temp_reg));
                release_reg(temp_reg);
                printf("je %s\n", input);
             }
@@ -1889,7 +1891,7 @@ Register *gen_register_2(Node *node, int unused_eval) {
          env_for_while_switch = cur_if_cnt;
 
          // TODO dirty: compare node->ty twice
-         switch(node->ty) {
+         switch (node->ty) {
             case ND_FOR:
                gen_register_2(node->args[0], 1);
                printf("jmp .Lcondition%d\n", cur_if_cnt);
@@ -2744,7 +2746,7 @@ void toplevel() {
    funcdefs = new_map();
    consts = new_map();
    strs = new_vector();
-   //env = new_env(NULL);
+   // env = new_env(NULL);
    env = NULL;
 
    while (!consume_node(TK_EOF)) {
@@ -3074,7 +3076,7 @@ int main(int argc, char **argv) {
    int is_from_file = 0;
    int is_register = 0;
    int i;
-   for (i=argc-2;i>=1;i--) {
+   for (i = argc - 2; i >= 1; i--) {
       if (strcmp(argv[i], "-f") == 0) {
          is_from_file = 1;
       } else if (strcmp(argv[i], "-r") == 0) {
@@ -3082,7 +3084,7 @@ int main(int argc, char **argv) {
       }
    }
    if (is_from_file) {
-      preprocess(read_tokenize(argv[argc-1]));
+      preprocess(read_tokenize(argv[argc - 1]));
    } else {
       preprocess(tokenize(argv[argc - 1]));
    }

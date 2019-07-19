@@ -159,7 +159,7 @@ typedef struct Type {
 typedef struct Env {
    struct Env *env;
    Map *idents;
-   int* rsp_offset_max;
+   int *rsp_offset_max;
    int rsp_offset;
 } Env;
 
