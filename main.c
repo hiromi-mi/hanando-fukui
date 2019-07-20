@@ -267,23 +267,6 @@ Node *new_addsub_node(NodeType ty, Node *lhs_node, Node *rhs_node) {
    return node;
 }
 
-int cnt_size(Type *type) {
-   switch (type->ty) {
-      case TY_PTR:
-      case TY_INT:
-      case TY_CHAR:
-      case TY_LONG:
-         return type2size(type);
-      case TY_ARRAY:
-         return cnt_size(type->ptrof) * type->array_size;
-      case TY_STRUCT:
-         return type->offset;
-      default:
-         error("Error: on void type error.");
-         return 0;
-   }
-}
-
 void update_rsp_offset(int size) {
    env->rsp_offset += size;
    if (*env->rsp_offset_max < env->rsp_offset) {
@@ -1123,6 +1106,23 @@ int type2size(Type *type) {
          return cnt_size(type);
       default:
          error("Error: NOT a type");
+         return 0;
+   }
+}
+
+int cnt_size(Type *type) {
+   switch (type->ty) {
+      case TY_PTR:
+      case TY_INT:
+      case TY_CHAR:
+      case TY_LONG:
+         return type2size(type);
+      case TY_ARRAY:
+         return cnt_size(type->ptrof) * type->array_size;
+      case TY_STRUCT:
+         return type->offset;
+      default:
+         error("Error: on void type error.");
          return 0;
    }
 }
