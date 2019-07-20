@@ -247,9 +247,17 @@ Node *new_addsub_node(NodeType ty, Node *lhs_node, Node *rhs_node) {
       // This should be becasuse of pointer types should be long
       rhs = new_node(ND_MULTIPLY_IMMUTABLE_VALUE, rhs, NULL);
       rhs->num_val = cnt_size(lhs->type->ptrof);
+      rhs->type = lhs->type;
    } else if (rhs->type->ty == TY_PTR || rhs->type->ty == TY_ARRAY) {
       lhs = new_node(ND_MULTIPLY_IMMUTABLE_VALUE, lhs, NULL);
       lhs->num_val = cnt_size(rhs->type->ptrof);
+      lhs->type = rhs->type;
+   } else if (type2size(lhs->type) < type2size(rhs->type)) {
+      lhs = new_node(ND_CAST, lhs, NULL);
+      lhs->type = rhs->type;
+   } else if (type2size(lhs->type) > type2size(rhs->type)) {
+      rhs = new_node(ND_CAST, rhs, NULL);
+      rhs->type = lhs->type;
    }
    node = new_node(ty, lhs, rhs);
    if (rhs->type->ty == TY_PTR || rhs->type->ty == TY_ARRAY) {
@@ -1283,7 +1291,7 @@ Register *gen_register_3(Node *node) {
          lhs_reg = gen_register_2(node->lhs, 0);
          if (lhs_reg->kind != R_REGISTER) {
             temp_reg = retain_reg();
-            printf("lea %s, %s\n", size2reg(8, temp_reg),
+            printf("mov %s, %s\n", size2reg(8, temp_reg),
                    node2reg(node->lhs, lhs_reg));
             release_reg(lhs_reg);
             lhs_reg = temp_reg;
@@ -1397,21 +1405,29 @@ Register *gen_register_2(Node *node, int unused_eval) {
 
       case ND_CAST:
          temp_reg = gen_register_2(node->lhs, 0);
-         switch (node->lhs->type->ty) {
-            case TY_CHAR:
-               // TODO treat as unsigned char.
-               // for signed char, use movsx instead of.
-               printf("movzx %s, %s\n", node2reg(node, temp_reg),
-                      id2reg8(temp_reg->id));
-               break;
-            default:
-               break;
+         secure_mutable(temp_reg);
+         if (type2size(node->type) > type2size(node->lhs->type)) {
+            switch (type2size(node->lhs->type)) {
+               case 1:
+                  // TODO treat as unsigned char.
+                  // for signed char, use movsx instead of.
+                  printf("movzx %s, %s\n", node2reg(node, temp_reg),
+                         id2reg8(temp_reg->id));
+                  break;
+               /*case 4:
+                  printf("movsxd %s, %s\n", node2reg(node, temp_reg),
+                         id2reg32(temp_reg->id));
+                  break;*/
+               default:
+                  break;
+            }
          }
          return temp_reg;
 
       case ND_COMMA:
          lhs_reg = gen_register_2(node->lhs, 0);
          rhs_reg = gen_register_2(node->rhs, 0);
+         release_reg(lhs_reg);
          return rhs_reg;
 
       case ND_ADD:
@@ -1676,7 +1692,7 @@ Register *gen_register_2(Node *node, int unused_eval) {
          lhs_reg = gen_register_3(node->lhs);
          if (unused_eval) {
             secure_mutable(lhs_reg);
-            printf("add %s [%s], %ld\n", node2specifier(node),
+            printf("sub %s [%s], %ld\n", node2specifier(node),
                    id2reg64(lhs_reg->id), node->num_val);
             release_reg(lhs_reg);
             return NO_REGISTER;
@@ -1686,7 +1702,7 @@ Register *gen_register_2(Node *node, int unused_eval) {
 
             printf("mov %s, [%s]\n", node2reg(node, temp_reg),
                    id2reg64(lhs_reg->id));
-            printf("add %s [%s], %ld\n", node2specifier(node),
+            printf("sub %s [%s], %ld\n", node2specifier(node),
                    id2reg64(lhs_reg->id), node->num_val);
             release_reg(lhs_reg);
             return temp_reg;
@@ -1725,7 +1741,6 @@ Register *gen_register_2(Node *node, int unused_eval) {
             temp_reg = gen_register_2(node->args[j], 0);
             // TODO : not to use eax, so on
             printf("mov %s, %s\n", size2reg(8, temp_reg), arg_registers[j]);
-            puts("push rax");
          }
          for (j = 0; node->code->data[j]; j++) {
             // read inside functions.

@@ -9,7 +9,6 @@ typedef struct {
    char g;
    int* h;
    int j;
-   void* j;
 } Kind;
 
 int func2(Kind* kind) {
