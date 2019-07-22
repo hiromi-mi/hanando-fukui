@@ -27,5 +27,9 @@ test8:
 	$(CC) -r -f 8.c > 8.s
 	gcc 8.s -o 8
 	./8
+test31:
+	$(CC) -r -f 31.c > 31.s
+	gcc 31.s -o 31 
+	./31
 
 .PHONY:	test3 test8
