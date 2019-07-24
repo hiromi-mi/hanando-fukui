@@ -1,20 +1,24 @@
-#CC = ../main
-CC = ../hanando
-test:	test3 test8
-	$(CC) -f 9.c > 9.s
+CC = ../main
+test:	test3 test8 test11 test13 test14
+	$(CC) -r -f 9.c > 9.s
 	gcc 9.s -o 9
 	./9
-	$(CC) -f 10.c > 10.s
+	$(CC) -r -f 10.c > 10.s
 	gcc 10.s -o 10
 	./10 "aaa"
-	$(CC) -f 11.c > 11.s
+
+test11:
+	$(CC) -r -f 11.c > 11.s
 	gcc -g -S -masm=intel 12.c -o 12.s
 	gcc -g 12.s 11.s -o 11
 	./11
-	$(CC) -f 13.c > 13.s
+test13:
+	$(CC) -r -f 13.c > 13.s
 	gcc 13.s -o 13
 	./13
-	$(CC) -f 14.c > 14.s
+
+test14:
+	$(CC) -r -f 14.c > 14.s
 	gcc 14.s -o 14
 	./14
 
@@ -31,5 +35,9 @@ test31:
 	$(CC) -r -f 31.c > 31.s
 	gcc 31.s -o 31 
 	./31
+test17:
+	$(CC) -r -f 17.c > 17.s
+	gcc 17.s -o 17 
+	./17
 
 .PHONY:	test3 test8

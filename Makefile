@@ -12,7 +12,7 @@ $(target): $(objects)
 $(objects): main.h
 
 self:
-	./hanando -r -f main.c > main.s
+	./hanando -r -f main2.c > main.s
 	$(CC) -g main.s -o main
 
 selfselftest: self

@@ -1,3 +1,4 @@
+void *malloc(int size);
 #include "../main.h"
 int main() {
    int j=1;

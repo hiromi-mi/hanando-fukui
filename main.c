@@ -247,11 +247,9 @@ Node *new_addsub_node(NodeType ty, Node *lhs_node, Node *rhs_node) {
       // This should be becasuse of pointer types should be long
       rhs = new_node(ND_MULTIPLY_IMMUTABLE_VALUE, rhs, NULL);
       rhs->num_val = cnt_size(lhs->type->ptrof);
-      rhs->type = lhs->type;
    } else if (rhs->type->ty == TY_PTR || rhs->type->ty == TY_ARRAY) {
       lhs = new_node(ND_MULTIPLY_IMMUTABLE_VALUE, lhs, NULL);
       lhs->num_val = cnt_size(rhs->type->ptrof);
-      lhs->type = rhs->type;
    } else if (type2size(lhs->type) < type2size(rhs->type)) {
       lhs = new_node(ND_CAST, lhs, NULL);
       lhs->type = rhs->type;
@@ -731,16 +729,16 @@ Node *node_compare() {
    Node *node = node_shift();
    while (1) {
       if (consume_node('<')) {
-         node = new_node('<', node, node_shift());
+         node = new_node_with_cast('<', node, node_shift());
          node->type = find_typed_db("char", typedb);
       } else if (consume_node('>')) {
-         node = new_node('>', node, node_shift());
+         node = new_node_with_cast('>', node, node_shift());
          node->type = find_typed_db("char", typedb);
       } else if (consume_node(TK_ISLESSEQ)) {
-         node = new_node(ND_ISLESSEQ, node, node_shift());
+         node = new_node_with_cast(ND_ISLESSEQ, node, node_shift());
          node->type = find_typed_db("char", typedb);
       } else if (consume_node(TK_ISMOREEQ)) {
-         node = new_node(ND_ISMOREEQ, node, node_shift());
+         node = new_node_with_cast(ND_ISMOREEQ, node, node_shift());
          node->type = find_typed_db("char", typedb);
       } else {
          return node;
@@ -752,10 +750,10 @@ Node *node_iseq() {
    Node *node = node_compare();
    while (1) {
       if (consume_node(TK_ISEQ)) {
-         node = new_node(ND_ISEQ, node, node_compare());
+         node = new_node_with_cast(ND_ISEQ, node, node_compare());
          node->type = find_typed_db("char", typedb);
       } else if (consume_node(TK_ISNOTEQ)) {
-         node = new_node(ND_ISNOTEQ, node, node_compare());
+         node = new_node_with_cast(ND_ISNOTEQ, node, node_compare());
          node->type = find_typed_db("char", typedb);
       } else {
          return node;
@@ -824,10 +822,15 @@ Node *node_increment() {
       node = new_ident_node(expect_ident());
       node = new_assign_node(node, new_addsub_node('-', node, new_num_node(1)));
    } else if (consume_node('&')) {
-      node = new_node(ND_ADDRESS, node_increment(), NULL);
-      node->type = malloc(sizeof(Type));
-      node->type->ty = TY_PTR;
-      node->type->ptrof = node->lhs->type;
+      node = node_increment();
+      if (node->ty == ND_DEREF) {
+         node = node->lhs;
+      } else {
+         node = new_node(ND_ADDRESS, node, NULL);
+         node->type = malloc(sizeof(Type));
+         node->type->ty = TY_PTR;
+         node->type->ptrof = node->lhs->type;
+      }
    } else if (consume_node('*')) {
       node = new_deref_node(node_increment());
    } else if (consume_node(TK_SIZEOF)) {
@@ -835,7 +838,7 @@ Node *node_increment() {
          // sizeof(int) read type without name
          Type *type = read_type(NULL);
          expect_node(')');
-         return new_long_num_node(type2size(type));
+         return new_num_node(cnt_size(type));
       }
       node = node_mathexpr();
       return new_long_num_node(type2size(node->type));
@@ -1085,6 +1088,17 @@ void gen_lval(Node *node) {
 
    error("Error: Incorrect Variable of lvalue");
 }
+int type2size3(Type *type) {
+   if (!type) {
+      return 0;
+   }
+   switch(type->ty) {
+      case TY_ARRAY:
+         return cnt_size(type->ptrof);
+      default:
+         return type2size(type);
+   }
+}
 
 int type2size(Type *type) {
    if (!type) {
@@ -1101,7 +1115,6 @@ int type2size(Type *type) {
          return 1;
       case TY_ARRAY:
          return 8;
-         // return cnt_size(type->ptrof);
       case TY_STRUCT:
          return cnt_size(type);
       default:
@@ -1230,6 +1243,9 @@ char *size2reg(int size, Register *reg) {
    exit(1);
 }
 char *node2reg(Node *node, Register *reg) {
+   if (reg->kind == R_LVAR) {
+      return size2reg(reg->size, reg);
+   }
    return size2reg(type2size(node->type), reg);
 }
 
@@ -1243,6 +1259,7 @@ Register *retain_reg() {
       reg->id = j;
       reg->name = NULL;
       reg->kind = R_REGISTER;
+      reg->size = -1;
       return reg;
    }
    fprintf(stderr, "No more registers are avaliable\n");
@@ -1266,10 +1283,17 @@ void secure_mutable(Register *reg) {
    // to enable to change
    if (reg->kind != R_REGISTER) {
       Register *new_reg = retain_reg();
-      printf("mov %s, %s\n", size2reg(8, new_reg), size2reg(8, reg));
+      if (reg->size <= 0) {
+         printf("mov %s, %s\n", size2reg(8, new_reg), size2reg(8, reg));
+      } else if (reg->size == 1) {
+         printf("movzx %s, %s\n", size2reg(8, new_reg), size2reg(reg->size, reg));
+      } else {
+         printf("mov %s, %s\n", size2reg(reg->size, new_reg), size2reg(reg->size, reg));
+      }
       reg->id = new_reg->id;
       reg->kind = new_reg->kind;
       reg->name = new_reg->name;
+      reg->size = new_reg->size;
    }
 }
 
@@ -1352,6 +1376,7 @@ Register *gen_register_2(Node *node, int unused_eval) {
          temp_reg = retain_reg();
          printf("mov %s, qword ptr [rip + %s@GOTPCREL]\n",
                 size2reg(8, temp_reg), node->name);
+         printf("mov %s, qword ptr [%s]\n", size2reg(8, temp_reg), size2reg(8, temp_reg));
          return temp_reg;
 
       case ND_IDENT:
@@ -1362,20 +1387,28 @@ Register *gen_register_2(Node *node, int unused_eval) {
             temp_reg->id = node->lvar_offset;
             temp_reg->kind = R_LVAR;
             temp_reg->name = NULL;
+            temp_reg->size = type2size(node->type);
             return temp_reg;
          }
 
       case ND_GLOBAL_IDENT:
-         temp_reg = malloc(sizeof(Register));
-         temp_reg->id = 0;
-         temp_reg->kind = R_GVAR;
-         temp_reg->name = node->name;
-         return temp_reg;
+         if (node->type->ty == TY_ARRAY) {
+            return gen_register_3(node);
+         } else {
+            temp_reg = malloc(sizeof(Register));
+            temp_reg->id = 0;
+            temp_reg->kind = R_GVAR;
+            temp_reg->name = node->name;
+            temp_reg->size = type2size(node->type);
+            return temp_reg;
+         }
 
       case ND_DOT:
          temp_reg = gen_register_3(node);
-         printf("mov %s, [%s]\n", node2reg(node, temp_reg),
-                id2reg64(temp_reg->id));
+         if (node->type->ty != TY_ARRAY) {
+            printf("mov %s, [%s]\n", node2reg(node, temp_reg),
+                   id2reg64(temp_reg->id));
+         }
          return temp_reg;
 
       case ND_EQUAL:
@@ -1383,6 +1416,7 @@ Register *gen_register_2(Node *node, int unused_eval) {
          if (node->lhs->ty == ND_IDENT || node->lhs->ty == ND_GLOBAL_IDENT) {
             lhs_reg = gen_register_2(node->lhs, 0);
             rhs_reg = gen_register_2(node->rhs, 0);
+            secure_mutable(rhs_reg);
             printf("mov %s, %s\n", node2reg(node->lhs, lhs_reg),
                    node2reg(node->lhs, rhs_reg));
             release_reg(rhs_reg);
@@ -1394,6 +1428,7 @@ Register *gen_register_2(Node *node, int unused_eval) {
             lhs_reg = gen_register_3(node->lhs);
             rhs_reg = gen_register_2(node->rhs, 0);
             // TODO
+            secure_mutable(rhs_reg);
             printf("mov %s [%s], %s\n", node2specifier(node),
                    id2reg64(lhs_reg->id), node2reg(node->lhs, rhs_reg));
             release_reg(lhs_reg);
@@ -1415,8 +1450,8 @@ Register *gen_register_2(Node *node, int unused_eval) {
                          id2reg8(temp_reg->id));
                   break;
                /*case 4:
-                  printf("movsxd %s, %s\n", node2reg(node, temp_reg),
-                         id2reg32(temp_reg->id));
+                  printf("mov %s, %s\n", node2reg(node->lhs, temp_reg),
+                         node2reg(node, temp_reg));
                   break;*/
                default:
                   break;
@@ -1656,12 +1691,16 @@ Register *gen_register_2(Node *node, int unused_eval) {
          return NO_REGISTER;
 
       case ND_ADDRESS:
-         temp_reg = retain_reg();
-         lhs_reg = gen_register_2(node->lhs, 0);
-         printf("lea %s, %s\n", id2reg64(temp_reg->id),
-                node2reg(node, lhs_reg));
-         release_reg(lhs_reg);
-         return temp_reg;
+         if (node->lhs->ty == ND_IDENT || node->lhs->ty == ND_GLOBAL_IDENT) {
+            temp_reg = retain_reg();
+            lhs_reg = gen_register_2(node->lhs, 0);
+            printf("lea %s, %s\n", id2reg64(temp_reg->id),
+                   node2reg(node, lhs_reg));
+            release_reg(lhs_reg);
+            return temp_reg;
+         } else {
+            return gen_register_3(node->lhs);
+         }
 
       case ND_NEG:
          lhs_reg = gen_register_2(node->lhs, 0);
@@ -1680,8 +1719,13 @@ Register *gen_register_2(Node *node, int unused_eval) {
             temp_reg = retain_reg();
             secure_mutable(lhs_reg);
 
-            printf("mov %s, [%s]\n", node2reg(node, temp_reg),
-                   id2reg64(lhs_reg->id));
+            if (node->type->ty == TY_CHAR) {
+               printf("movzx %s, [%s]\n", size2reg(4, temp_reg),
+                      id2reg64(lhs_reg->id));
+            } else {
+               printf("mov %s, [%s]\n", node2reg(node, temp_reg),
+                      id2reg64(lhs_reg->id));
+            }
             printf("add %s [%s], %ld\n", node2specifier(node),
                    id2reg64(lhs_reg->id), node->num_val);
             release_reg(lhs_reg);
@@ -1722,11 +1766,12 @@ Register *gen_register_2(Node *node, int unused_eval) {
 
          // this is because we cannot [[lhs_reg]] (double deref)
          secure_mutable(lhs_reg);
-         printf("mov %s, [%s]\n", node2reg(node, lhs_reg),
-                size2reg(8, lhs_reg));
-         // when reading char, we should read just 1 byte
          if (node->type->ty == TY_CHAR) {
-            printf("movzx rax, al\n");
+         // when reading char, we should read just 1 byte
+            printf("movzx %s, byte ptr [%s]\n", size2reg(4, lhs_reg), size2reg(8, lhs_reg));
+         } else if (node->type->ty != TY_ARRAY) {
+            printf("mov %s, [%s]\n", node2reg(node, lhs_reg),
+                   size2reg(8, lhs_reg));
          }
          return lhs_reg;
 
@@ -1746,9 +1791,11 @@ Register *gen_register_2(Node *node, int unused_eval) {
             // read inside functions.
             gen_register_2(node->code->data[j], 1);
          }
-         puts("mov rsp, rbp");
-         puts("pop rbp");
-         puts("ret");
+         if (node->type->ty == TY_VOID) {
+            puts("mov rsp, rbp");
+            puts("pop rbp");
+            puts("ret");
+         }
 
          // Release All Registers.
          release_all_reg();
@@ -1772,9 +1819,15 @@ Register *gen_register_2(Node *node, int unused_eval) {
             // because of function call will break these registers
             printf("pop %s\n", arg_registers[j]);
          }
+         for (j = 0; j < 6; j++) {
+            printf("push %s\n", registers64[j]);
+         }
          // FIXME: alignment should be 64-bit
          puts("mov al, 0");               // TODO to preserve float
          printf("call %s\n", node->name); // rax should be aligned with the size
+         for (j = 0; j < 6; j++) {
+            printf("pop %s\n", registers64[5-j]);
+         }
 
          if (node->type->ty == TY_VOID || unused_eval == 1) {
             return NO_REGISTER;
@@ -2437,7 +2490,8 @@ Node *assign() {
          if (tokens->data[pos]->input[0] == '>') {
             tp = ND_RSHIFT;
          }
-         node = new_assign_node(node, new_node(tp, node, assign()));
+         // TODO should be fixed
+         node = new_assign_node(node, new_node_with_cast(tp, node, assign()));
       } else {
          node = new_assign_node(node, assign());
       }
@@ -2796,7 +2850,7 @@ void toplevel() {
          while (!consume_node('}')) {
             char *name = NULL;
             Type *type = read_type(&name);
-            size = type2size(type);
+            size = type2size3(type);
             if ((offset % size != 0)) {
                offset += (size - offset % size);
             }
@@ -3113,6 +3167,7 @@ int main(int argc, char **argv) {
    // treat with global variables
    globalvar_gen();
 
+   puts(".text");
    // TODO support ./hanando -r -f main.c
    if (is_register) {
       gen_register_top();

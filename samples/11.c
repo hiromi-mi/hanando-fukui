@@ -8,7 +8,11 @@ void* realloc(void* ptr, int size);
 int func2(char* input) {
    int k=0;
    for (k=0;input[k] != '\0';k++) {
-      printf("%c ", input[k]);
+      printf("%c S ", input[k]);
+      if (k > 10) {
+   putchar('J');
+         break;
+      }
    }
    putchar('\n');
    return k;
