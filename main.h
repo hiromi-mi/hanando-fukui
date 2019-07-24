@@ -181,7 +181,7 @@ typedef struct Node {
 // registers, ...
 typedef struct Register {
    enum { R_REGISTER, R_LVAR, R_GVAR } kind;
-   int id;     // offset or type
+   int id; // offset or type
    int size;
    char *name; // for global variable
 } Register;

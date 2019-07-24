@@ -100,7 +100,7 @@ int map_put(Map *map, char *key, void *val) {
 
 void *map_get(Map *map, char *key) {
    for (int i = map->keys->len - 1; i >= 0; i--) {
-      if (strcmp(map->keys->data[i], key) == 0) {
+      if (strcmp((char *)map->keys->data[i], key) == 0) {
          return map->vals->data[i];
       }
    }
@@ -878,8 +878,8 @@ Node *read_complex_ident() {
    Node *node = NULL;
    for (int j = 0; j < consts->keys->len; j++) {
       // support for constant
-      if (strcmp(consts->keys->data[j], input) == 0) {
-         node = consts->vals->data[j];
+      if (strcmp((char *)consts->keys->data[j], input) == 0) {
+         node = (Node *)consts->vals->data[j];
          return node;
       }
    }
@@ -967,7 +967,8 @@ Node *node_term() {
    }
    if (confirm_node(TK_STRING)) {
       char *_str = malloc(sizeof(char) * 256);
-      snprintf(_str, 255, ".LC%d", vec_push(strs, tokens->data[pos]->input));
+      snprintf(_str, 255, ".LC%d",
+               vec_push(strs, (Token *)tokens->data[pos]->input));
       Node *node = new_string_node(_str);
       expect_node(TK_STRING);
       return node;
@@ -1092,7 +1093,7 @@ int type2size3(Type *type) {
    if (!type) {
       return 0;
    }
-   switch(type->ty) {
+   switch (type->ty) {
       case TY_ARRAY:
          return cnt_size(type->ptrof);
       default:
@@ -1286,9 +1287,11 @@ void secure_mutable(Register *reg) {
       if (reg->size <= 0) {
          printf("mov %s, %s\n", size2reg(8, new_reg), size2reg(8, reg));
       } else if (reg->size == 1) {
-         printf("movzx %s, %s\n", size2reg(8, new_reg), size2reg(reg->size, reg));
+         printf("movzx %s, %s\n", size2reg(8, new_reg),
+                size2reg(reg->size, reg));
       } else {
-         printf("mov %s, %s\n", size2reg(reg->size, new_reg), size2reg(reg->size, reg));
+         printf("mov %s, %s\n", size2reg(reg->size, new_reg),
+                size2reg(reg->size, reg));
       }
       reg->id = new_reg->id;
       reg->kind = new_reg->kind;
@@ -1381,9 +1384,9 @@ Register *gen_register_2(Node *node, int unused_eval) {
          temp_reg = retain_reg();
          if (type2size(node->type) == 1) {
             // TODO this will not cause problems to create unsigned char.
-            printf("mov %s, %ld\n", size2reg(4, temp_reg), node->num_val, type2size(node->type));
+            printf("mov %s, %ld\n", size2reg(4, temp_reg), node->num_val);
          } else {
-            printf("mov %s, %ld\n", node2reg(node, temp_reg), node->num_val, type2size(node->type));
+            printf("mov %s, %ld\n", node2reg(node, temp_reg), node->num_val);
          }
          return temp_reg;
 
@@ -1399,7 +1402,8 @@ Register *gen_register_2(Node *node, int unused_eval) {
          temp_reg = retain_reg();
          printf("mov %s, qword ptr [rip + %s@GOTPCREL]\n",
                 size2reg(8, temp_reg), node->name);
-         printf("mov %s, qword ptr [%s]\n", size2reg(8, temp_reg), size2reg(8, temp_reg));
+         printf("mov %s, qword ptr [%s]\n", size2reg(8, temp_reg),
+                size2reg(8, temp_reg));
          return temp_reg;
 
       case ND_IDENT:
@@ -1790,8 +1794,9 @@ Register *gen_register_2(Node *node, int unused_eval) {
          // this is because we cannot [[lhs_reg]] (double deref)
          secure_mutable(lhs_reg);
          if (node->type->ty == TY_CHAR) {
-         // when reading char, we should read just 1 byte
-            printf("movzx %s, byte ptr [%s]\n", size2reg(4, lhs_reg), size2reg(8, lhs_reg));
+            // when reading char, we should read just 1 byte
+            printf("movzx %s, byte ptr [%s]\n", size2reg(4, lhs_reg),
+                   size2reg(8, lhs_reg));
          } else if (node->type->ty != TY_ARRAY) {
             printf("mov %s, [%s]\n", node2reg(node, lhs_reg),
                    size2reg(8, lhs_reg));
@@ -1812,7 +1817,7 @@ Register *gen_register_2(Node *node, int unused_eval) {
          }
          for (j = 0; node->code->data[j]; j++) {
             // read inside functions.
-            gen_register_2(node->code->data[j], 1);
+            gen_register_2((Node *)node->code->data[j], 1);
          }
          if (node->type->ty == TY_VOID) {
             puts("mov rsp, rbp");
@@ -1826,7 +1831,7 @@ Register *gen_register_2(Node *node, int unused_eval) {
 
       case ND_BLOCK:
          for (j = 0; node->code->data[j]; j++) {
-            gen_register_2(node->code->data[j], 1);
+            gen_register_2((Node *)node->code->data[j], 1);
          }
          return NO_REGISTER;
 
@@ -2118,7 +2123,7 @@ void gen(Node *node) {
       Env *prev_env = env;
       env = node->env;
       for (int j = 0; node->code->data[j]; j++) {
-         gen(node->code->data[j]);
+         gen((Node *)node->code->data[j]);
       }
       env = prev_env;
       return;
@@ -2142,14 +2147,14 @@ void gen(Node *node) {
          puts("push rax");
       }
       for (int j = 0; node->code->data[j]; j++) {
-         if (node->code->data[j]->ty == ND_RETURN) {
-            Node *curnode = node->code->data[j];
+         Node *curnode = (Node *)node->code->data[j];
+         if (curnode->ty == ND_RETURN) {
             gen(curnode->lhs);
             puts("pop rax");
             break;
          }
          // read inside functions.
-         gen(node->code->data[j]);
+         gen(curnode);
          puts("pop rax");
       }
       puts("mov rsp, rbp");
@@ -2638,12 +2643,12 @@ void program(Node *block_node) {
       if (confirm_node('{')) {
          Node *new_block = new_block_node(env);
          program(new_block);
-         vec_push(args, new_block);
+         vec_push(args, (Token *)new_block);
          continue;
       }
 
       if (consume_node(TK_IF)) {
-         vec_push(args, node_if());
+         vec_push(args, (Token *)node_if());
          continue;
       }
       if (consume_node(TK_WHILE)) {
@@ -2654,7 +2659,7 @@ void program(Node *block_node) {
          } else {
             while_node->rhs = stmt();
          }
-         vec_push(args, while_node);
+         vec_push(args, (Token *)while_node);
          continue;
       }
       if (consume_node(TK_DO)) {
@@ -2664,7 +2669,7 @@ void program(Node *block_node) {
          expect_node(TK_WHILE);
          do_node->lhs = node_mathexpr();
          expect_node(';');
-         vec_push(args, do_node);
+         vec_push(args, (Token *)do_node);
          continue;
       }
       if (consume_node(TK_FOR)) {
@@ -2684,17 +2689,17 @@ void program(Node *block_node) {
             expect_node(')');
          }
          program(for_node->rhs);
-         vec_push(args, for_node);
+         vec_push(args, (Token *)for_node);
          continue;
       }
 
       if (consume_node(TK_CASE)) {
-         vec_push(args, new_node(ND_CASE, node_term(), NULL));
+         vec_push(args, (Token *)new_node(ND_CASE, node_term(), NULL));
          expect_node(':');
          continue;
       }
       if (consume_node(TK_DEFAULT)) {
-         vec_push(args, new_node(ND_DEFAULT, NULL, NULL));
+         vec_push(args, (Token *)new_node(ND_DEFAULT, NULL, NULL));
          expect_node(':');
          continue;
       }
@@ -2705,10 +2710,10 @@ void program(Node *block_node) {
          expect_node(')');
          switch_node->rhs = new_block_node(env);
          program(switch_node->rhs);
-         vec_push(args, switch_node);
+         vec_push(args, (Token *)switch_node);
          continue;
       }
-      vec_push(args, stmt());
+      vec_push(args, (Token *)stmt());
    }
    vec_push(args, NULL);
 
@@ -2721,7 +2726,7 @@ void program(Node *block_node) {
 Type *find_typed_db(char *input, Map *db) {
    for (int j = 0; j < db->keys->len; j++) {
       // for struct
-      if (strcmp(input, db->keys->data[j]) == 0) {
+      if (strcmp(input, (char *)db->keys->data[j]) == 0) {
          // copy type
          Type *type = malloc(sizeof(Type));
          Type *old_type = (Type *)db->vals->data[j];
@@ -2759,7 +2764,8 @@ int split_type_ident() {
    }
    for (int j = 0; j < typedb->keys->len; j++) {
       // for struct
-      if (strcmp(tokens->data[pos]->input, typedb->keys->data[j]) == 0) {
+      if (strcmp(tokens->data[pos]->input, (char *)typedb->keys->data[j]) ==
+          0) {
          return typedb->vals->data[j]->ty;
       }
    }
@@ -2953,7 +2959,7 @@ void test_map() {
    hanando_fukui_compiled->num_val = 1;
    hanando_fukui_compiled->input = "HANANDO_FUKUI";
    vec_push(vec, hanando_fukui_compiled);
-   vec_push(vec, 9);
+   vec_push(vec, (Token *)9);
    if (vec->len != 2) {
       error("Vector does not work yet!");
    }
@@ -2966,7 +2972,7 @@ void test_map() {
    if (map->keys->len != 1 || map->vals->len != 1) {
       error("Error: Map does not work yet!");
    }
-   if ((int)map_get(map, "bar") != 0) {
+   if ((long)map_get(map, "bar") != 0) {
       error("Error: Map does not work yet! on 3");
    }
    Token *te = map_get(map, "foo");
@@ -3083,7 +3089,7 @@ void preprocess(Vector *pre_tokens) {
 
       int called = 0;
       for (int k = 0; k < defined->keys->len; k++) {
-         char *chr = defined->keys->data[k];
+         char *chr = (char *)defined->keys->data[k];
          if (pre_tokens->data[j]->ty == TK_IDENT &&
              strcmp(pre_tokens->data[j]->input, chr) == 0) {
             called = 1;
