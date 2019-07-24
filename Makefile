@@ -12,7 +12,7 @@ $(target): $(objects)
 $(objects): main.h
 
 self:
-	./hanando -f main.c > main.s
+	./hanando -r -f main.c > main.s
 	$(CC) -g main.s -o main
 
 selfselftest: self
@@ -63,7 +63,7 @@ test3:
 
 test4:
 	sh testfunccall.sh 'int main(){return func(4);}' OK4 4 -r
-	sh testfunccall.sh 'int main(){foo(4,4);}' 8 0 -r
+	sh testfunccall.sh 'int main(){return foo(4,4);}' 8 0 -r
 
 test5:
 	# to avoid printf %%
@@ -129,7 +129,7 @@ test19:
 
 test21:
 	sh testfdef.sh "int main(){return func(3);} int func(int a){if (a==1) {return 1;} else {return func(a-1)*a;}}" 6 -r
-	sh testfdef.sh "int main(){return func(3,4);} int func(int a, int b){if (a==1) {1;} else {return func(a-1)*a+b-b;}}" 6 -r
+	sh testfdef.sh "int main(){return func(3,4);} int func(int a, int b){if (a==1) {return 1;} else {return func(a-1)*a+b-b;}}" 6 -r
 	sh testfdef.sh "int func(int a, int b); int main(){return func(3,4);} int func(int a, int b){if (a==1) {return 1;} else {return func(a-1)*a+b-b;}}" 6 -r
  
 test12:
@@ -230,7 +230,7 @@ test28:
 	sh testfdef.sh "typedef enum {TY_INT, TY_CHAR} TypeConst; int main(){return TY_INT;}" 0 -r
 
 test29:
-	sh testfdef.sh "int func(char* a){ puts(a); return 1; }int main(){func(\"aaa\");}" 1 -r
+	sh testfdef.sh "int func(char* a){ puts(a); return 1; }int main(){return func(\"aaa\");}" 1 -r
 	sh testfdef.sh "int main(){char a[3]; a[0]='a'; a[1]='b';a[2]='\\\0';puts(a);return printf(\"%%c%%c\", *a, *(a+1));}" 2 -r
 	sh test.sh "int a[3]; a[0]=8; a[1]=2;a[2]=4;puts(a);return printf(\"%d%d\", *a, *(a+1));" 2 -r
 	sh test.sh "char a[12]; a[0]='a'; a[1]='c';a[2]='d';a[3]='g';a[4]='h';a[5]='f';a[6]='k';a[7]='p';a[8]='l';a[9]='\0';puts(a);return strcmp(a, \"acdghfkpl\");" 0 -r

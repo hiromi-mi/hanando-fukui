@@ -5,7 +5,7 @@ clang foo.c -o foo.o -c
 clang tmp.s foo.o -o tmp
 actual=$(./tmp)
 retval=$?
-if [ $actual != $2 ]; then
+if [ "$actual" != $2 ]; then
    echo "Error: $2 but $actual"
    exit 1
 fi
