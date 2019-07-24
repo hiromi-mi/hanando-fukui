@@ -1361,7 +1361,12 @@ Register *gen_register_2(Node *node, int unused_eval) {
    switch (node->ty) {
       case ND_NUM:
          temp_reg = retain_reg();
-         printf("mov %s, %ld\n", node2reg(node, temp_reg), node->num_val);
+         if (type2size(node->type) == 1) {
+            // TODO this will not cause problems to create unsigned char.
+            printf("mov %s, %ld\n", size2reg(4, temp_reg), node->num_val, type2size(node->type));
+         } else {
+            printf("mov %s, %ld\n", node2reg(node, temp_reg), node->num_val, type2size(node->type));
+         }
          return temp_reg;
 
       case ND_STRING:
@@ -1918,8 +1923,6 @@ Register *gen_register_2(Node *node, int unused_eval) {
                   curnode->lhs->type = node->lhs->type;
                }
                temp_reg = gen_register_2(curnode->lhs, 0);
-               gen(curnode->lhs);
-               puts("pop rax");
                printf("cmp %s, %s\n", node2reg(node->lhs, lhs_reg),
                       node2reg(curnode->lhs, temp_reg));
                release_reg(temp_reg);

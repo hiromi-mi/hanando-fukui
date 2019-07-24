@@ -12,13 +12,13 @@ $(target): $(objects)
 $(objects): main.h
 
 self:
-	./hanando -r -f main2.c > main.s
-	$(CC) -g main.s -o main
+	./hanando -r -f main.c > main.s
+	$(CC) -g main.s -o main2
 
 selfselftest: self
-	./main -f main.c > main2.s
+	./main -r -f main.c > main2.s
 	$(CC) -g main2.s -o main2
-	./main2 -f main.c > main3.s
+	./main2 -r -f main.c > main3.s
 	$(CC) -g main3.s -o main3
 	diff -c main2.s main3.s
 	diff -c main.s main2.s
