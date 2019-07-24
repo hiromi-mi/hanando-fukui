@@ -13,7 +13,7 @@ $(objects): main.h
 
 self:
 	./hanando -r -f main.c > main.s
-	$(CC) -g main.s -o main2
+	$(CC) -g main.s -o main
 
 selfselftest: self
 	./main -r -f main.c > main2.s

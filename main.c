@@ -1348,6 +1348,24 @@ void extend_al_ifneeded(Node *node, Register *reg) {
    }
 }
 
+void save_reg() {
+   int j;
+   for (j = 0; j < 6; j++) {
+      if (reg_table[j] <= 0)
+         continue;
+      printf("push %s\n", registers64[j]);
+   }
+}
+
+void restore_reg() {
+   int j;
+   for (j = 0; j < 6; j++) {
+      if (reg_table[j] <= 0)
+         continue;
+      printf("pop %s\n", registers64[j]);
+   }
+}
+
 Register *gen_register_2(Node *node, int unused_eval) {
    Register *temp_reg;
    Register *lhs_reg;
@@ -1824,15 +1842,12 @@ Register *gen_register_2(Node *node, int unused_eval) {
             // because of function call will break these registers
             printf("pop %s\n", arg_registers[j]);
          }
-         for (j = 0; j < 6; j++) {
-            printf("push %s\n", registers64[j]);
-         }
+
+         save_reg();
          // FIXME: alignment should be 64-bit
          puts("mov al, 0");               // TODO to preserve float
          printf("call %s\n", node->name); // rax should be aligned with the size
-         for (j = 0; j < 6; j++) {
-            printf("pop %s\n", registers64[5-j]);
-         }
+         restore_reg();
 
          if (node->type->ty == TY_VOID || unused_eval == 1) {
             return NO_REGISTER;
