@@ -30,7 +30,7 @@ limitations under the License.
 // to use vector instead of something
 Vector *tokens;
 int pos = 0;
-Node *code[300];
+Vector *globalcode;
 Map *global_vars;
 Map *funcdefs;
 Map *consts;
@@ -1815,7 +1815,7 @@ Register *gen_register_2(Node *node, int unused_eval) {
             // TODO : not to use eax, so on
             printf("mov %s, %s\n", size2reg(8, temp_reg), arg_registers[j]);
          }
-         for (j = 0; node->code->data[j]; j++) {
+         for (j = 0; j<node->code->len; j++) {
             // read inside functions.
             gen_register_2((Node *)node->code->data[j], 1);
          }
@@ -2036,7 +2036,7 @@ Register *gen_register_2(Node *node, int unused_eval) {
          return NO_REGISTER;
 
       default:
-         fprintf(stderr, "Error: Incorrect Registers.\n");
+         fprintf(stderr, "Error: Incorrect Registers %d.\n", node->ty);
          exit(1);
    }
    return NO_REGISTER;
@@ -2054,8 +2054,8 @@ void gen_register_top() {
    init_reg_table();
    init_reg_registers();
    // consume code[j] and get
-   for (int j = 0; code[j]; j++) {
-      gen_register(code[j]);
+   for (int j = 0; j<globalcode->len; j++) {
+      gen_register((Node*)globalcode->data[j]);
    }
 }
 
@@ -2830,7 +2830,6 @@ void toplevel() {
    strcpy(arg_registers[4], "r8");
    strcpy(arg_registers[5], "r9");
 
-   int i = 0;
    // consume_node('{')
    // idents = new_map...
    // stmt....
@@ -2839,7 +2838,7 @@ void toplevel() {
    funcdefs = new_map();
    consts = new_map();
    strs = new_vector();
-   // env = new_env(NULL);
+   globalcode = new_vector();
    env = NULL;
 
    while (!consume_node(TK_EOF)) {
@@ -2905,23 +2904,24 @@ void toplevel() {
          char *name = NULL;
          Type *type = read_type(&name);
          if (consume_node('(')) {
-            code[i] = new_fdef_node(name, type);
+            Node *newfunc = new_fdef_node(name, type);
             // Function definition because toplevel func call
 
             // TODO env should be treated as cooler bc. of splitted namespaces
             Env *prev_env = env;
-            env = code[i]->env;
-            for (code[i]->argc = 0; code[i]->argc <= 6 && !consume_node(')');) {
+            env = newfunc->env;
+            for (newfunc->argc = 0; newfunc->argc <= 6 && !consume_node(')');) {
                char *arg_name = NULL;
                Type *arg_type = read_type(&arg_name);
-               code[i]->args[code[i]->argc++] =
+               newfunc->args[newfunc->argc++] =
                    new_ident_node_with_new_variable(arg_name, arg_type);
                consume_node(',');
             }
             env = prev_env;
             // to support prototype def.
             if (confirm_node('{')) {
-               program(code[i++]);
+               program(newfunc);
+               vec_push(globalcode, (Token*)newfunc);
             } else {
                expect_node(';');
             }
@@ -2941,14 +2941,14 @@ void toplevel() {
          continue;
       }
       if (confirm_node('{')) {
-         code[i] = new_block_node(NULL);
-         program(code[i++]);
+         Node *newblocknode = new_block_node(NULL);
+         program(newblocknode);
+         vec_push(globalcode, (Token*)newblocknode);
          continue;
       }
-      code[i] = stmt();
-      i++;
+      vec_push(globalcode, (Token*)stmt());
    }
-   code[i] = NULL;
+   vec_push(globalcode, (Token*)new_block_node(NULL));
 }
 
 void test_map() {
@@ -3196,8 +3196,8 @@ int main(int argc, char **argv) {
    if (is_register) {
       gen_register_top();
    } else {
-      for (int j = 0; code[j]; j++) {
-         gen(code[j]);
+      for (i = 0; i<globalcode->len; i++) {
+         gen((Node*)globalcode->data[i]);
       }
    }
 
