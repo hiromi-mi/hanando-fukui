@@ -40,4 +40,7 @@ test17:
 	gcc 17.s -o 17 
 	./17
 
-.PHONY:	test3 test8
+clean:
+	$(RM) -f *.s
+
+.PHONY:	test3 test8 test11 test13 test14 test17 test31 clean

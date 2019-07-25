@@ -6,17 +6,17 @@ By just typing `$ make` will compile as `./hanando`.
 
 Then, you can use hanando and output assembly to standard output.
 ```
-$ ./hanando "int main() {printf(\"Hello World!\");}"
+$ ./hanando -r "int main() {printf(\"Hello World!\");}"
 ```
 Using escaping of quotation is needed to run inside bash.
 
 Alternatively, you can specify and compile a C file.
 ```
-$ ./hanando -f bar.c
+$ ./hanando -r -f bar.c
 ```
 After outputting of assembly, you can compile to an executable with gcc or clang:
 ```
-$ ./hanando -f bar.c > bar.s
+$ ./hanando -r -f bar.c > bar.s
 $ gcc bar.s -o bar
 $ ./bar
 ```
