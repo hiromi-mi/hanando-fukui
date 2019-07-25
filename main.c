@@ -46,6 +46,8 @@ int if_cnt = 0;
 int for_while_cnt = 0;
 char arg_registers[6][4];
 
+int lang = 0;
+
 int type2size(Type *type);
 Type *read_type(char **input);
 Type *read_fundamental_type();
@@ -285,7 +287,6 @@ Node *new_ident_node_with_new_variable(char *name, Type *type) {
    update_rsp_offset(size);
    node->lvar_offset = env->rsp_offset;
    type->offset = env->rsp_offset;
-   printf("#define: %s on %d\n", name, env->rsp_offset);
    map_put(env->idents, name, type);
    return node;
 }
@@ -1815,7 +1816,7 @@ Register *gen_register_2(Node *node, int unused_eval) {
             // TODO : not to use eax, so on
             printf("mov %s, %s\n", size2reg(8, temp_reg), arg_registers[j]);
          }
-         for (j = 0; j<node->code->len; j++) {
+         for (j = 0; j < node->code->len; j++) {
             // read inside functions.
             gen_register_2((Node *)node->code->data[j], 1);
          }
@@ -2042,20 +2043,11 @@ Register *gen_register_2(Node *node, int unused_eval) {
    return NO_REGISTER;
 }
 
-void gen_register(Node *node) {
-   if (!node) {
-      return;
-   }
-
-   gen_register_2(node, 1);
-}
-
 void gen_register_top() {
    init_reg_table();
    init_reg_registers();
-   // consume code[j] and get
-   for (int j = 0; j<globalcode->len; j++) {
-      gen_register((Node*)globalcode->data[j]);
+   for (int j = 0; j < globalcode->len; j++) {
+      gen_register_2((Node *)globalcode->data[j], 1);
    }
 }
 
@@ -2811,9 +2803,12 @@ void define_enum(int assign_name) {
       } else {
          itemnode = new_num_node(cnt);
       }
-      consume_node(','); // TODO for ease
       cnt++;
       map_put(consts, itemname, itemnode);
+      if (!consume_node(',')) {
+         expect_node('}');
+         break;
+      }
    }
    // to support anonymous enum
    if (assign_name && confirm_ident()) {
@@ -2921,7 +2916,7 @@ void toplevel() {
             // to support prototype def.
             if (confirm_node('{')) {
                program(newfunc);
-               vec_push(globalcode, (Token*)newfunc);
+               vec_push(globalcode, (Token *)newfunc);
             } else {
                expect_node(';');
             }
@@ -2943,12 +2938,12 @@ void toplevel() {
       if (confirm_node('{')) {
          Node *newblocknode = new_block_node(NULL);
          program(newblocknode);
-         vec_push(globalcode, (Token*)newblocknode);
+         vec_push(globalcode, (Token *)newblocknode);
          continue;
       }
-      vec_push(globalcode, (Token*)stmt());
+      vec_push(globalcode, (Token *)stmt());
    }
-   vec_push(globalcode, (Token*)new_block_node(NULL));
+   vec_push(globalcode, (Token *)new_block_node(NULL));
 }
 
 void test_map() {
@@ -3093,8 +3088,6 @@ void preprocess(Vector *pre_tokens) {
          if (pre_tokens->data[j]->ty == TK_IDENT &&
              strcmp(pre_tokens->data[j]->input, chr) == 0) {
             called = 1;
-            printf("#define changed: %s -> %ld\n", pre_tokens->data[j]->input,
-                   defined->vals->data[k]->num_val);
             vec_push(tokens, defined->vals->data[k]);
             continue;
          }
@@ -3174,6 +3167,10 @@ int main(int argc, char **argv) {
          is_from_file = 1;
       } else if (strcmp(argv[i], "-r") == 0) {
          is_register = 1;
+      } else if (strcmp(argv[i], "-cpp") == 0) {
+         lang |= 1;
+      } else if (strcmp(argv[i], "-objc") == 0) {
+         lang |= 2;
       }
    }
    if (is_from_file) {
@@ -3192,12 +3189,11 @@ int main(int argc, char **argv) {
    globalvar_gen();
 
    puts(".text");
-   // TODO support ./hanando -r -f main.c
    if (is_register) {
       gen_register_top();
    } else {
-      for (i = 0; i<globalcode->len; i++) {
-         gen((Node*)globalcode->data[i]);
+      for (i = 0; i < globalcode->len; i++) {
+         gen((Node *)globalcode->data[i]);
       }
    }
 
