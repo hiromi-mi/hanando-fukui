@@ -989,19 +989,16 @@ Node *node_term() {
 }
 
 Type *get_type_local(Node *node) {
-   // TODO: another effect: set node->env
    Env *local_env = env;
    Type *type = NULL;
    while (type == NULL && local_env != NULL) {
       type = map_get(local_env->idents, node->name);
       if (type) {
          node->env = local_env;
-         node->type = type;
          return type;
       }
       local_env = local_env->env;
    }
-   node->type = type;
    return type;
 }
 
