@@ -1473,10 +1473,6 @@ Register *gen_register_2(Node *node, int unused_eval) {
                   printf("movzx %s, %s\n", node2reg(node, temp_reg),
                          id2reg8(temp_reg->id));
                   break;
-               /*case 4:
-                  printf("mov %s, %s\n", node2reg(node->lhs, temp_reg),
-                         node2reg(node, temp_reg));
-                  break;*/
                default:
                   break;
             }
@@ -1507,7 +1503,6 @@ Register *gen_register_2(Node *node, int unused_eval) {
          lhs_reg = gen_register_2(node->lhs, 0);
          rhs_reg = gen_register_2(node->rhs, 0);
          secure_mutable(lhs_reg);
-         // TODO Fix for size convergence.
          printf("sub %s, %s\n", node2reg(node, lhs_reg),
                 node2reg(node, rhs_reg));
          release_reg(rhs_reg);
@@ -2210,8 +2205,7 @@ void gen(Node *node) {
          printf("pop %s\n", arg_registers[j]);
       }
       // printf("sub rsp, %d\n", (int)(ceil(4 * node->argc / 16.)) * 16);
-      // FIXME: alignment should be 64-bit
-      puts("mov al, 0");               // TODO to preserve float
+      puts("mov al, 0");
       printf("call %s\n", node->name); // rax should be aligned with the size
       if (node->type->ty == TY_VOID) {
          puts("push 0"); // FIXME
@@ -2310,7 +2304,6 @@ void gen(Node *node) {
          puts("pop rax");
          printf("mov %s, [rax]\n", _rax(node));
          if (node->type->ty == TY_CHAR) {
-            // TODO: extension: unsingned char.
             puts("movzx rax, al");
          }
          puts("push rax");
@@ -2465,7 +2458,6 @@ void gen(Node *node) {
          break;
       case '<':
          cmp_rax_rdi(node);
-         // TODO: is "andb 1 %al" required?
          puts("setl al");
          puts("movzx rax, al");
          break;
@@ -3181,6 +3173,9 @@ int main(int argc, char **argv) {
 
    puts(".intel_syntax noprefix");
    puts(".align 4");
+   if (is_from_file) {
+      printf(".file \"%s\"\n", argv[argc-1]);
+   }
    // treat with global variables
    globalvar_gen();
 
