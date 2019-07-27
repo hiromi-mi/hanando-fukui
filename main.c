@@ -1381,11 +1381,10 @@ Register *gen_register_2(Node *node, int unused_eval) {
       case ND_NUM:
          temp_reg = retain_reg();
          if (type2size(node->type) == 1) {
-            // TODO this will not cause problems to create unsigned char.
-            printf("mov %s, %ld\n", size2reg(4, temp_reg), node->num_val);
-         } else {
-            printf("mov %s, %ld\n", node2reg(node, temp_reg), node->num_val);
+            // Delete previous value because of mov al, %ld will not delete all value in rax
+            printf("xor %s, %s\n", size2reg(8, temp_reg), size2reg(8, temp_reg));
          }
+         printf("mov %s, %ld\n", node2reg(node, temp_reg), node->num_val);
          return temp_reg;
 
       case ND_STRING:
