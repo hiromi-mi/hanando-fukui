@@ -245,7 +245,11 @@ test31:
 	sh testfdef.sh "int main(){return ((int)-1 == (long)(4));}" 0 -r
 
 test32:
-	sh testfdef.sh "int main(){ func(1, 2); func(3, 11,12,13); return 0; } int func(){ int result; va_list ap; va_start(ap, NULL);int cnt; for (cnt = va_arg(ap, int);cnt >0;--cnt) { result = va_arg(ap, int); printf(\"%%d \", result);} putchar('\n'); va_end(ap); return 0;}" 0 -r
+	sh testfdef.sh "int main(){ func(1, 2); func(3, 11,12,13); return 0; } int func(...){ int result; va_list ap; va_start(ap, NULL);int cnt; for (cnt = va_arg(ap, int);cnt >0;--cnt) { result = va_arg(ap, int); printf(\"%%d \", result);} putchar('\n'); va_end(ap); return 0;}" 0 -r
+	# test32: This should be seen as:
+	# 2
+	# 11 12 13
+	sh testfdef.sh "int main(){ func(1, 2); func(3, 11,12,13); return 0; } int func(int cnt, ...){ int result; va_list ap; va_start(ap, NULL);for (4;cnt >0;--cnt) { result = va_arg(ap, int); printf(\"%%d \", result);} putchar('\n'); va_end(ap); return 0;}" 0 -r
 	# test32: This should be seen as:
 	# 2
 	# 11 12 13
