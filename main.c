@@ -44,6 +44,8 @@ int env_for_while_switch = 0;
 Env *env;
 int if_cnt = 0;
 int for_while_cnt = 0;
+int omiited_argc = 0; // when used va_start & TK_OMIITED
+
 char arg_registers[6][4];
 
 int lang = 0;
@@ -532,6 +534,12 @@ Vector *tokenize(char *p) {
          continue;
       }
 
+      if (strncmp(p, "...", 3) == 0) {
+         vec_push(pre_tokens, new_token(TK_OMIITED, p));
+         p += 3;
+         continue;
+      }
+
       if (*p == '+' || *p == '-' || *p == '*' || *p == '/' || *p == '(' ||
           *p == ')' || *p == ';' || *p == ',' || *p == '{' || *p == '}' ||
           *p == '%' || *p == '^' || *p == '|' || *p == '&' || *p == '?' ||
@@ -903,6 +911,37 @@ Node *read_complex_ident() {
    }
 }
 
+Node *treat_va_start() {
+   Node *node = new_node(ND_VASTART, NULL, NULL);
+   expect_node('(');
+   node->lhs = node_term();
+   expect_node(',');
+   node_term();
+   // darkness: used global variable.
+   node->num_val = omiited_argc;
+   expect_node(')');
+   return node;
+}
+
+Node *treat_va_arg() {
+   Node *node = new_node(ND_VAARG, NULL, NULL);
+   expect_node('(');
+   node->lhs = node_term();
+   expect_node(',');
+   // do not need ident name
+   node->type = read_type(NULL);
+   expect_node(')');
+   return node;
+}
+
+Node *treat_va_end() {
+   Node *node = new_node(ND_VAEND, NULL, NULL);
+   expect_node('(');
+   node->lhs = node_term();
+   expect_node(')');
+   return node;
+}
+
 Node *node_term() {
    if (consume_node('-')) {
       Node *node = new_node(ND_NEG, node_term(), NULL);
@@ -935,7 +974,15 @@ Node *node_term() {
       Node *node;
       // Function Call
       if (tokens->data[pos + 1]->ty == '(') {
-         node = new_func_node(expect_ident());
+         char *fname = expect_ident();
+         if (strncmp(fname,  "va_arg", 7) == 0) {
+            return treat_va_arg();
+         } else if (strncmp(fname,  "va_start", 8) == 0) {
+            return treat_va_start();
+         } else if (strncmp(fname, "va_end", 7) == 0) {
+            return treat_va_end();
+         }
+         node = new_func_node(fname);
          // skip func , (
          expect_node('(');
          while (1) {
@@ -1853,6 +1900,34 @@ Register *gen_register_2(Node *node, int unused_eval) {
             printf("mov %s, %s\n", node2reg(node, temp_reg), _rax(node));
             return temp_reg;
          }
+
+      case ND_VAARG:
+         lhs_reg = gen_register_2(node->lhs, 0); // meaning ap
+         // rax as temporary register.
+         temp_reg = retain_reg();
+         printf("pop %s\n", size2reg(8, temp_reg));
+         return temp_reg;
+      
+      case ND_VASTART:
+         lhs_reg = gen_register_2(node->lhs, 0); // meaning ap
+         // node->num_val means the first undefined argument.
+         printf("mov %s, %ld\n", node2reg(node->lhs, lhs_reg), node->num_val);
+         for (j = 5; j>= node->num_val; j--) {
+            printf("push %s\n", arg_registers[j]);
+         }
+         return NO_REGISTER;
+
+      case ND_VAEND:
+         cur_if_cnt = if_cnt++;
+         lhs_reg = gen_register_2(node->lhs, 0); // meaning ap
+         printf(".vaend%d:\n", cur_if_cnt);
+         printf("cmp %s, 0\n", node2reg(node->lhs, lhs_reg));
+         printf("jle .vaendend%d\n", cur_if_cnt);
+         printf("pop rax\n");
+         printf("sub %s, 1\n", node2reg(node->lhs, lhs_reg));
+         printf("jmp .vaend%d\n", cur_if_cnt);
+         printf(".vaendend%d:\n", cur_if_cnt);
+         return NO_REGISTER;
 
       case ND_GOTO:
          printf("jmp %s\n", node->name);
@@ -2894,6 +2969,11 @@ void toplevel() {
             Env *prev_env = env;
             env = newfunc->env;
             for (newfunc->argc = 0; newfunc->argc <= 6 && !consume_node(')');) {
+               if (consume_node(TK_OMIITED)) {
+                  omiited_argc = newfunc->argc;
+                  expect_node(')');
+                  break;
+               }
                char *arg_name = NULL;
                Type *arg_type = read_type(&arg_name);
                newfunc->args[newfunc->argc++] =
@@ -3117,6 +3197,11 @@ void init_typedb() {
    typevoid->offset = 8;
    typevoid->structure = new_map();
    map_put(typedb, "FILE", typevoid);
+
+   typeint = malloc(sizeof(Type));
+   typeint->ty = TY_INT;
+   typeint->ptrof = NULL;
+   map_put(typedb, "va_list", typeint);
 
    Type *typedou = malloc(sizeof(Type));
    typedou->ty = TY_DOUBLE;

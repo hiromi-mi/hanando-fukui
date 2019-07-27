@@ -63,6 +63,7 @@ typedef enum {
    TK_CONST,
    TK_DEFAULT,
    TK_EXTERN,
+   TK_OMIITED, // ...
 } TokenConst;
 
 typedef enum {
@@ -117,6 +118,9 @@ typedef enum {
    ND_CASE,
    ND_EXTERN_SYMBOL,
    ND_DEFAULT,
+   ND_VAARG,
+   ND_VASTART,
+   ND_VAEND,
 } NodeType;
 
 typedef struct {
