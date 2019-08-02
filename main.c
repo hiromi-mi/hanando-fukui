@@ -915,6 +915,7 @@ Node *treat_va_start() {
    Node *node = new_node(ND_VASTART, NULL, NULL);
    expect_node('(');
    node->lhs = node_term();
+   node->rhs = new_ident_node("_saved_var");
    expect_node(',');
    node_term();
    // darkness: used global variable.
@@ -1902,31 +1903,32 @@ Register *gen_register_2(Node *node, int unused_eval) {
          }
 
       case ND_VAARG:
+         // SEE in AMD64 ABI Draft 0.99.7 p.53 (uglibc.org )
          lhs_reg = gen_register_2(node->lhs, 0); // meaning ap
          // rax as temporary register.
          temp_reg = retain_reg();
-         printf("pop %s\n", size2reg(8, temp_reg));
+         // temporaily use lhs_reg as ptr
+         printf("mov %s, %s\n", node2reg(node->lhs, temp_reg), node2reg(node->lhs, lhs_reg));
+         printf("mov %s, [%s]\n", size2reg(8, temp_reg), size2reg(8, temp_reg));
+         printf("add %s, 8\n", node2reg(node->lhs, lhs_reg));
          return temp_reg;
       
       case ND_VASTART:
          lhs_reg = gen_register_2(node->lhs, 0); // meaning ap
-         // node->num_val means the first undefined argument.
-         printf("mov %s, %ld\n", node2reg(node->lhs, lhs_reg), node->num_val);
-         for (j = 5; j>= node->num_val; j--) {
-            printf("push %s\n", arg_registers[j]);
+         // node->num_val means the first undefined argument No.
+         // from lval_offset:
+         // rbp-80 : r0
+         // rbp-72 : r1
+         // ...
+         // rbp-56: r6
+         printf("lea rax, [rbp-%ld]\n", node->rhs->lvar_offset - node->num_val*8);
+         printf("mov %s, rax\n", node2reg(node->lhs, lhs_reg));
+         for (j = node->num_val; j<6; j++) {
+            printf("mov [rbp-%d], %s\n", node->rhs->lvar_offset-j*8, arg_registers[j]);
          }
          return NO_REGISTER;
 
       case ND_VAEND:
-         cur_if_cnt = if_cnt++;
-         lhs_reg = gen_register_2(node->lhs, 0); // meaning ap
-         printf(".vaend%d:\n", cur_if_cnt);
-         printf("cmp %s, 0\n", node2reg(node->lhs, lhs_reg));
-         printf("jle .vaendend%d\n", cur_if_cnt);
-         printf("pop rax\n");
-         printf("sub %s, 1\n", node2reg(node->lhs, lhs_reg));
-         printf("jmp .vaend%d\n", cur_if_cnt);
-         printf(".vaendend%d:\n", cur_if_cnt);
          return NO_REGISTER;
 
       case ND_GOTO:
@@ -2970,6 +2972,11 @@ void toplevel() {
             env = newfunc->env;
             for (newfunc->argc = 0; newfunc->argc <= 6 && !consume_node(')');) {
                if (consume_node(TK_OMIITED)) {
+                  Type *saved_var_type = malloc(sizeof(Type));
+                  saved_var_type->ty = TY_ARRAY;
+                  saved_var_type->ptrof = find_typed_db("long", typedb);
+                  saved_var_type->array_size = 7;
+                  new_ident_node_with_new_variable("_saved_var", saved_var_type);
                   omiited_argc = newfunc->argc;
                   expect_node(')');
                   break;
@@ -3199,7 +3206,7 @@ void init_typedb() {
    map_put(typedb, "FILE", typevoid);
 
    typeint = malloc(sizeof(Type));
-   typeint->ty = TY_INT;
+   typeint->ty = TY_LONG;
    typeint->ptrof = NULL;
    map_put(typedb, "va_list", typeint);
 

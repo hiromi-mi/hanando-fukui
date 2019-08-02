@@ -253,6 +253,13 @@ test32:
 	# test32: This should be seen as:
 	# 2
 	# 11 12 13
+	sh testfdef.sh "int main(){ func(1, \"a\"); func(3, \"b\",\"c\",\"d\"); return 0; } int func(int cnt, ...){ va_list ap; va_start(ap, NULL);for (4;cnt >0;--cnt) { puts(va_arg(ap, char*)); } putchar('\n'); va_end(ap); return 0;}" 0 -r
+	# test32: This should be seen as:
+	# 2
+	# 11 12 13
+
+test33:
+	sh testfdef.sh "int main(){ func(\"%%d %%s\n\", 3, \"test\"); return 0;} int func(char* str, ...) { va_list ap; va_start(ap, str); vprintf(str, ap); va_end(ap); return 0;}" 0 -r
 
 clean:
 	$(RM) -f $(target) $(objects) main.s main2.s main3.s main2 main3

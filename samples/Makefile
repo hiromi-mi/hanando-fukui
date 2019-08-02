@@ -40,6 +40,11 @@ test17:
 	gcc 17.s -o 17 
 	./17
 
+test18:
+	$(CC) -r -f 18.c > 18.s
+	gcc 18.s -o 18
+	./18
+
 clean:
 	$(RM) -f *.s
 
