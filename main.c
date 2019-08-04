@@ -60,6 +60,7 @@ Vector *read_tokenize(char *fname);
 void define_enum(int use);
 char *expect_ident();
 void program(Node *block_node);
+Type *duplicate_type(Type* old_type);
 Type *find_typed_db(char *input, Map *db);
 int cnt_size(Type *type);
 Type *get_type_local(Node *node);
@@ -363,6 +364,7 @@ Node *new_fdef_node(char *name, Type *type) {
    node->argc = 0;
    node->env = new_env(NULL);
    node->code = new_vector();
+   node->is_omiited = NULL; // func(a, b, ...)
    map_put(funcdefs, name, node);
    return node;
 }
@@ -1855,6 +1857,11 @@ Register *gen_register_2(Node *node, int unused_eval) {
             // TODO : not to use eax, so on
             printf("mov %s, %s\n", size2reg(8, temp_reg), arg_registers[j]);
          }
+         if (node->is_omiited) {
+            for (j = 0; j<6; j++) {
+               printf("mov [rbp-%d], %s\n", node->is_omiited->lvar_offset-j*8, arg_registers[j]);
+            }
+         }
          for (j = 0; j < node->code->len; j++) {
             // read inside functions.
             gen_register_2((Node *)node->code->data[j], 1);
@@ -1904,28 +1911,48 @@ Register *gen_register_2(Node *node, int unused_eval) {
 
       case ND_VAARG:
          // SEE in AMD64 ABI Draft 0.99.7 p.53 (uglibc.org )
-         lhs_reg = gen_register_2(node->lhs, 0); // meaning ap
+         lhs_reg = gen_register_3(node->lhs); // meaning ap
+         /*
          // rax as temporary register.
          temp_reg = retain_reg();
          // temporaily use lhs_reg as ptr
          printf("mov %s, %s\n", node2reg(node->lhs, temp_reg), node2reg(node->lhs, lhs_reg));
          printf("mov %s, [%s]\n", size2reg(8, temp_reg), size2reg(8, temp_reg));
          printf("add %s, 8\n", node2reg(node->lhs, lhs_reg));
+         */
+         temp_reg = retain_reg();
+
+         // gp_offset
+         printf("mov eax, [%s]\n", id2reg64(lhs_reg->id)); // get gp_offset
+         printf("mov edx, eax\n");
+         printf("add rdx, 8\n");
+         printf("add rax, [%s+8]\n", id2reg64(lhs_reg->id));
+         printf("mov [%s], edx\n", id2reg64(lhs_reg->id));
+         // only supported register
+         printf("mov %s, [rax]\n", node2reg(node, temp_reg)); // 1->reg_saved_area
+         release_reg(lhs_reg);
+
          return temp_reg;
       
       case ND_VASTART:
-         lhs_reg = gen_register_2(node->lhs, 0); // meaning ap
+         lhs_reg = gen_register_3(node->lhs); // meaning ap's address
          // node->num_val means the first undefined argument No.
          // from lval_offset:
          // rbp-80 : r0
          // rbp-72 : r1
          // ...
          // rbp-56: r6
-         printf("lea rax, [rbp-%ld]\n", node->rhs->lvar_offset - node->num_val*8);
-         printf("mov %s, rax\n", node2reg(node->lhs, lhs_reg));
-         for (j = node->num_val; j<6; j++) {
-            printf("mov [rbp-%d], %s\n", node->rhs->lvar_offset-j*8, arg_registers[j]);
-         }
+         printf("mov dword ptr [%s], %ld\n", id2reg64(lhs_reg->id), node->num_val*8);
+         printf("mov dword ptr [%s+4], 304\n", id2reg64(lhs_reg->id));
+         printf("lea rax, [rbp-%d]\n", node->rhs->lvar_offset);
+         printf("mov qword ptr [%s+8], rax\n", id2reg64(lhs_reg->id) );
+         /*
+         // set reg_save_area
+         printf("mov [%s], rax\n", node2reg(node->lhs, lhs_reg));
+         printf("lea rax, [rbp]\n");
+         // set overflow_arg_area
+         printf("mov [%s+4], rax\n", node2reg(node->lhs, lhs_reg));
+         */
          return NO_REGISTER;
 
       case ND_VAEND:
@@ -2780,20 +2807,24 @@ void program(Node *block_node) {
 
 // 0: neither 1:TK_TYPE 2:TK_IDENT
 
+Type *duplicate_type(Type* old_type) {
+   Type *type = malloc(sizeof(Type));
+   // copy all
+   type->ty = old_type->ty;
+   type->structure = old_type->structure;
+   type->array_size = old_type->array_size;
+   type->ptrof = old_type->ptrof;
+   type->offset = old_type->offset;
+   return type;
+}
+
 Type *find_typed_db(char *input, Map *db) {
    for (int j = 0; j < db->keys->len; j++) {
       // for struct
       if (strcmp(input, (char *)db->keys->data[j]) == 0) {
          // copy type
-         Type *type = malloc(sizeof(Type));
          Type *old_type = (Type *)db->vals->data[j];
-         // copy all
-         type->ty = old_type->ty;
-         type->structure = old_type->structure;
-         type->array_size = old_type->array_size;
-         type->ptrof = old_type->ptrof;
-         type->offset = old_type->offset;
-         return type;
+         return duplicate_type(old_type);
       }
    }
    return NULL;
@@ -2976,7 +3007,7 @@ void toplevel() {
                   saved_var_type->ty = TY_ARRAY;
                   saved_var_type->ptrof = find_typed_db("long", typedb);
                   saved_var_type->array_size = 7;
-                  new_ident_node_with_new_variable("_saved_var", saved_var_type);
+                  newfunc->is_omiited = new_ident_node_with_new_variable("_saved_var", saved_var_type);
                   omiited_argc = newfunc->argc;
                   expect_node(')');
                   break;
@@ -3205,10 +3236,32 @@ void init_typedb() {
    typevoid->structure = new_map();
    map_put(typedb, "FILE", typevoid);
 
-   typeint = malloc(sizeof(Type));
-   typeint->ty = TY_LONG;
-   typeint->ptrof = NULL;
-   map_put(typedb, "va_list", typeint);
+   Type* va_listtype = malloc(sizeof(Type));
+   va_listtype->structure = new_map();
+   va_listtype->ty = TY_STRUCT;
+   va_listtype->ptrof = NULL;
+
+   Type *type;
+   type = find_typed_db("int", typedb);
+   type->offset = 0;
+   map_put(va_listtype->structure, "gp_offset", type);
+   type = find_typed_db("int", typedb);
+   type->offset = 4;
+   map_put(va_listtype->structure, "fp_offset", type);
+
+   type = malloc(sizeof(Type));
+   type->ty = TY_PTR;
+   type->ptrof = malloc(sizeof(Type));
+   type->ptrof->ty = TY_VOID;
+   type->ptrof->ptrof = NULL;
+   type->offset = 8;
+
+   map_put(va_listtype->structure, "overflow_arg_area", type);
+   type = duplicate_type(type);
+   type->offset = 16;
+   map_put(va_listtype->structure, "reg_save_area", type);
+   va_listtype->offset = 4+4+8+8;
+   map_put(typedb, "va_list", va_listtype);
 
    Type *typedou = malloc(sizeof(Type));
    typedou->ty = TY_DOUBLE;

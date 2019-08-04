@@ -1,14 +1,8 @@
 #include <stdarg.h>
 #include <stdio.h>
 
-int func(char *str, ...) {
-   va_list ap;
-   va_start(ap, str);
-   vprintf(str, ap);
-   va_end(ap);
-   return 0;
-}
+int func(char *str, ...);
 int main() {
-   func("Hoge: %s\n", "TEST");
+   func("Hoge: %s\n", "TEST", 12);
    return 0;
 }

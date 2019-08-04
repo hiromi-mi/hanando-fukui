@@ -42,7 +42,7 @@ test17:
 
 test18:
 	$(CC) -r -f 18.c > 18.s
-	gcc 18.s -o 18
+	gcc -g 18.s 19.c -o 18
 	./18
 
 clean:

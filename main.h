@@ -179,6 +179,7 @@ typedef struct Node {
    Env *env;
    Type *type;
    int lvar_offset;
+   struct Node *is_omiited;
 } Node;
 
 // Extended Register. with global variables, local variables, memory map,
