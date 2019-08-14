@@ -1926,7 +1926,7 @@ Register *gen_register_2(Node *node, int unused_eval) {
             // read inside functions.
             gen_register_2((Node *)node->code->data[j], 1);
          }
-         if (node->type->ty == TY_VOID) {
+         if (node->type->ret->ty == TY_VOID) {
             puts("mov rsp, rbp");
             puts("pop rbp");
             puts("ret");
