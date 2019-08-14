@@ -170,6 +170,8 @@ typedef struct Type {
    int array_size;
    int initval;
    int offset;
+   int is_const;
+   int is_static;
    MemberAccess memaccess;
 } Type;
 

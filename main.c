@@ -1080,9 +1080,13 @@ Node *node_term() {
       }
       return node;
    }
-   fprintf(stderr, "Error: Incorrect Paresis without %c %d -> %c %d\n",
-           tokens->data[pos - 1]->ty, tokens->data[pos - 1]->ty,
-           tokens->data[pos]->ty, tokens->data[pos]->ty);
+   if (pos > 0) {
+      fprintf(stderr, "Error: Incorrect Paresis without %c %d -> %c %d\n",
+            tokens->data[pos - 1]->ty, tokens->data[pos - 1]->ty,
+            tokens->data[pos]->ty, tokens->data[pos]->ty);
+   } else {
+      fprintf(stderr, "Error: Incorrect Paresis without\n");
+   }
    exit(1);
 }
 
@@ -2674,8 +2678,7 @@ Type *read_type(char **input) {
    } else {
       input = &tokens->data[pos]->input;
    }
-   // skip the name  of position.
-   consume_ident();
+            consume_node(TK_IDENT);
    // functional pointer.
    /*
    if (consume_node('(')) {
@@ -2875,6 +2878,8 @@ Type *duplicate_type(Type* old_type) {
    type->array_size = old_type->array_size;
    type->ptrof = old_type->ptrof;
    type->offset = old_type->offset;
+   type->is_const = old_type->is_const;
+   type->is_static = type->is_static;
    return type;
 }
 
@@ -2891,19 +2896,36 @@ Type *find_typed_db(char *input, Map *db) {
 }
 
 Type *read_fundamental_type() {
-   if (tokens->data[pos]->ty == TK_CONST) {
-      expect_node(TK_CONST); // TODO : for ease skip
+   int is_const = 0;
+   int is_static = 0;
+   while(1) {
+      if (tokens->data[pos]->ty == TK_STATIC) {
+         is_static = 1;
+         expect_node(TK_STATIC);
+      } else if (tokens->data[pos]->ty == TK_CONST) {
+         is_const = 1;
+         expect_node(TK_CONST);
+      } else {
+         break;
+      }
    }
+
+   Type *type;
    if (tokens->data[pos]->ty == TK_ENUM) {
       // treat as anonymous enum
       expect_node(TK_ENUM);
       define_enum(0);
-      return find_typed_db("int", typedb);
+      type = find_typed_db("int", typedb);
+   } else if (consume_node(TK_STRUCT)) {
+      type = find_typed_db(expect_ident(), struct_typedb);
+   } else {
+      type = find_typed_db(expect_ident(), typedb);
    }
-   if (consume_node(TK_STRUCT)) {
-      return find_typed_db(expect_ident(), struct_typedb);
+   if (type) {
+      type->is_const = is_const;
+      type->is_static = is_static;
    }
-   return find_typed_db(expect_ident(), typedb);
+   return type;
 }
 
 int split_type_caller() {
@@ -2985,6 +3007,41 @@ void define_enum(int assign_name) {
    }
 }
 
+void new_fdef(char* name, Type* type) {
+   Node *newfunc;
+   newfunc = new_fdef_node(name, type, type->is_static);
+   // Function definition because toplevel func call
+
+   // TODO env should be treated as cooler bc. of splitted namespaces
+   Env *prev_env = env;
+   env = newfunc->env;
+   for (newfunc->argc = 0; newfunc->argc <= 6 && !consume_node(')');) {
+      if (consume_node(TK_OMIITED)) {
+         Type *saved_var_type = malloc(sizeof(Type));
+         saved_var_type->ty = TY_ARRAY;
+         saved_var_type->ptrof = find_typed_db("long", typedb);
+         saved_var_type->array_size = 7;
+         newfunc->is_omiited = new_ident_node_with_new_variable("_saved_var", saved_var_type);
+         omiited_argc = newfunc->argc;
+         expect_node(')');
+         break;
+      }
+      char *arg_name = NULL;
+      Type *arg_type = read_type(&arg_name);
+      newfunc->args[newfunc->argc++] =
+            new_ident_node_with_new_variable(arg_name, arg_type);
+      consume_node(',');
+   }
+   env = prev_env;
+   // to support prototype def.
+   if (confirm_node('{')) {
+      program(newfunc);
+      vec_push(globalcode, (Token *)newfunc);
+   } else {
+      expect_node(';');
+   }
+}
+
 void toplevel() {
    strcpy(arg_registers[0], "rdi");
    strcpy(arg_registers[1], "rsi");
@@ -3039,6 +3096,7 @@ void toplevel() {
             char *name = NULL;
             Type *type = read_type(&name);
             size = type2size3(type);
+
             if ((offset % size != 0)) {
                offset += (size - offset % size);
             }
@@ -3106,45 +3164,10 @@ void toplevel() {
       }
 
       if (confirm_type()) {
-         Node *newfunc;
          char *name = NULL;
-         int staticfunc = 0;
-         if (consume_node(TK_STATIC)) {
-            staticfunc = 1;
-         }
          Type *type = read_type(&name);
          if (consume_node('(')) {
-            newfunc = new_fdef_node(name, type, staticfunc);
-            // Function definition because toplevel func call
-
-            // TODO env should be treated as cooler bc. of splitted namespaces
-            Env *prev_env = env;
-            env = newfunc->env;
-            for (newfunc->argc = 0; newfunc->argc <= 6 && !consume_node(')');) {
-               if (consume_node(TK_OMIITED)) {
-                  Type *saved_var_type = malloc(sizeof(Type));
-                  saved_var_type->ty = TY_ARRAY;
-                  saved_var_type->ptrof = find_typed_db("long", typedb);
-                  saved_var_type->array_size = 7;
-                  newfunc->is_omiited = new_ident_node_with_new_variable("_saved_var", saved_var_type);
-                  omiited_argc = newfunc->argc;
-                  expect_node(')');
-                  break;
-               }
-               char *arg_name = NULL;
-               Type *arg_type = read_type(&arg_name);
-               newfunc->args[newfunc->argc++] =
-                   new_ident_node_with_new_variable(arg_name, arg_type);
-               consume_node(',');
-            }
-            env = prev_env;
-            // to support prototype def.
-            if (confirm_node('{')) {
-               program(newfunc);
-               vec_push(globalcode, (Token *)newfunc);
-            } else {
-               expect_node(';');
-            }
+            new_fdef(name, type);
             continue;
          } else {
             // Global Variables.
