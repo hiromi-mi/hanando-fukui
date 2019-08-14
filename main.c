@@ -55,7 +55,8 @@ Type *read_type(char **input);
 Type *read_fundamental_type();
 int confirm_type();
 int confirm_ident();
-int split_type_ident();
+int consume_ident();
+int split_type_caller();
 Vector *read_tokenize(char *fname);
 void define_enum(int use);
 char *expect_ident();
@@ -322,6 +323,32 @@ Node *new_ident_node(char *name) {
    return node;
 }
 
+char* mangle_func_name(char *name) {
+   char *p;
+   char *q = malloc(sizeof(char) * 256);
+   // Mangle
+   if ((lang & 1)) {
+      p = name;
+      // C++
+      while (*p != '\0') {
+         if (*p == ':' && *(p+1) == ':') {
+            strncpy(q, "MangleD", 8);
+            p += 2;
+            q += 7;
+            continue;
+         }
+         *q = *p;
+         p++;
+         q++;
+      }
+      *q = '\0';
+      puts(q);
+      return q;
+   } else {
+      return name;
+   }
+}
+
 Node *new_func_node(char *name) {
    Node *node = malloc(sizeof(Node));
    node->ty = ND_FUNC;
@@ -336,6 +363,7 @@ Node *new_func_node(char *name) {
    } else {
       node->type = find_typed_db("int", typedb);
    }
+   node->gen_name = mangle_func_name(name);
    return node;
 }
 
@@ -354,7 +382,7 @@ Env *new_env(Env *prev_env) {
    return _env;
 }
 
-Node *new_fdef_node(char *name, Type *type) {
+Node *new_fdef_node(char *name, Type *type, int is_static) {
    Node *node = malloc(sizeof(Node));
    node->type = type;
    node->ty = ND_FDEF;
@@ -365,6 +393,8 @@ Node *new_fdef_node(char *name, Type *type) {
    node->env = new_env(NULL);
    node->code = new_vector();
    node->is_omiited = NULL; // func(a, b, ...)
+   node->is_static = is_static;
+   node->gen_name = mangle_func_name(name);
    map_put(funcdefs, name, node);
    return node;
 }
@@ -539,6 +569,12 @@ Vector *tokenize(char *p) {
       if (strncmp(p, "...", 3) == 0) {
          vec_push(pre_tokens, new_token(TK_OMIITED, p));
          p += 3;
+         continue;
+      }
+
+      if ((*p == ':' && *(p + 1) == ':')) {
+         vec_push(pre_tokens, new_token(TK_COLONCOLON, p));
+         p += 2;
          continue;
       }
 
@@ -1858,9 +1894,9 @@ Register *gen_register_2(Node *node, int unused_eval) {
          return lhs_reg;
 
       case ND_FDEF:
-         printf(".type %s,@function\n", node->name);
-         printf(".global %s\n", node->name); // to visible for ld
-         printf("%s:\n", node->name);
+         printf(".type %s,@function\n", node->gen_name);
+         printf(".global %s\n", node->gen_name); // to visible for ld
+         printf("%s:\n", node->gen_name);
          puts("push rbp");
          puts("mov rbp, rsp");
          printf("sub rsp, %d\n", *node->env->rsp_offset_max);
@@ -1910,7 +1946,7 @@ Register *gen_register_2(Node *node, int unused_eval) {
          save_reg();
          // FIXME: alignment should be 64-bit
          puts("mov al, 0");               // TODO to preserve float
-         printf("call %s\n", node->name); // rax should be aligned with the size
+         printf("call %s\n", node->gen_name); // rax should be aligned with the size
          restore_reg();
 
          if (node->type->ty == TY_VOID || unused_eval == 1) {
@@ -2639,8 +2675,9 @@ Type *read_type(char **input) {
       input = &tokens->data[pos]->input;
    }
    // skip the name  of position.
-   consume_node(TK_IDENT);
+   consume_ident();
    // functional pointer.
+   /*
    if (consume_node('(')) {
       while (1) {
          if ((consume_node(',') == 0) && consume_node(')')) {
@@ -2649,6 +2686,7 @@ Type *read_type(char **input) {
          read_type(NULL);
       }
    }
+   */
 
    // array
    if (consume_node('[')) {
@@ -2868,7 +2906,11 @@ Type *read_fundamental_type() {
    return find_typed_db(expect_ident(), typedb);
 }
 
-int split_type_ident() {
+int split_type_caller() {
+   // static may be ident or func
+   if (tokens->data[pos]->ty == TK_STATIC) {
+      pos++;
+   }
    if (tokens->data[pos]->ty != TK_IDENT) {
       return 0;
    }
@@ -2883,13 +2925,21 @@ int split_type_ident() {
 }
 
 int confirm_type() {
-   if (split_type_ident() > 2) {
+   if (split_type_caller() > 2) {
       return 1;
    }
    return 0;
 }
 int confirm_ident() {
-   if (split_type_ident() == 2) {
+   if (split_type_caller() == 2) {
+      return 1;
+   }
+   return 0;
+}
+
+int consume_ident() {
+   if (split_type_caller() == 2) {
+      pos++;
       return 1;
    }
    return 0;
@@ -2905,7 +2955,7 @@ char *expect_ident() {
 
 void define_enum(int assign_name) {
    // ENUM def.
-   consume_node(TK_IDENT); // for ease
+   consume_ident(); // for ease
    expect_node('{');
    Type *enumtype = malloc(sizeof(Type));
    enumtype->ty = TY_INT;
@@ -3047,7 +3097,7 @@ void toplevel() {
       }
 
       if (consume_node(TK_ENUM)) {
-         consume_node(TK_IDENT); // for ease
+         consume_ident(); // for ease
          expect_node('{');
          char *name = expect_ident();
          Type *structuretype = malloc(sizeof(Type));
@@ -3056,10 +3106,15 @@ void toplevel() {
       }
 
       if (confirm_type()) {
+         Node *newfunc;
          char *name = NULL;
+         int staticfunc = 0;
+         if (consume_node(TK_STATIC)) {
+            staticfunc = 1;
+         }
          Type *type = read_type(&name);
          if (consume_node('(')) {
-            Node *newfunc = new_fdef_node(name, type);
+            newfunc = new_fdef_node(name, type, staticfunc);
             // Function definition because toplevel func call
 
             // TODO env should be treated as cooler bc. of splitted namespaces

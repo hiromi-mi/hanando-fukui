@@ -68,6 +68,7 @@ typedef enum {
    TK_PUBLIC,
    TK_PRIVATE,
    TK_STATIC,
+   TK_COLONCOLON,
 } TokenConst;
 
 typedef enum {
@@ -187,11 +188,13 @@ typedef struct Node {
    Vector *code;
    long argc;
    long num_val;
-   char *name;
+   char *name;     // Name Before Mangled
+   char *gen_name; // Mangled Name
    Env *env;
    Type *type;
    int lvar_offset;
    struct Node *is_omiited;
+   int is_static;
 } Node;
 
 // Extended Register. with global variables, local variables, memory map,
