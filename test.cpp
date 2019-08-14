@@ -8,7 +8,7 @@ class Test {
 int main() {
    Test c;
    c.a = 9;
-   Test::func();
+   printf("%d\n", Test::func());
    return 0;
 }
 

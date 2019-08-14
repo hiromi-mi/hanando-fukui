@@ -325,7 +325,8 @@ Node *new_ident_node(char *name) {
 
 char* mangle_func_name(char *name) {
    char *p;
-   char *q = malloc(sizeof(char) * 256);
+   char *buf = malloc(sizeof(char) * 256);
+   char *q = buf;
    // Mangle
    if ((lang & 1)) {
       p = name;
@@ -342,8 +343,7 @@ char* mangle_func_name(char *name) {
          q++;
       }
       *q = '\0';
-      puts(q);
-      return q;
+      return buf;
    } else {
       return name;
    }
@@ -653,6 +653,14 @@ Vector *tokenize(char *p) {
             token->input[j] = *p;
             p++;
             j++;
+            if (*p == ':' &&  *(p+1) == ':') {
+               token->input[j] = *p;
+               p++;
+               j++;
+               token->input[j] = *p;
+               p++;
+               j++;
+            }
          } while (('a' <= *p && *p <= 'z') || ('0' <= *p && *p <= '9') ||
                   ('A' <= *p && *p <= 'Z') || *p == '_');
          token->input[j] = '\0';
@@ -3098,6 +3106,7 @@ void toplevel() {
             size = type2size3(type);
             if (consume_node('(')) {
                consume_node(')');
+               expect_node(';');
                continue;
             }
 
