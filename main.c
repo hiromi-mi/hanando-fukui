@@ -2372,7 +2372,7 @@ void gen(Node *node) {
       puts("mov al, 0");
       printf("call %s\n", node->name); // rax should be aligned with the size
       if (node->type->ty == TY_VOID) {
-         puts("push 0"); // FIXME
+         puts("push 0");
       } else {
          puts("push rax");
       }
@@ -2685,7 +2685,7 @@ Type *read_type(Type *type, char **input) {
    } else {
       input = &tokens->data[pos]->input;
    }
-            consume_node(TK_IDENT);
+   consume_node(TK_IDENT);
    // functional pointer.
    /*
    if (consume_node('(')) {
@@ -2699,26 +2699,30 @@ Type *read_type(Type *type, char **input) {
    */
 
    // array
-   if (consume_node('[')) {
-      Type *base_type = type;
-      type = malloc(sizeof(Type));
-      type->ty = TY_ARRAY;
-      type->array_size = (int)tokens->data[pos]->num_val;
-      type->ptrof = base_type;
-      expect_node(TK_NUM);
-      expect_node(']');
-      Type *cur_ptr = type;
-      // support for multi-dimensional array
-      while (consume_node('[')) {
-         // TODO: support NOT functioned type
-         // ex. int a[4+7];
-         cur_ptr->ptrof = malloc(sizeof(Type));
-         cur_ptr->ptrof->ty = TY_ARRAY;
-         cur_ptr->ptrof->array_size = (int)tokens->data[pos]->num_val;
-         cur_ptr->ptrof->ptrof = base_type;
+   while (1) {
+      if (consume_node('[')) {
+         Type *base_type = type;
+         type = malloc(sizeof(Type));
+         type->ty = TY_ARRAY;
+         type->array_size = (int)tokens->data[pos]->num_val;
+         type->ptrof = base_type;
          expect_node(TK_NUM);
          expect_node(']');
-         cur_ptr = cur_ptr->ptrof;
+         Type *cur_ptr = type;
+         // support for multi-dimensional array
+         while (consume_node('[')) {
+            // TODO: support NOT functioned type
+            // ex. int a[4+7];
+            cur_ptr->ptrof = malloc(sizeof(Type));
+            cur_ptr->ptrof->ty = TY_ARRAY;
+            cur_ptr->ptrof->array_size = (int)tokens->data[pos]->num_val;
+            cur_ptr->ptrof->ptrof = base_type;
+            expect_node(TK_NUM);
+            expect_node(']');
+            cur_ptr = cur_ptr->ptrof;
+         }
+      } else {
+         break;
       }
    }
    return type;
@@ -3115,6 +3119,7 @@ void toplevel() {
             Type *type = read_type_all(&name);
             size = type2size3(type);
             if (consume_node('(')) {
+               // treat as function
                consume_node(')');
                expect_node(';');
                continue;

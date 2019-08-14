@@ -1,3 +1,5 @@
+// $ ./hanando -r -f -cpp test.cpp > test.s && clang -g test.s -o test && ./test
+
 class Test {
    public:
    int a;
