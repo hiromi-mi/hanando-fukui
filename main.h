@@ -180,6 +180,11 @@ typedef struct Env {
    int rsp_offset;
 } Env;
 
+typedef struct Caller {
+   char* name;
+   struct Caller* next;
+} Caller;
+
 typedef struct Node {
    NodeType ty;
    struct Node *lhs;
@@ -190,6 +195,7 @@ typedef struct Node {
    long num_val;
    char *name;     // Name Before Mangled
    char *gen_name; // Mangled Name
+   Caller *caller;
    Env *env;
    Type *type;
    int lvar_offset;
