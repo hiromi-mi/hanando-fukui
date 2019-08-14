@@ -47,6 +47,7 @@ typedef enum {
    TK_OR,
    TK_AND,
    TK_STRUCT,
+   TK_CLASS,
    TK_TYPEDEF,
    TK_STRING,
    TK_SPACE,
@@ -64,6 +65,8 @@ typedef enum {
    TK_DEFAULT,
    TK_EXTERN,
    TK_OMIITED, // ...
+   TK_PUBLIC,
+   TK_PRIVATE,
 } TokenConst;
 
 typedef enum {
@@ -137,6 +140,11 @@ typedef struct {
    long len;
 } Vector;
 
+typedef enum {
+   PRIVATE,
+   PUBLIC,
+} MemberAccess;
+
 typedef struct {
    Vector *keys;
    Vector *vals;
@@ -150,14 +158,17 @@ typedef struct Type {
       TY_CHAR,
       TY_LONG,
       TY_STRUCT,
+      TY_CLASS,
       TY_VOID,
-      TY_DOUBLE
+      TY_DOUBLE,
    } ty;
    Map *structure; // <name, Type*>
+   Map *concrete_func;
    struct Type *ptrof;
    int array_size;
    int initval;
    int offset;
+   MemberAccess memaccess;
 } Type;
 
 typedef struct Env {

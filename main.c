@@ -639,6 +639,8 @@ Vector *tokenize(char *p) {
             token->ty = TK_GOTO;
          } else if (strcmp(token->input, "struct") == 0) {
             token->ty = TK_STRUCT;
+         } else if (strcmp(token->input, "class") == 0) {
+            token->ty = TK_CLASS;
          } else if (strcmp(token->input, "typedef") == 0) {
             token->ty = TK_TYPEDEF;
          } else if (strcmp(token->input, "break") == 0) {
@@ -880,6 +882,10 @@ Node *new_dot_node(Node *node) {
    node->type = (Type *)map_get(node->lhs->type->structure, node->name);
    if (!node->type) {
       error("Error: structure not found.");
+   }
+   // Member Accesss Control p.231
+   if ((lang & 1) && (node->type->memaccess == PRIVATE)) {
+      // FIXME : to implement PRIVATE & PUBLIC
    }
    return node;
 }
@@ -2941,7 +2947,49 @@ void toplevel() {
          expect_node(';');
          continue;
       }
-      // definition of struct
+      // definition of class
+      if ((lang & 1) && consume_node(TK_CLASS)) {
+         Type *structuretype = malloc(sizeof(Type));
+         structuretype->structure = new_map();
+         structuretype->ty = TY_STRUCT;
+         structuretype->ptrof = NULL;
+         int offset = 0;
+         int size = 0;
+         char *name = expect_ident();
+         expect_node('{');
+         MemberAccess memaccess;
+         memaccess = PRIVATE; // on Struct, it is public
+         while (!consume_node('}')) {
+            if (consume_node(TK_PUBLIC)) {
+               memaccess = PUBLIC;
+               expect_node(':');
+               continue;
+            }
+            if (consume_node(TK_PRIVATE)) {
+               memaccess = PRIVATE;
+               expect_node(':');
+               continue;
+            }
+            char *name = NULL;
+            Type *type = read_type(&name);
+            size = type2size3(type);
+            if ((offset % size != 0)) {
+               offset += (size - offset % size);
+            }
+            // all type should aligned with proper value.
+            // TODO assumption there are NO bytes over 8 bytes.
+            type->offset = offset;
+            offset += cnt_size(type);
+            expect_node(';');
+            type->memaccess = memaccess;
+            map_put(structuretype->structure, name, type);
+         }
+         structuretype->offset = offset;
+         expect_node(';');
+         map_put(typedb, name, structuretype);
+         continue;
+      }
+
       if (consume_node(TK_TYPEDEF)) {
          if (consume_node(TK_ENUM)) {
             // not anonymous enum

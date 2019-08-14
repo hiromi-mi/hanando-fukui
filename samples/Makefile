@@ -1,5 +1,5 @@
 CC = ../main
-test:	test3 test8 test11 test13 test14 test17 test31
+test:	test3 test8 test11 test13 test14 test31
 	$(CC) -r -f 9.c > 9.s
 	gcc 9.s -o 9
 	./9
@@ -35,11 +35,6 @@ test31:
 	$(CC) -r -f 31.c > 31.s
 	gcc 31.s -o 31 
 	./31
-test17:
-	$(CC) -r -f 17.c > 17.s
-	gcc 17.s -o 17 
-	./17
-
 test18:
 	$(CC) -r -f 18.c > 18.s
 	gcc -g 18.s 19.c -o 18
@@ -48,4 +43,4 @@ test18:
 clean:
 	$(RM) -f *.s
 
-.PHONY:	test3 test8 test11 test13 test14 test17 test31 clean
+.PHONY:	test3 test8 test11 test13 test14 test31 clean
