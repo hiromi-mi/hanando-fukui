@@ -2744,6 +2744,24 @@ Type *read_type(Type *result, char** input) {
    return result;
 }
 
+void skip_until_correspond() {
+   int counter = 0;
+   while (!consume_node(TK_EOF)) {
+      if (consume_node('(')) {
+         counter++;
+         continue;
+      }
+      if (consume_node(')')) {
+         counter--;
+         if (counter < 0) {
+            return;
+         }
+         continue;
+      }
+      pos++;
+   }
+}
+
 Type *read_type_2(Type *type, Caller** caller) {
    if (!type) {
       error("Error: NOT a type when reading type.");
@@ -2757,19 +2775,46 @@ Type *read_type_2(Type *type, Caller** caller) {
       type->ty = TY_PTR;
       type->ptrof = old_type;
    }
+
+   // direct-declarator (if any)
    // There are input: there are ident names
+   // Case 1: Identifier
    if (caller) {
-      *caller = new_caller_from_token();
-   }
-   // functional pointer.
-   /*
-   if (consume_node('(')) {
-      while (1) {
-         if ((consume_node(',') == 0) && consume_node(')')) {
-            break;
+      if (confirm_node(TK_IDENT)) {
+         *caller = new_caller_from_token();
+      } else {
+         expect_node('(');
+         int previous_pos = pos;
+         skip_until_correspond();
+         // int (*x[20])HERE(int)
+         expect_node('(');
+         if (consume_node('(')) {
+            Type *new_ty = malloc(sizeof(Type));
+            new_ty->ty = TY_FUNC;
+            new_ty->return_type = type;
+            type = new_ty;
+            type->argc = 0;
+            while (1) {
+               if ((consume_node(',') == 0) && consume_node(')')) {
+                  break;
+               }
+               type->args[type->argc] = read_fundamental_type();
+               type->args[type->argc] = read_type(type->args[type->argc], NULL);
+               type->argc++;
+            }
          }
+         pos = previous_pos;
+
+         // Come back to basic type.
+         type = read_type_2(type, caller);
+         expect_node(')');
       }
    }
+   // Case 2: ( declarator )
+   // Case 3: direct-declarator (parameter-type-list)
+   // Case 4: direct-declarator ( identifier-listopt )
+   // functional pointer.
+   /*
    */
    // skip the name  of position.
    consume_node(TK_IDENT);

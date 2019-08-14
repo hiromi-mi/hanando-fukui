@@ -175,9 +175,12 @@ typedef struct Type {
    long argc;
    struct Type *args[6];
    struct Type *ptrof;
+   struct Type *return_type;
    int array_size;
    int initval;
    int offset;
+   int is_const;
+   int is_static;
    MemberAccess memaccess;
 } Type;
 
