@@ -51,7 +51,7 @@ char arg_registers[6][4];
 int lang = 0;
 
 int type2size(Type *type);
-Type *read_type(char **input);
+Type *read_type_all(char **input);
 Type *read_fundamental_type();
 int confirm_type();
 int confirm_ident();
@@ -862,7 +862,7 @@ Node *node_cast() {
    Node *node = NULL;
    if (consume_node('(')) {
       if (confirm_type()) {
-         Type *type = read_type(NULL);
+         Type *type = read_type_all(NULL);
          expect_node(')');
          node = new_node(ND_CAST, node_increment(), NULL);
          node->type = type;
@@ -899,7 +899,7 @@ Node *node_increment() {
    } else if (consume_node(TK_SIZEOF)) {
       if (consume_node('(') && confirm_type()) {
          // sizeof(int) read type without name
-         Type *type = read_type(NULL);
+         Type *type = read_type_all(NULL);
          expect_node(')');
          return new_num_node(cnt_size(type));
       }
@@ -988,7 +988,7 @@ Node *treat_va_arg() {
    node->lhs = node_term();
    expect_node(',');
    // do not need ident name
-   node->type = read_type(NULL);
+   node->type = read_type_all(NULL);
    expect_node(')');
    return node;
 }
@@ -2666,8 +2666,7 @@ Node *assign() {
    return node;
 }
 
-Type *read_type(char **input) {
-   Type *type = read_fundamental_type();
+Type *read_type(Type *type, char **input) {
    if (!type) {
       error("Error: NOT a type when reading type.");
       return NULL;
@@ -2694,7 +2693,7 @@ Type *read_type(char **input) {
          if ((consume_node(',') == 0) && consume_node(')')) {
             break;
          }
-         read_type(NULL);
+         read_type_all(NULL);
       }
    }
    */
@@ -2725,11 +2724,17 @@ Type *read_type(char **input) {
    return type;
 }
 
+Type *read_type_all(char **input) {
+   Type *type = read_fundamental_type();
+   type = read_type(type, input);
+   return type;
+}
+
 Node *stmt() {
    Node *node = NULL;
    if (confirm_type()) {
       char *input = NULL;
-      Type *type = read_type(&input);
+      Type *type = read_type_all(&input);
       node = new_ident_node_with_new_variable(input, type);
       // if there is int a =1;
       if (consume_node('=')) {
@@ -3035,7 +3040,7 @@ void new_fdef(char* name, Type* type) {
          break;
       }
       char *arg_name = NULL;
-      Type *arg_type = read_type(&arg_name);
+      Type *arg_type = read_type_all(&arg_name);
       newfunc->args[newfunc->argc++] =
             new_ident_node_with_new_variable(arg_name, arg_type);
       consume_node(',');
@@ -3072,7 +3077,7 @@ void toplevel() {
    while (!consume_node(TK_EOF)) {
       if (consume_node(TK_EXTERN)) {
          char *name = NULL;
-         Type *type = read_type(&name);
+         Type *type = read_type_all(&name);
          type->offset = -1; // TODO externed
          map_put(global_vars, name, type);
          expect_node(';');
@@ -3102,7 +3107,7 @@ void toplevel() {
                continue;
             }
             char *name = NULL;
-            Type *type = read_type(&name);
+            Type *type = read_type_all(&name);
             size = type2size3(type);
             if (consume_node('(')) {
                consume_node(')');
@@ -3148,7 +3153,7 @@ void toplevel() {
          int size = 0;
          while (!consume_node('}')) {
             char *name = NULL;
-            Type *type = read_type(&name);
+            Type *type = read_type_all(&name);
             size = type2size3(type);
             if ((offset % size != 0)) {
                offset += (size - offset % size);
@@ -3178,7 +3183,7 @@ void toplevel() {
 
       if (confirm_type()) {
          char *name = NULL;
-         Type *type = read_type(&name);
+         Type *type = read_type_all(&name);
          if (consume_node('(')) {
             new_fdef(name, type);
             continue;
