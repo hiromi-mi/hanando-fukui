@@ -3096,6 +3096,10 @@ void toplevel() {
             char *name = NULL;
             Type *type = read_type(&name);
             size = type2size3(type);
+            if (consume_node('(')) {
+               consume_node(')');
+               continue;
+            }
 
             if ((offset % size != 0)) {
                offset += (size - offset % size);
