@@ -2734,15 +2734,20 @@ Node *stmt() {
    Node *node = NULL;
    if (confirm_type()) {
       char *input = NULL;
-      Type *type = read_type_all(&input);
-      node = new_ident_node_with_new_variable(input, type);
-      // if there is int a =1;
-      if (consume_node('=')) {
-         if (consume_node('{')) {
-         } else {
-            node = new_node('=', node, node_mathexpr());
+      Type *fundamental_type = read_fundamental_type();
+      Type *type;
+      do {
+         type = read_type(fundamental_type, &input);
+         node = new_ident_node_with_new_variable(input, type);
+         // if there is int a =1;
+         if (consume_node('=')) {
+            if (consume_node('{')) {
+            } else {
+               node = new_node('=', node, node_mathexpr());
+            }
          }
-      }
+         input = NULL;
+      } while (consume_node(','));
    } else if (consume_node(TK_RETURN)) {
       if (confirm_node(';')) {
          // to support return; with void type
