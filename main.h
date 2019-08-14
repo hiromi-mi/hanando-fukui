@@ -67,6 +67,7 @@ typedef enum {
    TK_OMIITED, // ...
    TK_PUBLIC,
    TK_PRIVATE,
+   TK_STATIC,
 } TokenConst;
 
 typedef enum {

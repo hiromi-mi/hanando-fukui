@@ -641,6 +641,8 @@ Vector *tokenize(char *p) {
             token->ty = TK_STRUCT;
          } else if (strcmp(token->input, "class") == 0) {
             token->ty = TK_CLASS;
+         } else if (strcmp(token->input, "static") == 0) {
+            token->ty = TK_STATIC;
          } else if (strcmp(token->input, "typedef") == 0) {
             token->ty = TK_TYPEDEF;
          } else if (strcmp(token->input, "break") == 0) {
@@ -661,6 +663,10 @@ Vector *tokenize(char *p) {
             token->ty = TK_ENUM;
          } else if (strcmp(token->input, "extern") == 0) {
             token->ty = TK_EXTERN;
+         } else if (strcmp(token->input, "public") == 0) {
+            token->ty = TK_PUBLIC;
+         } else if (strcmp(token->input, "private") == 0) {
+            token->ty = TK_PRIVATE;
          } else if (strcmp(token->input, "__LINE__") == 0) {
             token->ty = TK_NUM;
             token->num_val = pline;
@@ -2634,6 +2640,16 @@ Type *read_type(char **input) {
    }
    // skip the name  of position.
    consume_node(TK_IDENT);
+   // functional pointer.
+   if (consume_node('(')) {
+      while (1) {
+         if ((consume_node(',') == 0) && consume_node(')')) {
+            break;
+         }
+         read_type(NULL);
+      }
+   }
+
    // array
    if (consume_node('[')) {
       Type *base_type = type;
