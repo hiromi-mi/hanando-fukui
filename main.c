@@ -52,6 +52,7 @@ int lang = 0;
 
 int type2size(Type *type);
 Type *read_type(char **input);
+Type *read_type_2(Caller** caller);
 Type *read_fundamental_type();
 int confirm_type();
 int confirm_ident();
@@ -2720,7 +2721,26 @@ Node *assign() {
    return node;
 }
 
-Type *read_type(char **input) {
+Type *read_type(char** input) {
+   Caller *caller = NULL;
+   Type *result = read_type_2(&caller);
+   if (caller) {
+      if (input) {
+         *input = caller->name;
+      } else {
+         input = &caller->name;
+      }
+   } else {
+      if (input) {
+         *input = NULL;
+      } else {
+         input = NULL;
+      }
+   }
+   return result;
+}
+
+Type *read_type_2(Caller** caller) {
    Type *type = read_fundamental_type();
    if (!type) {
       error("Error: NOT a type when reading type.");
@@ -2735,12 +2755,8 @@ Type *read_type(char **input) {
       type->ptrof = old_type;
    }
    // There are input: there are ident names
-   Caller *caller;
-   if (input) {
-      caller = new_caller_from_token();
-      *input = tokens->data[pos]->input;
-   } else {
-      input = &tokens->data[pos]->input;
+   if (caller) {
+      *caller = new_caller_from_token();
    }
    // skip the name  of position.
    consume_node(TK_IDENT);
@@ -3188,13 +3204,12 @@ void toplevel() {
 
       if (confirm_type()) {
          Node *newfunc;
-         char *name = NULL;
          Caller *caller = NULL;
          int staticfunc = 0;
          if (consume_node(TK_STATIC)) {
             staticfunc = 1;
          }
-         Type *type = read_type(&caller);
+         Type *type = read_type_2(&caller);
          if (consume_node('(')) {
             newfunc = new_fdef_node(caller, type, staticfunc);
             // Function definition because toplevel func call
@@ -3229,6 +3244,7 @@ void toplevel() {
             }
             continue;
          } else {
+            char *name = expect_ident();
             // Global Variables.
             type->offset = 0; // TODO externed
             map_put(global_vars, name, type);
