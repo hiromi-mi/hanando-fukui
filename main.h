@@ -134,6 +134,7 @@ typedef struct {
    char *input;
    int pos;
    int type_size; // to treat 'a' as char. only used in TK_NUM
+   int pline;
 } Token;
 
 typedef struct {

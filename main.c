@@ -136,7 +136,7 @@ int vec_push(Vector *vec, Token *element) {
 
 void error(const char *str) {
    if (tokens) {
-      fprintf(stderr, "%s on %d: %s\n", str, pos, tokens->data[pos]->input);
+      fprintf(stderr, "%s on line %d pos %d: %s\n", str, tokens->data[pos]->pline, pos, tokens->data[pos]->input);
    } else {
       fprintf(stderr, "%s\n", str);
    }
@@ -435,10 +435,11 @@ int expect_node(TokenConst ty) {
    return 1;
 }
 
-Token *new_token(TokenConst ty, char *p) {
+Token *new_token(int pline, TokenConst ty, char *p) {
    Token *token = malloc(sizeof(Token));
    token->ty = ty;
    token->input = p;
+   token->pline = pline;
    return token;
 }
 
@@ -475,7 +476,7 @@ Vector *tokenize(char *p) {
          }
       }
       if (isspace(*p)) {
-         vec_push(pre_tokens, new_token(TK_SPACE, p));
+         vec_push(pre_tokens, new_token(pline, TK_SPACE, p));
          while (isspace(*p) && *p != '\0') {
             p++;
          }
@@ -483,7 +484,7 @@ Vector *tokenize(char *p) {
       }
 
       if (*p == '\"') {
-         Token *token = new_token(TK_STRING, malloc(sizeof(char) * 256));
+         Token *token = new_token(pline, TK_STRING, malloc(sizeof(char) * 256));
          int i = 0;
          while (*++p != '\"') {
             if (*p == '\\' && *(p + 1) == '\"') {
@@ -501,7 +502,7 @@ Vector *tokenize(char *p) {
          continue;
       }
       if (*p == '\'') {
-         Token *token = new_token(TK_NUM, p);
+         Token *token = new_token(pline, TK_NUM, p);
          token->type_size = 1; // to treat 'a' as char
          if (*(p + 1) != '\\') {
             token->num_val = *(p + 1);
@@ -537,43 +538,43 @@ Vector *tokenize(char *p) {
       if ((*p == '+' || *p == '-' || *p == '*' || *p == '/' || *p == '%' ||
            *p == '^' || *p == '|' || *p == '&') &&
           (*(p + 1) == '=')) {
-         vec_push(pre_tokens, new_token('=', p + 1));
-         vec_push(pre_tokens, new_token(TK_OPAS, p));
+         vec_push(pre_tokens, new_token(pline, '=', p + 1));
+         vec_push(pre_tokens, new_token(pline, TK_OPAS, p));
          p += 2;
          continue;
       }
 
       if ((*p == '+' && *(p + 1) == '+') || (*p == '-' && *(p + 1) == '-')) {
-         vec_push(pre_tokens, new_token(*p + *(p + 1), p));
+         vec_push(pre_tokens, new_token(pline, *p + *(p + 1), p));
          p += 2;
          continue;
       }
 
       if ((*p == '|' && *(p + 1) == '|')) {
-         vec_push(pre_tokens, new_token(TK_OR, p));
+         vec_push(pre_tokens, new_token(pline, TK_OR, p));
          p += 2;
          continue;
       }
       if ((*p == '&' && *(p + 1) == '&')) {
-         vec_push(pre_tokens, new_token(TK_AND, p));
+         vec_push(pre_tokens, new_token(pline, TK_AND, p));
          p += 2;
          continue;
       }
 
       if ((*p == '-' && *(p + 1) == '>')) {
-         vec_push(pre_tokens, new_token(TK_ARROW, p));
+         vec_push(pre_tokens, new_token(pline, TK_ARROW, p));
          p += 2;
          continue;
       }
 
       if (strncmp(p, "...", 3) == 0) {
-         vec_push(pre_tokens, new_token(TK_OMIITED, p));
+         vec_push(pre_tokens, new_token(pline, TK_OMIITED, p));
          p += 3;
          continue;
       }
 
       if ((*p == ':' && *(p + 1) == ':')) {
-         vec_push(pre_tokens, new_token(TK_COLONCOLON, p));
+         vec_push(pre_tokens, new_token(pline, TK_COLONCOLON, p));
          p += 2;
          continue;
       }
@@ -582,58 +583,58 @@ Vector *tokenize(char *p) {
           *p == ')' || *p == ';' || *p == ',' || *p == '{' || *p == '}' ||
           *p == '%' || *p == '^' || *p == '|' || *p == '&' || *p == '?' ||
           *p == ':' || *p == '[' || *p == ']' || *p == '#' || *p == '.') {
-         vec_push(pre_tokens, new_token(*p, p));
+         vec_push(pre_tokens, new_token(pline, *p, p));
          p++;
          continue;
       }
       if (*p == '=') {
          if (*(p + 1) == '=') {
-            vec_push(pre_tokens, new_token(TK_ISEQ, p));
+            vec_push(pre_tokens, new_token(pline, TK_ISEQ, p));
             p += 2;
          } else {
-            vec_push(pre_tokens, new_token('=', p));
+            vec_push(pre_tokens, new_token(pline, '=', p));
             p++;
          }
          continue;
       }
       if (*p == '!') {
          if (*(p + 1) == '=') {
-            vec_push(pre_tokens, new_token(TK_ISNOTEQ, p));
+            vec_push(pre_tokens, new_token(pline, TK_ISNOTEQ, p));
             p += 2;
          } else {
-            vec_push(pre_tokens, new_token(*p, p));
+            vec_push(pre_tokens, new_token(pline, *p, p));
             p++;
          }
          continue;
       }
       if (*p == '<') {
          if (*(p + 1) == '<') {
-            vec_push(pre_tokens, new_token(TK_LSHIFT, p));
+            vec_push(pre_tokens, new_token(pline, TK_LSHIFT, p));
             p += 2;
          } else if (*(p + 1) == '=') {
-            vec_push(pre_tokens, new_token(TK_ISLESSEQ, p));
+            vec_push(pre_tokens, new_token(pline, TK_ISLESSEQ, p));
             p += 2;
          } else {
-            vec_push(pre_tokens, new_token(*p, p));
+            vec_push(pre_tokens, new_token(pline, *p, p));
             p++;
          }
          continue;
       }
       if (*p == '>') {
          if (*(p + 1) == '>') {
-            vec_push(pre_tokens, new_token(TK_RSHIFT, p));
+            vec_push(pre_tokens, new_token(pline, TK_RSHIFT, p));
             p += 2;
          } else if (*(p + 1) == '=') {
-            vec_push(pre_tokens, new_token(TK_ISMOREEQ, p));
+            vec_push(pre_tokens, new_token(pline, TK_ISMOREEQ, p));
             p += 2;
          } else {
-            vec_push(pre_tokens, new_token(*p, p));
+            vec_push(pre_tokens, new_token(pline, *p, p));
             p++;
          }
          continue;
       }
       if (isdigit(*p)) {
-         Token *token = new_token(TK_NUM, p);
+         Token *token = new_token(pline, TK_NUM, p);
          token->num_val = strtol(p, &p, 10);
          token->type_size = 4; // to treat as int
 
@@ -647,7 +648,7 @@ Vector *tokenize(char *p) {
       }
 
       if (('a' <= *p && *p <= 'z') || ('A' <= *p && *p <= 'Z') || *p == '_') {
-         Token *token = new_token(TK_IDENT, malloc(sizeof(char) * 256));
+         Token *token = new_token(pline, TK_IDENT, malloc(sizeof(char) * 256));
          int j = 0;
          do {
             token->input[j] = *p;
@@ -725,7 +726,7 @@ Vector *tokenize(char *p) {
       exit(1);
    }
 
-   vec_push(pre_tokens, new_token(TK_EOF, p));
+   vec_push(pre_tokens, new_token(pline, TK_EOF, p));
    return pre_tokens;
 }
 
