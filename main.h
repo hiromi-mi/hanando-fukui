@@ -147,6 +147,11 @@ typedef enum {
    PUBLIC,
 } MemberAccess;
 
+typedef enum {
+   TQ_STATIC = 1,
+   TQ_CONST = 2,
+} TypeQualifier;
+
 typedef struct {
    Vector *keys;
    Vector *vals;
@@ -163,9 +168,12 @@ typedef struct Type {
       TY_CLASS,
       TY_VOID,
       TY_DOUBLE,
+      TY_FUNC,
    } ty;
    Map *structure; // <name, Type*>
    Map *concrete_func;
+   long argc;
+   struct Type *args[6];
    struct Type *ptrof;
    int array_size;
    int initval;

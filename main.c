@@ -51,9 +51,10 @@ char arg_registers[6][4];
 int lang = 0;
 
 int type2size(Type *type);
-Type *read_type(char **input);
-Type *read_type_2(Caller** caller);
+Type *read_type(Type *type, char **input);
+Type *read_type_2(Type *type, Caller** caller);
 Type *read_fundamental_type();
+int confirm_node();
 int confirm_type();
 int confirm_ident();
 int consume_ident();
@@ -95,7 +96,7 @@ void *realloc(void *ptr, int size);
 #endif
 
 Caller* new_caller_from_token() {
-   if (!consume_node(TK_IDENT)) {
+   if (!confirm_node(TK_IDENT)) {
       return NULL;
    }
    Caller* caller = malloc(sizeof(Caller));
@@ -917,7 +918,8 @@ Node *node_cast() {
    Node *node = NULL;
    if (consume_node('(')) {
       if (confirm_type()) {
-         Type *type = read_type(NULL);
+         Type *type = read_fundamental_type();
+         type = read_type(type, NULL);
          expect_node(')');
          node = new_node(ND_CAST, node_increment(), NULL);
          node->type = type;
@@ -954,7 +956,8 @@ Node *node_increment() {
    } else if (consume_node(TK_SIZEOF)) {
       if (consume_node('(') && confirm_type()) {
          // sizeof(int) read type without name
-         Type *type = read_type(NULL);
+         Type *type = read_fundamental_type();
+         type = read_type(type, NULL);
          expect_node(')');
          return new_num_node(cnt_size(type));
       }
@@ -1044,7 +1047,8 @@ Node *treat_va_arg() {
    node->lhs = node_term();
    expect_node(',');
    // do not need ident name
-   node->type = read_type(NULL);
+   node->type = read_fundamental_type();
+   node->type = read_type(node->type, NULL);
    expect_node(')');
    return node;
 }
@@ -2721,9 +2725,9 @@ Node *assign() {
    return node;
 }
 
-Type *read_type(char** input) {
+Type *read_type(Type *result, char** input) {
    Caller *caller = NULL;
-   Type *result = read_type_2(&caller);
+   result = read_type_2(result, &caller);
    if (caller) {
       if (input) {
          *input = caller->name;
@@ -2740,8 +2744,7 @@ Type *read_type(char** input) {
    return result;
 }
 
-Type *read_type_2(Caller** caller) {
-   Type *type = read_fundamental_type();
+Type *read_type_2(Type *type, Caller** caller) {
    if (!type) {
       error("Error: NOT a type when reading type.");
       return NULL;
@@ -2758,8 +2761,6 @@ Type *read_type_2(Caller** caller) {
    if (caller) {
       *caller = new_caller_from_token();
    }
-   // skip the name  of position.
-   consume_node(TK_IDENT);
    // functional pointer.
    /*
    if (consume_node('(')) {
@@ -2767,10 +2768,11 @@ Type *read_type_2(Caller** caller) {
          if ((consume_node(',') == 0) && consume_node(')')) {
             break;
          }
-         read_type(NULL);
       }
    }
    */
+   // skip the name  of position.
+   consume_node(TK_IDENT);
 
    // array
    if (consume_node('[')) {
@@ -2802,7 +2804,8 @@ Node *stmt() {
    Node *node = NULL;
    if (confirm_type()) {
       char *input = NULL;
-      Type *type = read_type(&input);
+      Type *type = read_fundamental_type();
+      type = read_type(type, &input);
       node = new_ident_node_with_new_variable(input, type);
       // if there is int a =1;
       if (consume_node('=')) {
@@ -2975,6 +2978,8 @@ Type *find_typed_db(char *input, Map *db) {
 }
 
 Type *read_fundamental_type() {
+   // https://gist.github.com/rui314/4b897109884f58c57b8fa5ebf9d03146
+   consume_node(TK_STATIC);
    if (tokens->data[pos]->ty == TK_CONST) {
       expect_node(TK_CONST); // TODO : for ease skip
    }
@@ -3104,7 +3109,8 @@ void toplevel() {
    while (!consume_node(TK_EOF)) {
       if (consume_node(TK_EXTERN)) {
          char *name = NULL;
-         Type *type = read_type(&name);
+         Type *type = read_fundamental_type();
+         type = read_type(type, &name);
          type->offset = -1; // TODO externed
          map_put(global_vars, name, type);
          expect_node(';');
@@ -3134,7 +3140,8 @@ void toplevel() {
                continue;
             }
             char *name = NULL;
-            Type *type = read_type(&name);
+            Type *type = read_fundamental_type();
+            type = read_type(type, &name);
             size = type2size3(type);
             if ((offset % size != 0)) {
                offset += (size - offset % size);
@@ -3174,7 +3181,8 @@ void toplevel() {
          int size = 0;
          while (!consume_node('}')) {
             char *name = NULL;
-            Type *type = read_type(&name);
+            Type *type = read_fundamental_type();
+            type = read_type(type, &name);
             size = type2size3(type);
             if ((offset % size != 0)) {
                offset += (size - offset % size);
@@ -3209,7 +3217,8 @@ void toplevel() {
          if (consume_node(TK_STATIC)) {
             staticfunc = 1;
          }
-         Type *type = read_type_2(&caller);
+         Type *type = read_fundamental_type();
+         type = read_type_2(type, &caller);
          if (consume_node('(')) {
             newfunc = new_fdef_node(caller, type, staticfunc);
             // Function definition because toplevel func call
@@ -3229,7 +3238,8 @@ void toplevel() {
                   break;
                }
                char *arg_name = NULL;
-               Type *arg_type = read_type(&arg_name);
+               Type *arg_type = read_fundamental_type();
+               arg_type = read_type(arg_type, &arg_name);
                newfunc->args[newfunc->argc++] =
                    new_ident_node_with_new_variable(arg_name, arg_type);
                consume_node(',');
@@ -3244,7 +3254,7 @@ void toplevel() {
             }
             continue;
          } else {
-            char *name = expect_ident();
+            char *name = caller->name;
             // Global Variables.
             type->offset = 0; // TODO externed
             map_put(global_vars, name, type);
