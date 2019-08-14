@@ -2686,16 +2686,17 @@ Type *read_type(Type *type, char **input) {
    // There are input: there are ident names
    if (input) {
       // When there are its name or not
+      *input = NULL;
       if (confirm_node(TK_IDENT)) {
          *input = tokens->data[pos]->input;
-      } else {
-         *input = NULL;
+      } else if (confirm_node('(')) {
+         // functional pointer.
+         expect_node(')');
       }
    } else {
       input = &tokens->data[pos]->input;
    }
    consume_node(TK_IDENT);
-   // functional pointer.
    /*
    if (consume_node('(')) {
       while (1) {
@@ -3150,12 +3151,6 @@ void toplevel() {
             char *name = NULL;
             Type *type = read_type_all(&name);
             size = type2size3(type);
-            if (consume_node('(')) {
-               // treat as function
-               consume_node(')');
-               expect_node(';');
-               continue;
-            }
 
             if ((offset % size != 0)) {
                offset += (size - offset % size);
