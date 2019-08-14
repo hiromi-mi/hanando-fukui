@@ -61,7 +61,7 @@ Vector *read_tokenize(char *fname);
 void define_enum(int use);
 char *expect_ident();
 void program(Node *block_node);
-Type *duplicate_type(Type* old_type);
+Type *duplicate_type(Type *old_type);
 Type *find_typed_db(char *input, Map *db);
 int cnt_size(Type *type);
 Type *get_type_local(Node *node);
@@ -323,7 +323,7 @@ Node *new_ident_node(char *name) {
    return node;
 }
 
-char* mangle_func_name(char *name) {
+char *mangle_func_name(char *name) {
    char *p;
    char *buf = malloc(sizeof(char) * 256);
    char *q = buf;
@@ -332,7 +332,7 @@ char* mangle_func_name(char *name) {
       p = name;
       // C++
       while (*p != '\0') {
-         if (*p == ':' && *(p+1) == ':') {
+         if (*p == ':' && *(p + 1) == ':') {
             strncpy(q, "MangleD", 8);
             p += 2;
             q += 7;
@@ -653,7 +653,7 @@ Vector *tokenize(char *p) {
             token->input[j] = *p;
             p++;
             j++;
-            if (*p == ':' &&  *(p+1) == ':') {
+            if (*p == ':' && *(p + 1) == ':') {
                token->input[j] = *p;
                p++;
                j++;
@@ -1034,9 +1034,9 @@ Node *node_term() {
       // Function Call
       if (tokens->data[pos + 1]->ty == '(') {
          char *fname = expect_ident();
-         if (strncmp(fname,  "va_arg", 7) == 0) {
+         if (strncmp(fname, "va_arg", 7) == 0) {
             return treat_va_arg();
-         } else if (strncmp(fname,  "va_start", 8) == 0) {
+         } else if (strncmp(fname, "va_start", 8) == 0) {
             return treat_va_start();
          } else if (strncmp(fname, "va_end", 7) == 0) {
             return treat_va_end();
@@ -1090,8 +1090,8 @@ Node *node_term() {
    }
    if (pos > 0) {
       fprintf(stderr, "Error: Incorrect Paresis without %c %d -> %c %d\n",
-            tokens->data[pos - 1]->ty, tokens->data[pos - 1]->ty,
-            tokens->data[pos]->ty, tokens->data[pos]->ty);
+              tokens->data[pos - 1]->ty, tokens->data[pos - 1]->ty,
+              tokens->data[pos]->ty, tokens->data[pos]->ty);
    } else {
       fprintf(stderr, "Error: Incorrect Paresis without\n");
    }
@@ -1113,32 +1113,26 @@ Type *get_type_local(Node *node) {
 }
 
 char *_rax(Node *node) {
-   if (node->type->ty == TY_CHAR) {
-      return "al";
-   } else if (node->type->ty == TY_INT) {
-      return "eax";
-   } else {
-      return "rax";
+   switch(type2size(node->type)) {
+      case 1: return "al";
+      case 4: return "eax";
+      default: return "rax";
    }
 }
 
 char *_rdi(Node *node) {
-   if (node->type->ty == TY_CHAR) {
-      return "dil";
-   } else if (node->type->ty == TY_INT) {
-      return "edi";
-   } else {
-      return "rdi";
+   switch(type2size(node->type)) {
+      case 1: return "dil";
+      case 4: return "edi";
+      default: return "rdi";
    }
 }
 
 char *_rdx(Node *node) {
-   if (node->type->ty == TY_CHAR) {
-      return "dl";
-   } else if (node->type->ty == TY_INT) {
-      return "edx";
-   } else {
-      return "rdx";
+   switch(type2size(node->type)) {
+      case 1: return "dl";
+      case 4: return "edx";
+      default: return "rdx";
    }
 }
 
@@ -1226,6 +1220,8 @@ int type2size(Type *type) {
          return 8;
       case TY_STRUCT:
          return cnt_size(type);
+      case TY_FUNC:
+         return type2size(type->ret);
       default:
          error("Error: NOT a type");
          return 0;
@@ -1238,6 +1234,7 @@ int cnt_size(Type *type) {
       case TY_INT:
       case TY_CHAR:
       case TY_LONG:
+      case TY_FUNC:
          return type2size(type);
       case TY_ARRAY:
          return cnt_size(type->ptrof) * type->array_size;
@@ -1491,8 +1488,10 @@ Register *gen_register_2(Node *node, int unused_eval) {
       case ND_NUM:
          temp_reg = retain_reg();
          if (type2size(node->type) == 1) {
-            // Delete previous value because of mov al, %ld will not delete all value in rax
-            printf("xor %s, %s\n", size2reg(8, temp_reg), size2reg(8, temp_reg));
+            // Delete previous value because of mov al, %ld will not delete all
+            // value in rax
+            printf("xor %s, %s\n", size2reg(8, temp_reg),
+                   size2reg(8, temp_reg));
          }
          printf("mov %s, %ld\n", node2reg(node, temp_reg), node->num_val);
          return temp_reg;
@@ -1848,7 +1847,7 @@ Register *gen_register_2(Node *node, int unused_eval) {
             temp_reg = retain_reg();
             secure_mutable(lhs_reg);
 
-            if (node->type->ty == TY_CHAR) {
+            if (type2size(node->type) == 1) {
                printf("movzx %s, [%s]\n", size2reg(4, temp_reg),
                       id2reg64(lhs_reg->id));
             } else {
@@ -1895,7 +1894,7 @@ Register *gen_register_2(Node *node, int unused_eval) {
 
          // this is because we cannot [[lhs_reg]] (double deref)
          secure_mutable(lhs_reg);
-         if (node->type->ty == TY_CHAR) {
+         if (type2size(node->type) == 1) {
             // when reading char, we should read just 1 byte
             printf("movzx %s, byte ptr [%s]\n", size2reg(4, lhs_reg),
                    size2reg(8, lhs_reg));
@@ -1918,8 +1917,9 @@ Register *gen_register_2(Node *node, int unused_eval) {
             printf("mov %s, %s\n", size2reg(8, temp_reg), arg_registers[j]);
          }
          if (node->is_omiited) {
-            for (j = 0; j<6; j++) {
-               printf("mov [rbp-%d], %s\n", node->is_omiited->lvar_offset-j*8, arg_registers[j]);
+            for (j = 0; j < 6; j++) {
+               printf("mov [rbp-%d], %s\n",
+                      node->is_omiited->lvar_offset - j * 8, arg_registers[j]);
             }
          }
          for (j = 0; j < node->code->len; j++) {
@@ -1957,8 +1957,9 @@ Register *gen_register_2(Node *node, int unused_eval) {
 
          save_reg();
          // FIXME: alignment should be 64-bit
-         puts("mov al, 0");               // TODO to preserve float
-         printf("call %s\n", node->gen_name); // rax should be aligned with the size
+         puts("mov al, 0"); // TODO to preserve float
+         printf("call %s\n",
+                node->gen_name); // rax should be aligned with the size
          restore_reg();
 
          if (node->type->ty == TY_VOID || unused_eval == 1) {
@@ -1976,9 +1977,10 @@ Register *gen_register_2(Node *node, int unused_eval) {
          // rax as temporary register.
          temp_reg = retain_reg();
          // temporaily use lhs_reg as ptr
-         printf("mov %s, %s\n", node2reg(node->lhs, temp_reg), node2reg(node->lhs, lhs_reg));
-         printf("mov %s, [%s]\n", size2reg(8, temp_reg), size2reg(8, temp_reg));
-         printf("add %s, 8\n", node2reg(node->lhs, lhs_reg));
+         printf("mov %s, %s\n", node2reg(node->lhs, temp_reg),
+         node2reg(node->lhs, lhs_reg)); printf("mov %s, [%s]\n", size2reg(8,
+         temp_reg), size2reg(8, temp_reg)); printf("add %s, 8\n",
+         node2reg(node->lhs, lhs_reg));
          */
          temp_reg = retain_reg();
 
@@ -1989,11 +1991,12 @@ Register *gen_register_2(Node *node, int unused_eval) {
          printf("add rax, [%s+8]\n", id2reg64(lhs_reg->id));
          printf("mov [%s], edx\n", id2reg64(lhs_reg->id));
          // only supported register
-         printf("mov %s, [rax]\n", node2reg(node, temp_reg)); // 1->reg_saved_area
+         printf("mov %s, [rax]\n",
+                node2reg(node, temp_reg)); // 1->reg_saved_area
          release_reg(lhs_reg);
 
          return temp_reg;
-      
+
       case ND_VASTART:
          lhs_reg = gen_register_3(node->lhs); // meaning ap's address
          // node->num_val means the first undefined argument No.
@@ -2002,10 +2005,11 @@ Register *gen_register_2(Node *node, int unused_eval) {
          // rbp-72 : r1
          // ...
          // rbp-56: r6
-         printf("mov dword ptr [%s], %ld\n", id2reg64(lhs_reg->id), node->num_val*8);
+         printf("mov dword ptr [%s], %ld\n", id2reg64(lhs_reg->id),
+                node->num_val * 8);
          printf("mov dword ptr [%s+4], 304\n", id2reg64(lhs_reg->id));
          printf("lea rax, [rbp-%d]\n", node->rhs->lvar_offset);
-         printf("mov qword ptr [%s+8], rax\n", id2reg64(lhs_reg->id) );
+         printf("mov qword ptr [%s+8], rax\n", id2reg64(lhs_reg->id));
          /*
          // set reg_save_area
          printf("mov [%s], rax\n", node2reg(node->lhs, lhs_reg));
@@ -2354,7 +2358,7 @@ void gen(Node *node) {
    }
    if (node->ty == ND_CAST) {
       gen(node->lhs);
-      if (node->type->ty == TY_INT && type2size(node->type) == 8) {
+      if (type2size(node->type) == 4 && type2size(node->type) == 8) {
          puts("cdqe");
       }
       return;
@@ -2681,7 +2685,12 @@ Type *read_type(Type *type, char **input) {
    }
    // There are input: there are ident names
    if (input) {
-      *input = tokens->data[pos]->input;
+      // When there are its name or not
+      if (confirm_node(TK_IDENT)) {
+         *input = tokens->data[pos]->input;
+      } else {
+         *input = NULL;
+      }
    } else {
       input = &tokens->data[pos]->input;
    }
@@ -2720,6 +2729,32 @@ Type *read_type(Type *type, char **input) {
             expect_node(TK_NUM);
             expect_node(']');
             cur_ptr = cur_ptr->ptrof;
+         }
+      } else if (consume_node('(')) {
+         Type* concrete_type = malloc(sizeof(Type));
+         concrete_type->ty = TY_FUNC;
+         concrete_type->ret = type;
+         concrete_type->argc = 0;
+         concrete_type->is_omiited = 0;
+
+         // follow concrete_type if real type !is not supported yet!
+         // to set...
+         // BEFORE: TY_PTR -> TY_PTR -> TY_PTR -> TY_INT
+         // AFTER: TY_FUNC
+         type = concrete_type;
+
+         // treat as function.
+         for (concrete_type->argc = 0; concrete_type->argc <= 6 && !consume_node(')');) {
+            if (consume_node(TK_OMIITED)) {
+               type->is_omiited = 1;
+               expect_node(')');
+               break;
+            }
+            char *buf;
+            concrete_type->args[concrete_type->argc] = read_type_all(&buf);
+            // Save its variable name, if any.
+            concrete_type->args[concrete_type->argc++]->name = buf;
+            consume_node(',');
          }
       } else {
          break;
@@ -2892,7 +2927,7 @@ void program(Node *block_node) {
 
 // 0: neither 1:TK_TYPE 2:TK_IDENT
 
-Type *duplicate_type(Type* old_type) {
+Type *duplicate_type(Type *old_type) {
    Type *type = malloc(sizeof(Type));
    // copy all
    type->ty = old_type->ty;
@@ -2920,7 +2955,7 @@ Type *find_typed_db(char *input, Map *db) {
 Type *read_fundamental_type() {
    int is_const = 0;
    int is_static = 0;
-   while(1) {
+   while (1) {
       if (tokens->data[pos]->ty == TK_STATIC) {
          is_static = 1;
          expect_node(TK_STATIC);
@@ -3029,7 +3064,7 @@ void define_enum(int assign_name) {
    }
 }
 
-void new_fdef(char* name, Type* type) {
+void new_fdef(char *name, Type *type) {
    Node *newfunc;
    newfunc = new_fdef_node(name, type, type->is_static);
    // Function definition because toplevel func call
@@ -3037,22 +3072,19 @@ void new_fdef(char* name, Type* type) {
    // TODO env should be treated as cooler bc. of splitted namespaces
    Env *prev_env = env;
    env = newfunc->env;
-   for (newfunc->argc = 0; newfunc->argc <= 6 && !consume_node(')');) {
-      if (consume_node(TK_OMIITED)) {
-         Type *saved_var_type = malloc(sizeof(Type));
-         saved_var_type->ty = TY_ARRAY;
-         saved_var_type->ptrof = find_typed_db("long", typedb);
-         saved_var_type->array_size = 7;
-         newfunc->is_omiited = new_ident_node_with_new_variable("_saved_var", saved_var_type);
-         omiited_argc = newfunc->argc;
-         expect_node(')');
-         break;
-      }
-      char *arg_name = NULL;
-      Type *arg_type = read_type_all(&arg_name);
-      newfunc->args[newfunc->argc++] =
-            new_ident_node_with_new_variable(arg_name, arg_type);
-      consume_node(',');
+   if (type->is_omiited > 0) {
+      Type *saved_var_type = malloc(sizeof(Type));
+      saved_var_type->ty = TY_ARRAY;
+      saved_var_type->ptrof = find_typed_db("long", typedb);
+      saved_var_type->array_size = 7;
+      newfunc->is_omiited =
+         new_ident_node_with_new_variable("_saved_var", saved_var_type);
+      omiited_argc = newfunc->argc;
+   }
+   newfunc->argc = type->argc;
+   int i;
+   for (i =0; i<newfunc->argc;i++) {
+      newfunc->args[i] = new_ident_node_with_new_variable(type->args[i]->name, type->args[i]);
    }
    env = prev_env;
    // to support prototype def.
@@ -3194,7 +3226,7 @@ void toplevel() {
       if (confirm_type()) {
          char *name = NULL;
          Type *type = read_type_all(&name);
-         if (consume_node('(')) {
+         if (type->ty == TY_FUNC) {
             new_fdef(name, type);
             continue;
          } else {
@@ -3406,7 +3438,7 @@ void init_typedb() {
    typevoid->structure = new_map();
    map_put(typedb, "FILE", typevoid);
 
-   Type* va_listtype = malloc(sizeof(Type));
+   Type *va_listtype = malloc(sizeof(Type));
    va_listtype->structure = new_map();
    va_listtype->ty = TY_STRUCT;
    va_listtype->ptrof = NULL;
@@ -3430,7 +3462,7 @@ void init_typedb() {
    type = duplicate_type(type);
    type->offset = 16;
    map_put(va_listtype->structure, "reg_save_area", type);
-   va_listtype->offset = 4+4+8+8;
+   va_listtype->offset = 4 + 4 + 8 + 8;
    map_put(typedb, "va_list", va_listtype);
 
    Type *typedou = malloc(sizeof(Type));
@@ -3489,7 +3521,7 @@ int main(int argc, char **argv) {
    puts(".intel_syntax noprefix");
    puts(".align 4");
    if (is_from_file) {
-      printf(".file \"%s\"\n", argv[argc-1]);
+      printf(".file \"%s\"\n", argv[argc - 1]);
    }
    // treat with global variables
    globalvar_gen();

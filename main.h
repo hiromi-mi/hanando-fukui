@@ -163,15 +163,20 @@ typedef struct Type {
       TY_CLASS,
       TY_VOID,
       TY_DOUBLE,
+      TY_FUNC,
    } ty;
    Map *structure; // <name, Type*>
-   Map *concrete_func;
    struct Type *ptrof;
+   struct Type *ret;
+   int argc;
+   struct Type *args[6];
    int array_size;
    int initval;
    int offset;
    int is_const;
    int is_static;
+   int is_omiited;
+   char* name; // for args
    MemberAccess memaccess;
 } Type;
 
