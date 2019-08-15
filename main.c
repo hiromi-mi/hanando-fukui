@@ -328,10 +328,10 @@ Node *new_ident_node(char *name) {
    }
 
    // Try Global Function.
-   Node *result = map_get(funcdefs, name);
+   Type *result = map_get(funcdefs, name);
    if (result) {
       // FIXME it should be functional pointer
-      node->type = result->type;
+      node->type = result->ret;
       return node;
    }
    // If expect this is an (unknown) function
@@ -390,9 +390,9 @@ Node *new_func_node(Node *ident) {
       // TODO support global variable function call
       node->name = ident->name;
       node->gen_name = mangle_func_name(node->name);
-      Node *result = map_get(funcdefs, ident->name);
+      Type *result = map_get(funcdefs, ident->name);
       if (result) {
-         node->type = result->type;
+         node->type = result->ret;
       } else {
          node->type = find_typed_db("int", typedb);
       }
@@ -437,7 +437,7 @@ Node *new_fdef_node(char *name, Type *type, int is_static) {
    node->is_static = is_static;
    node->gen_name = mangle_func_name(name);
    node->pline = -1; // TODO for more advenced textj
-   map_put(funcdefs, name, node);
+   map_put(funcdefs, name, (Node*)type);
    return node;
 }
 
@@ -2734,8 +2734,9 @@ Type *read_type(Type *type, char **input) {
       *input = NULL;
       if (confirm_node(TK_IDENT)) {
          *input = tokens->data[pos]->input;
-      } else if (confirm_node('(')) {
-         // functional pointer.
+      } else if (consume_node('(')) {
+         // functional pointer. declarator
+         type = read_type(type, input);
          expect_node(')');
       }
    } else {
@@ -3568,6 +3569,8 @@ int main(int argc, char **argv) {
    if (is_from_file) {
       // 1 means the file number
       printf(".file 1 \"%s\"\n", argv[argc - 1]);
+   } else {
+      printf(".file 1 \"tmp.c\"\n");
    }
    // treat with global variables
    globalvar_gen();
