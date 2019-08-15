@@ -54,6 +54,7 @@ int type2size(Type *type);
 Type *read_type_all(char **input);
 Type *read_fundamental_type();
 int confirm_type();
+int confirm_node(TokenConst ty);
 int confirm_ident();
 int consume_ident();
 int split_type_caller();
@@ -163,6 +164,7 @@ Node *new_node(NodeType ty, Node *lhs, Node *rhs) {
    node->ty = ty;
    node->lhs = lhs;
    node->rhs = rhs;
+   node->name = NULL;
    if (lhs) {
       node->type = node->lhs->type;
    }
@@ -173,6 +175,7 @@ Node *new_node_with_cast(NodeType ty, Node *lhs, Node *rhs) {
    // TODO This has problem like: long + pointer -> pointer + pointer
    if (type2size(lhs->type) < type2size(rhs->type)) {
       lhs = new_node(ND_CAST, lhs, NULL);
+
       lhs->type = rhs->type;
    } else if (type2size(lhs->type) > type2size(rhs->type)) {
       rhs = new_node(ND_CAST, rhs, NULL);
@@ -314,9 +317,24 @@ Node *new_ident_node(char *name) {
       return node;
    }
 
+   // Try Global Function.
+   Node *result = map_get(funcdefs, name);
+   if (result) {
+      // FIXME it should be functional pointer
+      node->type = result->type;
+      return node;
+   }
+   // If expect this is an (unknown) function
+   if (confirm_node('(')) {
+      node->ty = ND_IDENT;
+      node->type = find_typed_db("int", typedb);
+      return node;
+   }
+
    // Try global variable.
    node->ty = ND_GLOBAL_IDENT;
    node->type = map_get(global_vars, node->name);
+   
    if (!node->type) {
       error("Error: New Variable Definition.");
    }
@@ -349,21 +367,33 @@ char *mangle_func_name(char *name) {
    }
 }
 
-Node *new_func_node(char *name) {
+Node *new_func_node(Node *ident) {
+   //char *name) {
    Node *node = malloc(sizeof(Node));
    node->ty = ND_FUNC;
-   node->name = name;
-   node->lhs = NULL;
+   node->lhs = ident;
    node->rhs = NULL;
    node->type = NULL;
    node->argc = 0;
-   Node *result = map_get(funcdefs, name);
-   if (result) {
-      node->type = result->type;
+   if (ident->ty == ND_IDENT) {
+      // TODO support global variable function call
+      node->name = ident->name;
+      node->gen_name = mangle_func_name(node->name);
+      Node *result = map_get(funcdefs, ident->name);
+      if (result) {
+         node->type = result->type;
+      } else {
+         node->type = find_typed_db("int", typedb);
+      }
    } else {
-      node->type = find_typed_db("int", typedb);
+      // something too complex
+      // so add into function node & call
+      node->name = NULL;
+      node->gen_name = NULL;
+      // FIXME this should be type
+      node->type = ident->type;
+      // node->type = ident->ret->type;
    }
-   node->gen_name = mangle_func_name(name);
    return node;
 }
 
@@ -879,7 +909,16 @@ Node *node_cast() {
 
 Node *node_increment() {
    Node *node;
-   if (consume_node(TK_PLUSPLUS)) {
+   if (consume_node('-')) {
+      Node *node = new_node(ND_NEG, node_increment(), NULL);
+      return node;
+   } else if (consume_node('!')) {
+      Node *node = new_node('!', node_increment(), NULL);
+      return node;
+   } else if (consume_node('+')) {
+      Node *node = node_increment();
+      return node;
+   } else if (consume_node(TK_PLUSPLUS)) {
       node = new_ident_node(expect_ident());
       node = new_assign_node(node, new_addsub_node('+', node, new_num_node(1)));
    } else if (consume_node(TK_SUBSUB)) {
@@ -941,35 +980,6 @@ Node *new_dot_node(Node *node) {
    return node;
 }
 
-Node *read_complex_ident() {
-   char *input = expect_ident();
-   Node *node = NULL;
-   for (int j = 0; j < consts->keys->len; j++) {
-      // support for constant
-      if (strcmp((char *)consts->keys->data[j], input) == 0) {
-         node = (Node *)consts->vals->data[j];
-         return node;
-      }
-   }
-   node = new_ident_node(input);
-
-   while (1) {
-      if (consume_node('[')) {
-         node = new_deref_node(new_addsub_node('+', node, node_mathexpr()));
-         expect_node(']');
-      } else if (consume_node('.')) {
-         if (node->type->ty != TY_STRUCT) {
-            error("Error: dot operator to NOT struct");
-         }
-         node = new_dot_node(node);
-      } else if (consume_node(TK_ARROW)) {
-         node = new_dot_node(new_deref_node(node));
-      } else {
-         return node;
-      }
-   }
-}
-
 Node *treat_va_start() {
    Node *node = new_node(ND_VASTART, NULL, NULL);
    expect_node('(');
@@ -1003,38 +1013,50 @@ Node *treat_va_end() {
 }
 
 Node *node_term() {
-   if (consume_node('-')) {
-      Node *node = new_node(ND_NEG, node_term(), NULL);
-      return node;
-   }
-   if (consume_node('!')) {
-      Node *node = new_node('!', node_term(), NULL);
-      return node;
-   }
-   if (consume_node('+')) {
-      Node *node = node_term();
-      return node;
-   }
+   Node *node;
+   // Primary Expression
    if (confirm_type(TK_FLOAT)) {
-      Node *node = new_double_node((double)tokens->data[pos]->num_val);
+      node = new_double_node((double)tokens->data[pos]->num_val);
       expect_node(TK_NUM);
-      return node;
-   }
-   if (confirm_node(TK_NUM)) {
-      Node *node = new_num_node(tokens->data[pos]->num_val);
+   } else if (confirm_node(TK_NUM)) {
+      node = new_num_node(tokens->data[pos]->num_val);
       expect_node(TK_NUM);
-      return node;
-   }
-   if (consume_node(TK_NULL)) {
-      Node *node = new_num_node(0);
+   } else if (consume_node(TK_NULL)) {
+      node = new_num_node(0);
       node->type->ty = TY_PTR;
-      return node;
+   } else if (confirm_ident()) {
+      // treat constant or variable
+      char *input = expect_ident();
+      for (int j = 0; j < consts->keys->len; j++) {
+         // support for constant
+         if (strcmp((char *)consts->keys->data[j], input) == 0) {
+            node = (Node *)consts->vals->data[j];
+            return node;
+         }
+      }
+      node = new_ident_node(input);
+   } else if (consume_node('(')) {
+      node = assign();
+      if (consume_node(')') == 0) {
+         error("Error: Incorrect Parensis.");
+      }
+   } else if (confirm_node(TK_STRING)) {
+      char *_str = malloc(sizeof(char) * 256);
+      snprintf(_str, 255, ".LC%d",
+               vec_push(strs, (Token *)tokens->data[pos]->input));
+      node = new_string_node(_str);
+      expect_node(TK_STRING);
    }
-   if (confirm_ident()) {
-      Node *node;
+
+   while(1) {
+      // Postfix Expression
       // Function Call
-      if (tokens->data[pos + 1]->ty == '(') {
-         char *fname = expect_ident();
+      if (tokens->data[pos]->ty == '(') {
+         //char *fname = expect_ident();
+         char *fname = "";
+         if (node->ty == ND_IDENT) {
+            fname = node->name;
+         }
          if (strncmp(fname, "va_arg", 7) == 0) {
             return treat_va_arg();
          } else if (strncmp(fname, "va_start", 8) == 0) {
@@ -1042,7 +1064,9 @@ Node *node_term() {
          } else if (strncmp(fname, "va_end", 7) == 0) {
             return treat_va_end();
          }
-         node = new_func_node(fname);
+
+         // TODO: To support functional pointer
+         node = new_func_node(node);
          // skip func , (
          expect_node('(');
          while (1) {
@@ -1053,11 +1077,8 @@ Node *node_term() {
          }
          // assert(node->argc <= 6);
          // pos++ because of consume_node(')')
-         return node;
-      }
-
-      node = read_complex_ident();
-      if (consume_node(TK_PLUSPLUS)) {
+         //return node;
+      } else if (consume_node(TK_PLUSPLUS)) {
          node = new_node(ND_FPLUSPLUS, node, NULL);
          node->num_val = 1;
          if (node->lhs->type->ty == TY_PTR || node->lhs->type->ty == TY_ARRAY) {
@@ -1069,34 +1090,30 @@ Node *node_term() {
          if (node->lhs->type->ty == TY_PTR || node->lhs->type->ty == TY_ARRAY) {
             node->num_val = type2size(node->lhs->type->ptrof);
          }
+      } else if (consume_node('[')) {
+         node = new_deref_node(new_addsub_node('+', node, node_mathexpr()));
+         expect_node(']');
+      } else if (consume_node('.')) {
+         if (node->type->ty != TY_STRUCT) {
+            error("Error: dot operator to NOT struct");
+         }
+         node = new_dot_node(node);
+      } else if (consume_node(TK_ARROW)) {
+         node = new_dot_node(new_deref_node(node));
+      } else {
+         return node;
       }
-      // array
-      return node;
    }
-   if (confirm_node(TK_STRING)) {
-      char *_str = malloc(sizeof(char) * 256);
-      snprintf(_str, 255, ".LC%d",
-               vec_push(strs, (Token *)tokens->data[pos]->input));
-      Node *node = new_string_node(_str);
-      expect_node(TK_STRING);
-      return node;
-   }
-   // Parensis
-   if (consume_node('(')) {
-      Node *node = assign();
-      if (consume_node(')') == 0) {
-         error("Error: Incorrect Parensis.");
-      }
-      return node;
-   }
+   /*
    if (pos > 0) {
       fprintf(stderr, "Error: Incorrect Paresis without %c %d -> %c %d\n",
-              tokens->data[pos - 1]->ty, tokens->data[pos - 1]->ty,
-              tokens->data[pos]->ty, tokens->data[pos]->ty);
+            tokens->data[pos - 1]->ty, tokens->data[pos - 1]->ty,
+            tokens->data[pos]->ty, tokens->data[pos]->ty);
    } else {
       fprintf(stderr, "Error: Incorrect Paresis without\n");
    }
    exit(1);
+*/
 }
 
 Type *get_type_local(Node *node) {
