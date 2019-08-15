@@ -3261,7 +3261,7 @@ void toplevel() {
             }
             size = type2size3(type);
 
-            if ((offset % size != 0)) {
+            if (size > 0 && (offset % size != 0)) {
                offset += (size - offset % size);
             }
             // all type should aligned with proper value.
