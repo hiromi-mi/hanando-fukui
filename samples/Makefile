@@ -1,5 +1,5 @@
 CC = ../hanando
-test:	test3 test8 test11 test13 test14 test31 test17
+test:	test3 test8 test11 test13 test14 test31 test17 test41
 	$(CC) -r -f 9.c > 9.s
 	gcc 9.s -o 9
 	./9
@@ -45,7 +45,11 @@ test17:
 	gcc -g 17.s -o 17
 	./17
 
+test41:
+	$(CC) -r -f 41.c > 41.s
+	gcc -g 41.s -o 41
+	./41
 clean:
 	$(RM) -f *.s
 
-.PHONY:	test3 test8 test11 test13 test14 test31 clean test17
+.PHONY:	test3 test8 test11 test13 test14 test31 clean test17 test41

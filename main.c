@@ -330,13 +330,13 @@ Node *new_ident_node(char *name) {
    // Try Global Function.
    Type *result = map_get(funcdefs, name);
    if (result) {
-      // FIXME it should be functional pointer
-      node->type = result->ret;
+      node->type = result;
+      node->ty = ND_SYMBOL;
       return node;
    }
    // If expect this is an (unknown) function
    if (confirm_node('(')) {
-      node->ty = ND_IDENT;
+      node->ty = ND_SYMBOL;
       node->type = find_typed_db("int", typedb);
       return node;
    }
@@ -378,7 +378,6 @@ char *mangle_func_name(char *name) {
 }
 
 Node *new_func_node(Node *ident) {
-   //char *name) {
    Node *node = malloc(sizeof(Node));
    node->ty = ND_FUNC;
    node->lhs = ident;
@@ -386,7 +385,7 @@ Node *new_func_node(Node *ident) {
    node->type = NULL;
    node->argc = 0;
    node->pline = -1; // TODO for more advenced textj
-   if (ident->ty == ND_IDENT) {
+   if (ident->ty == ND_SYMBOL) {
       // TODO support global variable function call
       node->name = ident->name;
       node->gen_name = mangle_func_name(node->name);
@@ -1260,7 +1259,7 @@ int type2size(Type *type) {
       case TY_STRUCT:
          return cnt_size(type);
       case TY_FUNC:
-         return type2size(type->ret);
+         return 8;
       default:
          error("Error: NOT a type");
          return 0;
@@ -1471,6 +1470,7 @@ Register *gen_register_3(Node *node) {
 
       case ND_GLOBAL_IDENT:
       case ND_STRING:
+      case ND_SYMBOL:
          temp_reg = retain_reg();
          printf("lea %s, %s\n", id2reg64(temp_reg->id),
                 gvar_node2reg(node, node->name));
@@ -1542,6 +1542,7 @@ Register *gen_register_2(Node *node, int unused_eval) {
          return temp_reg;
 
       case ND_STRING:
+      case ND_SYMBOL:
          temp_reg = retain_reg();
          printf("lea %s, qword ptr %s[rip]\n", size2reg(8, temp_reg),
                 node->name);
@@ -1803,6 +1804,7 @@ Register *gen_register_2(Node *node, int unused_eval) {
       case ND_GREATER:
          lhs_reg = gen_register_2(node->lhs, 0);
          rhs_reg = gen_register_2(node->rhs, 0);
+         secure_mutable(rhs_reg);
          cmp_regs(node, lhs_reg, rhs_reg);
          puts("setg al");
          release_reg(lhs_reg);
@@ -1815,6 +1817,8 @@ Register *gen_register_2(Node *node, int unused_eval) {
       case ND_LESS:
          lhs_reg = gen_register_2(node->lhs, 0);
          rhs_reg = gen_register_2(node->rhs, 0);
+
+         secure_mutable(rhs_reg);
          cmp_regs(node, lhs_reg, rhs_reg);
          // TODO: is "andb 1 %al" required?
          puts("setl al");
@@ -2003,8 +2007,15 @@ Register *gen_register_2(Node *node, int unused_eval) {
          save_reg();
          // FIXME: alignment should be 64-bit
          puts("mov al, 0"); // TODO to preserve float
-         printf("call %s\n",
-                node->gen_name); // rax should be aligned with the size
+         if (node->gen_name) { // ND_GLOBAL_IDENT, called from local vars.
+            printf("call %s\n",
+                  node->gen_name); // rax should be aligned with the size
+         } else {
+            temp_reg = gen_register_2(node->lhs, 0);
+            secure_mutable(temp_reg);
+            printf("call %s\n", size2reg(8, temp_reg));
+            release_reg(temp_reg);
+         }
          restore_reg();
 
          if (node->type->ty == TY_VOID || unused_eval == 1) {
@@ -2716,17 +2727,14 @@ Node *assign() {
 }
 
 Type *read_type(Type *type, char **input) {
-   if (!type) {
-      error("Error: NOT a type when reading type.");
-      return NULL;
-   }
+   int ptr_cnt = 0;
+   int i = 0;
+   Type *concrete_type;
+
    // Variable Definition.
    // consume is pointer or not
    while (consume_node('*')) {
-      Type *old_type = type;
-      type = malloc(sizeof(Type));
-      type->ty = TY_PTR;
-      type->ptrof = old_type;
+      ptr_cnt++;
    }
    // There are input: there are ident names
    if (input) {
@@ -2736,24 +2744,26 @@ Type *read_type(Type *type, char **input) {
          *input = tokens->data[pos]->input;
       } else if (consume_node('(')) {
          // functional pointer. declarator
-         type = read_type(type, input);
+         // only support 1st type
+         concrete_type = read_type(NULL, input);
+         Type *base_type = concrete_type;
+         while (base_type->ptrof != NULL) {
+            base_type = base_type->ptrof;
+         }
+         type = concrete_type;
          expect_node(')');
       }
    } else {
       input = &tokens->data[pos]->input;
    }
    consume_node(TK_IDENT);
-   /*
-   if (consume_node('(')) {
-      while (1) {
-         if ((consume_node(',') == 0) && consume_node(')')) {
-            break;
-         }
-         read_type_all(NULL);
-      }
-   }
-   */
 
+   for (i=0;i<ptr_cnt;i++) {
+      Type *old_type = type;
+      type = malloc(sizeof(Type));
+      type->ty = TY_PTR;
+      type->ptrof = old_type;
+   }
    // array
    while (1) {
       if (consume_node('[')) {
@@ -2778,6 +2788,7 @@ Type *read_type(Type *type, char **input) {
             cur_ptr = cur_ptr->ptrof;
          }
       } else if (consume_node('(')) {
+         // Function call.
          Type* concrete_type = malloc(sizeof(Type));
          concrete_type->ty = TY_FUNC;
          concrete_type->ret = type;

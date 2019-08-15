@@ -125,6 +125,7 @@ typedef enum {
    ND_DEFAULT,
    ND_VAARG,
    ND_VASTART,
+   ND_SYMBOL,
    ND_VAEND,
 } NodeType;
 
