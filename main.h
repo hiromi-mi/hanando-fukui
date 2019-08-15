@@ -69,7 +69,8 @@ typedef enum {
    TK_PRIVATE,
    TK_STATIC,
    TK_COLONCOLON,
-   TK_THIS,
+   TK_TEMPLATE,
+   TK_TYPENAME
 } TokenConst;
 
 typedef enum {

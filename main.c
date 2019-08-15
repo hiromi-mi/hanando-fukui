@@ -3054,7 +3054,11 @@ Type *read_fundamental_type() {
       } else if (tokens->data[pos]->ty == TK_CONST) {
          is_const = 1;
          expect_node(TK_CONST);
-      } else {
+      } else if (confirm_node(TK_TEMPLATE)) {
+         expect_node('<');
+         expect_node(TK_TYPENAME);
+         char* typename = expect_ident();
+         expect_node('>');
          break;
       }
    }

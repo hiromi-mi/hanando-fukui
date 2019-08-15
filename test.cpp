@@ -6,7 +6,6 @@ class Test {
    char b;
    static int func();
    static int Vim(int c);
-   int instancefunc();
 };
 
 int main() {
