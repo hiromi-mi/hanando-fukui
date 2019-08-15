@@ -1,4 +1,4 @@
-CC = ../main
+CC = ../hanando
 test:	test3 test8 test11 test13 test14 test31 test17
 	$(CC) -r -f 9.c > 9.s
 	gcc 9.s -o 9

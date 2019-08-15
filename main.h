@@ -203,6 +203,7 @@ typedef struct Node {
    int lvar_offset;
    struct Node *is_omiited;
    int is_static;
+   int pline;
 } Node;
 
 // Extended Register. with global variables, local variables, memory map,

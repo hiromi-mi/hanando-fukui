@@ -156,6 +156,7 @@ Node *new_string_node(char *_id) {
    type->ptrof->ty = TY_CHAR;
    type->ptrof->ptrof = NULL;
    _node->type = type;
+   _node->pline = -1;
    return _node;
 }
 
@@ -165,6 +166,7 @@ Node *new_node(NodeType ty, Node *lhs, Node *rhs) {
    node->lhs = lhs;
    node->rhs = rhs;
    node->name = NULL;
+   node->pline = -1; // TODO for more advenced text
    if (lhs) {
       node->type = node->lhs->type;
    }
@@ -196,6 +198,7 @@ Node *new_char_node(long num_val) {
    node->ty = ND_NUM;
    node->num_val = num_val;
    node->type = find_typed_db("char", typedb);
+   node->pline = -1; // TODO for more advenced textj
    return node;
 }
 
@@ -203,6 +206,7 @@ Node *new_num_node_from_token(Token *token) {
    Node *node = malloc(sizeof(Node));
    node->ty = ND_NUM;
    node->num_val = token->num_val;
+   node->pline = -1; // TODO for more advenced textj
    switch (token->type_size) {
       case 1:
          node->type = find_typed_db("char", typedb);
@@ -221,6 +225,7 @@ Node *new_num_node(long num_val) {
    Node *node = malloc(sizeof(Node));
    node->ty = ND_NUM;
    node->num_val = num_val;
+   node->pline = -1; // TODO for more advenced textj
    node->type = find_typed_db("int", typedb);
    return node;
 }
@@ -228,12 +233,14 @@ Node *new_long_num_node(long num_val) {
    Node *node = malloc(sizeof(Node));
    node->ty = ND_NUM;
    node->num_val = num_val;
+   node->pline = -1; // TODO for more advenced textj
    node->type = find_typed_db("long", typedb);
    return node;
 }
 Node *new_double_node(double num_val) {
    Node *node = malloc(sizeof(Node));
    node->ty = ND_FLOAT;
+   node->pline = -1; // TODO for more advenced textj
    node->num_val = num_val;
    node->type = find_typed_db("double", typedb);
    return node;
@@ -242,6 +249,7 @@ Node *new_double_node(double num_val) {
 Node *new_deref_node(Node *lhs) {
    Node *node = new_node(ND_DEREF, lhs, NULL);
    node->type = node->lhs->type->ptrof;
+   node->pline = -1; // TODO for more advenced textj
    if (!node->type) {
       error("Error: Dereference on NOT pointered.");
    }
@@ -286,6 +294,7 @@ Node *new_ident_node_with_new_variable(char *name, Type *type) {
    node->ty = ND_IDENT;
    node->name = name;
    node->type = type;
+   node->pline = -1; // TODO for more advenced textj
    int size = cnt_size(type);
    // should aligned as x86_64
    if (size % 8 != 0) {
@@ -302,6 +311,7 @@ Node *new_ident_node(char *name) {
    Node *node = malloc(sizeof(Node));
    node->ty = ND_IDENT;
    node->name = name;
+   node->pline = -1; // TODO for more advenced textj
    if (strcmp(node->name, "stderr") == 0) {
       // TODO dirty
       node->ty = ND_EXTERN_SYMBOL;
@@ -375,6 +385,7 @@ Node *new_func_node(Node *ident) {
    node->rhs = NULL;
    node->type = NULL;
    node->argc = 0;
+   node->pline = -1; // TODO for more advenced textj
    if (ident->ty == ND_IDENT) {
       // TODO support global variable function call
       node->name = ident->name;
@@ -425,12 +436,14 @@ Node *new_fdef_node(char *name, Type *type, int is_static) {
    node->is_omiited = NULL; // func(a, b, ...)
    node->is_static = is_static;
    node->gen_name = mangle_func_name(name);
+   node->pline = -1; // TODO for more advenced textj
    map_put(funcdefs, name, node);
    return node;
 }
 
 Node *new_block_node(Env *prev_env) {
    Node *node = malloc(sizeof(Node));
+   node->pline = -1; // TODO for more advenced textj
    node->ty = ND_BLOCK;
    node->lhs = NULL;
    node->rhs = NULL;
@@ -491,12 +504,17 @@ Vector *tokenize(char *p) {
          // skip because of one-lined comment
          while (*p != '\n' && *p != '\0')
             p++;
+         continue;
       }
       if (*p == '/' && *(p + 1) == '*') {
          // skip because of one-lined comment
          while (*p != '\0') {
             if (*p == '*' && *(p + 1) == '/') {
                p += 2; // due to * and /
+               /*
+               if (*p == '\n') {
+                  pline++;
+               }*/
                break;
             }
             p++;
@@ -508,6 +526,9 @@ Vector *tokenize(char *p) {
       if (isspace(*p)) {
          vec_push(pre_tokens, new_token(pline, TK_SPACE, p));
          while (isspace(*p) && *p != '\0') {
+            if (*p == '\n') {
+               pline++;
+            }
             p++;
          }
          continue;
@@ -1501,6 +1522,12 @@ Register *gen_register_2(Node *node, int unused_eval) {
 
    if (!node) {
       return NO_REGISTER;
+   }
+   
+   // Write down line number
+   if (node->pline >= 0) {
+      // 1 means the file number
+      printf(".loc 1 %d\n", node->pline);
    }
    switch (node->ty) {
       case ND_NUM:
@@ -2790,6 +2817,7 @@ Type *read_type_all(char **input) {
 
 Node *stmt() {
    Node *node = NULL;
+   int pline = tokens->data[pos]->pline;
    if (confirm_type()) {
       char *input = NULL;
       Type *fundamental_type = read_fundamental_type();
@@ -2827,6 +2855,7 @@ Node *stmt() {
    if (!consume_node(';')) {
       error("Error: Not token ;");
    }
+   node->pline = pline;
    return node;
 }
 
@@ -2835,6 +2864,7 @@ Node *node_if() {
    node->argc = 1;
    node->args[0] = assign();
    node->args[1] = NULL;
+   node->pline = tokens->data[pos-1]->pline;
    // Suppress COndition
 
    if (confirm_node(TK_BLOCKBEGIN)) {
@@ -3085,7 +3115,9 @@ void define_enum(int assign_name) {
 
 void new_fdef(char *name, Type *type) {
    Node *newfunc;
+   int pline = tokens->data[pos]->pline;
    newfunc = new_fdef_node(name, type, type->is_static);
+   newfunc->pline = pline;
    // Function definition because toplevel func call
 
    // TODO env should be treated as cooler bc. of splitted namespaces
@@ -3534,7 +3566,8 @@ int main(int argc, char **argv) {
    puts(".intel_syntax noprefix");
    puts(".align 4");
    if (is_from_file) {
-      printf(".file \"%s\"\n", argv[argc - 1]);
+      // 1 means the file number
+      printf(".file 1 \"%s\"\n", argv[argc - 1]);
    }
    // treat with global variables
    globalvar_gen();
