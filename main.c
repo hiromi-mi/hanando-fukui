@@ -93,6 +93,30 @@ void *malloc(int size);
 void *realloc(void *ptr, int size);
 #endif
 
+Type *new_type() {
+   Type *type = malloc(sizeof(Type));
+   type->context = malloc(sizeof(Context));
+   type->context->is_previous_class = 0;
+   type->ptrof = NULL;
+   type->ret = NULL;
+   type->argc = 0;
+   type->array_size = 0;
+   type->initval = 0;
+   type->offset = 0;
+   type->is_const = 0;
+   type->is_static = 0;
+   type->is_omiited = 0;
+   type->name = NULL;
+   return type;
+}
+
+Type *type_pointer(Type* base_type) {
+   Type *type = new_type();
+   type->ty = TY_PTR;
+   type->ptrof = base_type;
+   return type;
+}
+
 Map *new_map() {
    Map *map = malloc(sizeof(Map));
    map->keys = new_vector();
@@ -150,12 +174,9 @@ Node *new_string_node(char *_id) {
    _node->lhs = NULL;
    _node->rhs = NULL;
    _node->name = _id;
-   Type *type = malloc(sizeof(Type));
-   type->ty = TY_PTR;
-   type->ptrof = malloc(sizeof(Type));
-   type->ptrof->ty = TY_CHAR;
-   type->ptrof->ptrof = NULL;
-   _node->type = type;
+   Type *type = new_type();
+   type->ty = TY_CHAR;
+   _node->type = type_pointer(type);
    _node->pline = -1;
    return _node;
 }
@@ -304,6 +325,16 @@ Node *new_ident_node_with_new_variable(char *name, Type *type) {
    node->lvar_offset = env->rsp_offset;
    type->offset = env->rsp_offset;
    map_put(env->idents, name, type);
+   /*
+   if ((lang & 1) && type->ty == TY_STRUCT) {
+      // On Class, Default Constructor Should Be Called
+      Type *typed = map_get(type->structure, name);
+      if (typed) {
+         // Call Constructor
+         return new_func_node(typed);
+      }
+   }
+   */
    return node;
 }
 
@@ -315,9 +346,9 @@ Node *new_ident_node(char *name) {
    if (strcmp(node->name, "stderr") == 0) {
       // TODO dirty
       node->ty = ND_EXTERN_SYMBOL;
-      node->type = malloc(sizeof(Type));
+      node->type = new_type();
       node->type->ty = TY_PTR;
-      node->type->ptrof = malloc(sizeof(Type));
+      node->type->ptrof = new_type();
       node->type->ptrof->ty = TY_INT;
       return node;
    }
@@ -950,7 +981,7 @@ Node *node_increment() {
          node = node->lhs;
       } else {
          node = new_node(ND_ADDRESS, node, NULL);
-         node->type = malloc(sizeof(Type));
+         node->type = new_type();
          node->type->ty = TY_PTR;
          node->type->ptrof = node->lhs->type;
       }
@@ -1236,6 +1267,8 @@ int type2size3(Type *type) {
    switch (type->ty) {
       case TY_ARRAY:
          return cnt_size(type->ptrof);
+      case TY_FUNC:
+         return 0;
       default:
          return type2size(type);
    }
@@ -2744,7 +2777,6 @@ Type *read_type(Type *type, char **input) {
          *input = tokens->data[pos]->input;
       } else if (consume_node('(')) {
          // functional pointer. declarator
-         // only support 1st type
          concrete_type = read_type(NULL, input);
          Type *base_type = concrete_type;
          while (base_type->ptrof != NULL) {
@@ -2759,16 +2791,13 @@ Type *read_type(Type *type, char **input) {
    consume_node(TK_IDENT);
 
    for (i=0;i<ptr_cnt;i++) {
-      Type *old_type = type;
-      type = malloc(sizeof(Type));
-      type->ty = TY_PTR;
-      type->ptrof = old_type;
+      type = type_pointer(type);
    }
    // array
    while (1) {
       if (consume_node('[')) {
          Type *base_type = type;
-         type = malloc(sizeof(Type));
+         type = new_type();
          type->ty = TY_ARRAY;
          type->array_size = (int)tokens->data[pos]->num_val;
          type->ptrof = base_type;
@@ -2779,7 +2808,7 @@ Type *read_type(Type *type, char **input) {
          while (consume_node('[')) {
             // TODO: support NOT functioned type
             // ex. int a[4+7];
-            cur_ptr->ptrof = malloc(sizeof(Type));
+            cur_ptr->ptrof = new_type();
             cur_ptr->ptrof->ty = TY_ARRAY;
             cur_ptr->ptrof->array_size = (int)tokens->data[pos]->num_val;
             cur_ptr->ptrof->ptrof = base_type;
@@ -2789,11 +2818,13 @@ Type *read_type(Type *type, char **input) {
          }
       } else if (consume_node('(')) {
          // Function call.
-         Type* concrete_type = malloc(sizeof(Type));
+         Type* concrete_type = new_type();
          concrete_type->ty = TY_FUNC;
          concrete_type->ret = type;
          concrete_type->argc = 0;
          concrete_type->is_omiited = 0;
+         concrete_type->context = malloc(sizeof(Context));
+         
 
          // follow concrete_type if real type !is not supported yet!
          // to set...
@@ -2989,7 +3020,7 @@ void program(Node *block_node) {
 // 0: neither 1:TK_TYPE 2:TK_IDENT
 
 Type *duplicate_type(Type *old_type) {
-   Type *type = malloc(sizeof(Type));
+   Type *type = new_type();
    // copy all
    type->ty = old_type->ty;
    type->structure = old_type->structure;
@@ -3097,7 +3128,7 @@ void define_enum(int assign_name) {
    // ENUM def.
    consume_ident(); // for ease
    expect_node('{');
-   Type *enumtype = malloc(sizeof(Type));
+   Type *enumtype = new_type();
    enumtype->ty = TY_INT;
    enumtype->offset = 4;
    int cnt = 0;
@@ -3136,7 +3167,7 @@ void new_fdef(char *name, Type *type) {
    Env *prev_env = env;
    env = newfunc->env;
    if (type->is_omiited > 0) {
-      Type *saved_var_type = malloc(sizeof(Type));
+      Type *saved_var_type = new_type();
       saved_var_type->ty = TY_ARRAY;
       saved_var_type->ptrof = find_typed_db("long", typedb);
       saved_var_type->array_size = 7;
@@ -3189,7 +3220,7 @@ void toplevel() {
       }
       // definition of class
       if ((lang & 1) && consume_node(TK_CLASS)) {
-         Type *structuretype = malloc(sizeof(Type));
+         Type *structuretype = new_type();
          structuretype->structure = new_map();
          structuretype->ty = TY_STRUCT;
          structuretype->ptrof = NULL;
@@ -3212,6 +3243,22 @@ void toplevel() {
             }
             char *name = NULL;
             Type *type = read_type_all(&name);
+            type->context = malloc(sizeof(Context));
+            type->context->is_previous_class = 1;
+            
+            // edit for instanced function.
+            if ((lang & 1) && type->ty == TY_FUNC && type->is_static > 0) {
+               Type *thistype = new_type();
+               thistype->ptrof = structuretype;
+               thistype->ty = TY_PTR;
+               strncpy(thistype->name, "this", 5);
+               type->args[5] = type->args[4];
+               type->args[4] = type->args[3];
+               type->args[3] = type->args[2];
+               type->args[2] = type->args[1];
+               type->args[1] = type->args[0];
+               type->args[0] = thistype;
+            }
             size = type2size3(type);
 
             if ((offset % size != 0)) {
@@ -3238,7 +3285,7 @@ void toplevel() {
             expect_node(';');
             continue;
          }
-         Type *structuretype = malloc(sizeof(Type));
+         Type *structuretype = new_type();
          if (consume_node(TK_STRUCT)) {
             if (confirm_node(TK_IDENT)) {
                map_put(struct_typedb, expect_ident(), structuretype);
@@ -3275,7 +3322,7 @@ void toplevel() {
          consume_ident(); // for ease
          expect_node('{');
          char *name = expect_ident();
-         Type *structuretype = malloc(sizeof(Type));
+         Type *structuretype = new_type();
          expect_node(';');
          map_put(typedb, name, structuretype);
       }
@@ -3468,34 +3515,34 @@ void init_typedb() {
    struct_typedb = new_map();
    typedb = new_map();
 
-   Type *typeint = malloc(sizeof(Type));
+   Type *typeint = new_type();
    typeint->ty = TY_INT;
    typeint->ptrof = NULL;
    map_put(typedb, "int", typeint);
 
-   Type *typechar = malloc(sizeof(Type));
+   Type *typechar = new_type();
    typechar->ty = TY_CHAR;
    typechar->ptrof = NULL;
    map_put(typedb, "char", typechar);
 
-   Type *typelong = malloc(sizeof(Type));
+   Type *typelong = new_type();
    typelong->ty = TY_LONG;
    typelong->ptrof = NULL;
    map_put(typedb, "long", typelong);
 
-   Type *typevoid = malloc(sizeof(Type));
+   Type *typevoid = new_type();
    typevoid->ty = TY_VOID;
    typevoid->ptrof = NULL;
    map_put(typedb, "void", typevoid);
 
-   typevoid = malloc(sizeof(Type));
+   typevoid = new_type();
    typevoid->ty = TY_STRUCT;
    typevoid->ptrof = NULL;
    typevoid->offset = 8;
    typevoid->structure = new_map();
    map_put(typedb, "FILE", typevoid);
 
-   Type *va_listtype = malloc(sizeof(Type));
+   Type *va_listtype = new_type();
    va_listtype->structure = new_map();
    va_listtype->ty = TY_STRUCT;
    va_listtype->ptrof = NULL;
@@ -3508,9 +3555,9 @@ void init_typedb() {
    type->offset = 4;
    map_put(va_listtype->structure, "fp_offset", type);
 
-   type = malloc(sizeof(Type));
+   type = new_type();
    type->ty = TY_PTR;
-   type->ptrof = malloc(sizeof(Type));
+   type->ptrof = new_type();
    type->ptrof->ty = TY_VOID;
    type->ptrof->ptrof = NULL;
    type->offset = 8;
@@ -3522,7 +3569,7 @@ void init_typedb() {
    va_listtype->offset = 4 + 4 + 8 + 8;
    map_put(typedb, "va_list", va_listtype);
 
-   Type *typedou = malloc(sizeof(Type));
+   Type *typedou = new_type();
    typedou->ty = TY_DOUBLE;
    typedou->ptrof = NULL;
    typedou->offset = 8;

@@ -69,6 +69,7 @@ typedef enum {
    TK_PRIVATE,
    TK_STATIC,
    TK_COLONCOLON,
+   TK_THIS,
 } TokenConst;
 
 typedef enum {
@@ -154,6 +155,10 @@ typedef struct {
    Vector *vals;
 } Map;
 
+typedef struct Context {
+   int is_previous_class;
+} Context;
+
 typedef struct Type {
    enum {
       TY_INT = 3,
@@ -180,6 +185,7 @@ typedef struct Type {
    int is_omiited;
    char* name; // for args
    MemberAccess memaccess;
+   Context* context;
 } Type;
 
 typedef struct Env {
