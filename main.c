@@ -38,6 +38,7 @@ Vector *strs;
 Map *typedb;
 Map *struct_typedb;
 Map *enum_typedb;
+int is_recursive(Node* node, char* name);
 
 int env_for_while = 0;
 int env_for_while_switch = 0;
@@ -197,7 +198,7 @@ Node *new_node(NodeType ty, Node *lhs, Node *rhs) {
    node->lvar_offset = 0;
    node->is_omiited = NULL;
    node->is_static = 0;
-   node->pline = -1;
+   node->is_recursive = 0;
    node->args[0] = NULL;
    node->args[1] = NULL;
    node->args[2] = NULL;
@@ -205,6 +206,7 @@ Node *new_node(NodeType ty, Node *lhs, Node *rhs) {
    node->args[4] = NULL;
    node->args[5] = NULL;
    node->pline = -1; // TODO for more advenced text
+   node->funcdef = NULL;
 
    if (lhs) {
       node->type = node->lhs->type;
@@ -353,9 +355,9 @@ Node *new_ident_node(char *name) {
    }
 
    // Try Global Function.
-   Type *result = map_get(funcdefs, name);
+   Node *result = map_get(funcdefs, name);
    if (result) {
-      node->type = result;
+      node->type = result->type;
       node->ty = ND_SYMBOL;
       return node;
    }
@@ -411,9 +413,10 @@ Node *new_func_node(Node *ident) {
       // TODO support global variable function call
       node->name = ident->name;
       node->gen_name = mangle_func_name(node->name);
-      Type *result = map_get(funcdefs, ident->name);
+      Node* result = map_get(funcdefs, ident->name);
       if (result) {
-         node->type = result->ret;
+         node->funcdef = result;
+         node->type = result->type->ret;
       } else {
          node->type = find_typed_db("int", typedb);
       }
@@ -424,7 +427,6 @@ Node *new_func_node(Node *ident) {
       node->gen_name = NULL;
       // FIXME this should be type
       node->type = ident->type;
-      // node->type = ident->ret->type;
    }
    return node;
 }
@@ -455,7 +457,7 @@ Node *new_fdef_node(char *name, Type *type, int is_static) {
    node->is_static = is_static;
    node->gen_name = mangle_func_name(name);
    node->pline = -1; // TODO for more advenced textj
-   map_put(funcdefs, name, (Node*)type);
+   map_put(funcdefs, name, node);
    return node;
 }
 
@@ -1999,9 +2001,26 @@ Register *gen_register_2(Node *node, int unused_eval) {
          return NO_REGISTER;
 
       case ND_BLOCK:
-         for (j = 0; node->code->data[j]; j++) {
+         for (j = 0; j < node->code->len && node->code->data[j]; j++) {
             gen_register_2((Node *)node->code->data[j], 1);
          }
+         return NO_REGISTER;
+
+      case ND_EXPRESSION_BLOCK:
+         puts("mov rbp, rsp");
+         printf("sub rsp, %d\n", *node->env->rsp_offset_max);
+         puts("#test begin expansion");
+         for (j = 0; j < node->argc; j++) {
+            temp_reg = gen_register_2(node->args[j], 0);
+            gen_register_2(node->args[j], 1);
+         }
+         puts("#test end expansion of args");
+         for (j = 0; j < node->code->len && node->code->data[j]; j++) {
+            gen_register_2((Node *)node->code->data[j], 1);
+         }
+         puts("mov rsp, rbp");
+         puts("#test end expansion ");
+         //puts("pop rbp");
          return NO_REGISTER;
 
       case ND_FUNC:
@@ -2342,7 +2361,7 @@ void gen(Node *node) {
    if (node->ty == ND_BLOCK) {
       Env *prev_env = env;
       env = node->env;
-      for (int j = 0; node->code->data[j]; j++) {
+      for (int j = 0; j < node->code->len && node->code->data[j]; j++) {
          gen((Node *)node->code->data[j]);
       }
       env = prev_env;
@@ -2366,7 +2385,7 @@ void gen(Node *node) {
          printf("mov [rax], %s\n", arg_registers[j]);
          puts("push rax");
       }
-      for (int j = 0; node->code->data[j]; j++) {
+      for (int j = 0; j < node->code->len && node->code->data[j]; j++) {
          Node *curnode = (Node *)node->code->data[j];
          if (curnode->ty == ND_RETURN) {
             gen(curnode->lhs);
@@ -3185,6 +3204,7 @@ void new_fdef(char *name, Type *type) {
    // to support prototype def.
    if (confirm_node('{')) {
       program(newfunc);
+      newfunc->is_recursive = is_recursive(newfunc, name);
       vec_push(globalcode, (Token *)newfunc);
    } else {
       expect_node(';');
@@ -3610,7 +3630,7 @@ Node* analyzing(Node* node) {
       node->rhs = analyzing(node->rhs);
    }
    if (node->code) {
-      for (j = 0; node->code->data[j]; j++) { 
+      for (j = 0; j < node->code->len && node->code->data[j]; j++) {
          node->code->data[j] = (Token*)analyzing((Node*)node->code->data[j]);
       }
    }
@@ -3700,9 +3720,50 @@ Node* analyzing(Node* node) {
    return node;
 }
 
+int is_recursive(Node* node, char* name) {
+   int j;
+   if (!node) {
+      return 0;
+   }
+   if (node->ty == ND_FUNC) {
+      if (node->name && strcmp(node->name, name) == 0) {
+         return 1;
+      }
+   }
+
+   if (is_recursive(node->lhs, name)) {
+      return 1;
+   }
+   if (is_recursive(node->rhs, name)) {
+      return 1;
+   }
+
+   if (node->code) {
+      for (j = 0; j < node->code->len && node->code->data[j]; j++) {
+         if (is_recursive((Node*)node->code->data[j], name)) {
+            return 1;
+         }
+      }
+   }
+
+   for (j = 0; j<node->argc; j++) {
+      if (is_recursive(node->args[j], name)) {
+         return 1;
+      }
+   }
+
+   for (j = 0;j<3;j++) {
+      if (is_recursive(node->conds[j], name)) {
+         return 1;
+      }
+   }
+   return 0;
+}
+
 Node* optimizing(Node* node) {
-   Node *new_node;
+   Node *node_new;
    int new_num_val;
+   int j;
    switch (node->ty) {
       case ND_ADD:
       case ND_SUB:
@@ -3719,15 +3780,39 @@ Node* optimizing(Node* node) {
                   fprintf(stderr, "Error: Uncalled\n");
                   exit(1);
             }
-            new_node = new_num_node(new_num_val);
-            new_node->type = node->lhs->type;
-            node = new_node;
+            node_new = new_num_node(new_num_val);
+            node_new->type = node->lhs->type;
+            node = node_new;
          }
+         break;
+
+      case ND_FUNC:
+         if (!node->funcdef) {
+            break;
+         }
+
+         // inline expansion
+         /*
+         if ((node->funcdef->code->len > 0) && (node->funcdef->code->len < 2) && (node->funcdef->is_recursive == 0) && (node->type->ty == TY_VOID)) {
+
+            node_new = new_block_node(NULL);
+            for (j = 0;j < node->argc;j++) {
+               node_new->args[j] = new_node(ND_EQUAL, node->funcdef->args[j], node->args[j]);
+            }
+            if (node_new) {
+               // constant function
+               node_new->ty = ND_EXPRESSION_BLOCK;
+               node_new->code = node->funcdef->code;
+               node_new->env = node->funcdef->env;
+               node_new->argc = node->argc;
+               node = node_new;
+            }
+         }
+         */
          break;
       default:
          break;
    }
-   int j;
 
    if (node->lhs) {
       node->lhs = optimizing(node->lhs);
@@ -3736,7 +3821,7 @@ Node* optimizing(Node* node) {
       node->rhs = optimizing(node->rhs);
    }
    if (node->code) {
-      for (j = 0; node->code->data[j]; j++) { 
+      for (j = 0; j<node->code->len && node->code->data[j]; j++) { 
          node->code->data[j] = (Token*)optimizing((Node*)node->code->data[j]);
       }
    }

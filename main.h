@@ -129,6 +129,7 @@ typedef enum {
    ND_VASTART,
    ND_SYMBOL,
    ND_VAEND,
+   ND_EXPRESSION_BLOCK,
 } NodeType;
 
 typedef struct {
@@ -213,7 +214,9 @@ typedef struct Node {
    int lvar_offset;
    struct Node *is_omiited;
    int is_static;
+   int is_recursive;
    int pline;
+   struct Node *funcdef;
 } Node;
 
 // Extended Register. with global variables, local variables, memory map,
