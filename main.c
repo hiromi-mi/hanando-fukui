@@ -1682,7 +1682,7 @@ Register *gen_register_2(Node *node, int unused_eval) {
          }
 
       case ND_MULTIPLY_IMMUTABLE_VALUE:
-         // after optimizaion, this will be deleted.
+         // after optimizing, this will be deleted.
          lhs_reg = gen_register_2(node->lhs, 0);
          secure_mutable(lhs_reg);
          printf("imul %s, %ld\n", node2reg(node, lhs_reg), node->num_val);
@@ -3700,11 +3700,75 @@ Node* analyzing(Node* node) {
    return node;
 }
 
+Node* optimizing(Node* node) {
+   Node *new_node;
+   int new_num_val;
+   switch (node->ty) {
+      case ND_ADD:
+      case ND_SUB:
+      case ND_MUL:
+         if (node->lhs->ty == ND_NUM && node->rhs->ty == ND_NUM) {
+            switch(node->ty) {
+               case ND_ADD:
+                  new_num_val = node->lhs->num_val + node->rhs->num_val; break;
+               case ND_SUB:
+                  new_num_val = node->lhs->num_val - node->rhs->num_val; break;
+               case ND_MUL:
+                  new_num_val = node->lhs->num_val * node->rhs->num_val; break;
+               default:
+                  fprintf(stderr, "Error: Uncalled\n");
+                  exit(1);
+            }
+            new_node = new_num_node(new_num_val);
+            new_node->type = node->lhs->type;
+            node = new_node;
+         }
+         break;
+      default:
+         break;
+   }
+   int j;
+
+   if (node->lhs) {
+      node->lhs = optimizing(node->lhs);
+   }
+   if (node->rhs) {
+      node->rhs = optimizing(node->rhs);
+   }
+   if (node->code) {
+      for (j = 0; node->code->data[j]; j++) { 
+         node->code->data[j] = (Token*)optimizing((Node*)node->code->data[j]);
+      }
+   }
+   if (node->argc > 0) {
+      for (j = 0; j<node->argc; j++) {
+         if (node->args[j]) {
+            node->args[j] = optimizing(node->args[j]);
+         }
+      }
+   }
+
+   for (j = 0;j<3;j++) {
+      if (node->conds[j]) {
+         node->conds[j] = optimizing(node->conds[j]);
+      }
+   }
+   return node;
+}
+
 void analyzing_process() {
    int len = globalcode->len;
    int i;
    for (i = 0; i < len; i++) {
       globalcode->data[i] = (Token*) analyzing((Node *)globalcode->data[i]);
+   }
+}
+
+void optimizaion_process() {
+   int len = globalcode->len;
+   int i;
+   for (i = 0; i < len; i++) {
+      globalcode->data[i] = (Token*) optimizing((Node *)globalcode->data[i]);
    }
 }
 
@@ -3740,6 +3804,8 @@ int main(int argc, char **argv) {
    toplevel();
 
    analyzing_process();
+   
+   optimizaion_process();
 
    puts(".intel_syntax noprefix");
    puts(".align 4");
