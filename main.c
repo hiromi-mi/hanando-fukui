@@ -50,9 +50,10 @@ char arg_registers[6][4];
 
 int lang = 0;
 
+Node *new_node(NodeType ty, Node *lhs, Node *rhs);
 int type2size(Type *type);
 Type *read_type_all(char **input);
-Type *read_fundamental_type();
+Type *read_fundamental_type(Map *local_typedb);
 int confirm_type();
 int confirm_node(TokenConst ty);
 int confirm_ident();
@@ -67,6 +68,7 @@ Type *find_typed_db(char *input, Map *db);
 int cnt_size(Type *type);
 Type *get_type_local(Node *node);
 void gen(Node *node);
+Node *new_addsub_node(NodeType ty, Node *lhs, Node *rhs);
 
 Register *gen_register_2(Node *node, int unused_eval);
 char *node2reg(Node *node, Register *reg);
@@ -95,8 +97,6 @@ void *realloc(void *ptr, int size);
 
 Type *new_type() {
    Type *type = malloc(sizeof(Type));
-   type->context = malloc(sizeof(Context));
-   type->context->is_previous_class = 0;
    type->ptrof = NULL;
    type->ret = NULL;
    type->argc = 0;
@@ -169,10 +169,7 @@ void error(const char *str) {
 }
 
 Node *new_string_node(char *_id) {
-   Node *_node = malloc(sizeof(Node));
-   _node->ty = ND_STRING;
-   _node->lhs = NULL;
-   _node->rhs = NULL;
+   Node *_node = new_node(ND_STRING, NULL, NULL);
    _node->name = _id;
    Type *type = new_type();
    type->ty = TY_CHAR;
@@ -186,8 +183,29 @@ Node *new_node(NodeType ty, Node *lhs, Node *rhs) {
    node->ty = ty;
    node->lhs = lhs;
    node->rhs = rhs;
+   node->conds[0] = NULL;
+   node->conds[1] = NULL;
+   node->conds[2] = NULL;
+
+   node->code = NULL;
+   node->argc = 0;
+   node->num_val = 0;
    node->name = NULL;
+   node->gen_name = NULL;
+   node->env = NULL;
+   node->type = NULL;
+   node->lvar_offset = 0;
+   node->is_omiited = NULL;
+   node->is_static = 0;
+   node->pline = -1;
+   node->args[0] = NULL;
+   node->args[1] = NULL;
+   node->args[2] = NULL;
+   node->args[3] = NULL;
+   node->args[4] = NULL;
+   node->args[5] = NULL;
    node->pline = -1; // TODO for more advenced text
+
    if (lhs) {
       node->type = node->lhs->type;
    }
@@ -195,6 +213,7 @@ Node *new_node(NodeType ty, Node *lhs, Node *rhs) {
 }
 
 Node *new_node_with_cast(NodeType ty, Node *lhs, Node *rhs) {
+   /*
    // TODO This has problem like: long + pointer -> pointer + pointer
    if (type2size(lhs->type) < type2size(rhs->type)) {
       lhs = new_node(ND_CAST, lhs, NULL);
@@ -204,6 +223,7 @@ Node *new_node_with_cast(NodeType ty, Node *lhs, Node *rhs) {
       rhs = new_node(ND_CAST, rhs, NULL);
       rhs->type = lhs->type;
    }
+   */
    return new_node(ty, lhs, rhs);
 }
 
@@ -215,8 +235,7 @@ Node *new_assign_node(Node *lhs, Node *rhs) {
    return new_node(ND_EQUAL, lhs, rhs);
 }
 Node *new_char_node(long num_val) {
-   Node *node = malloc(sizeof(Node));
-   node->ty = ND_NUM;
+   Node *node = new_node(ND_NUM, NULL, NULL);
    node->num_val = num_val;
    node->type = find_typed_db("char", typedb);
    node->pline = -1; // TODO for more advenced textj
@@ -224,8 +243,7 @@ Node *new_char_node(long num_val) {
 }
 
 Node *new_num_node_from_token(Token *token) {
-   Node *node = malloc(sizeof(Node));
-   node->ty = ND_NUM;
+   Node *node = new_node(ND_NUM, NULL, NULL);
    node->num_val = token->num_val;
    node->pline = -1; // TODO for more advenced textj
    switch (token->type_size) {
@@ -243,15 +261,14 @@ Node *new_num_node_from_token(Token *token) {
 }
 
 Node *new_num_node(long num_val) {
-   Node *node = malloc(sizeof(Node));
-   node->ty = ND_NUM;
+   Node *node = new_node(ND_NUM, NULL, NULL);
    node->num_val = num_val;
    node->pline = -1; // TODO for more advenced textj
    node->type = find_typed_db("int", typedb);
    return node;
 }
 Node *new_long_num_node(long num_val) {
-   Node *node = malloc(sizeof(Node));
+   Node *node = new_node(ND_NUM, NULL, NULL);
    node->ty = ND_NUM;
    node->num_val = num_val;
    node->pline = -1; // TODO for more advenced textj
@@ -259,7 +276,7 @@ Node *new_long_num_node(long num_val) {
    return node;
 }
 Node *new_double_node(double num_val) {
-   Node *node = malloc(sizeof(Node));
+   Node *node = new_node(ND_FLOAT, NULL, NULL);
    node->ty = ND_FLOAT;
    node->pline = -1; // TODO for more advenced textj
    node->num_val = num_val;
@@ -269,6 +286,7 @@ Node *new_double_node(double num_val) {
 
 Node *new_deref_node(Node *lhs) {
    Node *node = new_node(ND_DEREF, lhs, NULL);
+   // moved to new_deref_node
    node->type = node->lhs->type->ptrof;
    node->pline = -1; // TODO for more advenced textj
    if (!node->type) {
@@ -277,30 +295,8 @@ Node *new_deref_node(Node *lhs) {
    return node;
 }
 
-Node *new_addsub_node(NodeType ty, Node *lhs_node, Node *rhs_node) {
-   Node *lhs = lhs_node;
-   Node *rhs = rhs_node;
-   Node *node = NULL;
-   if (lhs->type->ty == TY_PTR || lhs->type->ty == TY_ARRAY) {
-      // This should be becasuse of pointer types should be long
-      rhs = new_node(ND_MULTIPLY_IMMUTABLE_VALUE, rhs, NULL);
-      rhs->num_val = cnt_size(lhs->type->ptrof);
-   } else if (rhs->type->ty == TY_PTR || rhs->type->ty == TY_ARRAY) {
-      lhs = new_node(ND_MULTIPLY_IMMUTABLE_VALUE, lhs, NULL);
-      lhs->num_val = cnt_size(rhs->type->ptrof);
-   } else if (type2size(lhs->type) < type2size(rhs->type)) {
-      lhs = new_node(ND_CAST, lhs, NULL);
-      lhs->type = rhs->type;
-   } else if (type2size(lhs->type) > type2size(rhs->type)) {
-      rhs = new_node(ND_CAST, rhs, NULL);
-      rhs->type = lhs->type;
-   }
-   node = new_node(ty, lhs, rhs);
-   if (rhs->type->ty == TY_PTR || rhs->type->ty == TY_ARRAY) {
-      node->type = rhs->type;
-      // TY_PTR no matter when lhs->lhs is INT or PTR
-   }
-   return node;
+Node *new_addsub_node(NodeType ty, Node *lhs, Node *rhs) {
+   return new_node(ty, lhs, rhs);
 }
 
 void update_rsp_offset(int size) {
@@ -311,8 +307,7 @@ void update_rsp_offset(int size) {
 }
 
 Node *new_ident_node_with_new_variable(char *name, Type *type) {
-   Node *node = malloc(sizeof(Node));
-   node->ty = ND_IDENT;
+   Node *node = new_node(ND_IDENT, NULL, NULL);
    node->name = name;
    node->type = type;
    node->pline = -1; // TODO for more advenced textj
@@ -339,8 +334,7 @@ Node *new_ident_node_with_new_variable(char *name, Type *type) {
 }
 
 Node *new_ident_node(char *name) {
-   Node *node = malloc(sizeof(Node));
-   node->ty = ND_IDENT;
+   Node *node = new_node(ND_IDENT, NULL, NULL);
    node->name = name;
    node->pline = -1; // TODO for more advenced textj
    if (strcmp(node->name, "stderr") == 0) {
@@ -409,10 +403,7 @@ char *mangle_func_name(char *name) {
 }
 
 Node *new_func_node(Node *ident) {
-   Node *node = malloc(sizeof(Node));
-   node->ty = ND_FUNC;
-   node->lhs = ident;
-   node->rhs = NULL;
+   Node *node = new_node(ND_FUNC, ident, NULL);
    node->type = NULL;
    node->argc = 0;
    node->pline = -1; // TODO for more advenced textj
@@ -454,12 +445,9 @@ Env *new_env(Env *prev_env) {
 }
 
 Node *new_fdef_node(char *name, Type *type, int is_static) {
-   Node *node = malloc(sizeof(Node));
+   Node *node = new_node(ND_FDEF, NULL, NULL);
    node->type = type;
-   node->ty = ND_FDEF;
    node->name = name;
-   node->lhs = NULL;
-   node->rhs = NULL;
    node->argc = 0;
    node->env = new_env(NULL);
    node->code = new_vector();
@@ -472,11 +460,8 @@ Node *new_fdef_node(char *name, Type *type, int is_static) {
 }
 
 Node *new_block_node(Env *prev_env) {
-   Node *node = malloc(sizeof(Node));
+   Node *node = new_node(ND_BLOCK, NULL, NULL);
    node->pline = -1; // TODO for more advenced textj
-   node->ty = ND_BLOCK;
-   node->lhs = NULL;
-   node->rhs = NULL;
    node->argc = 0;
    node->type = NULL;
    node->env = new_env(prev_env);
@@ -1132,22 +1117,17 @@ Node *node_term() {
       } else if (consume_node(TK_PLUSPLUS)) {
          node = new_node(ND_FPLUSPLUS, node, NULL);
          node->num_val = 1;
-         if (node->lhs->type->ty == TY_PTR || node->lhs->type->ty == TY_ARRAY) {
-            node->num_val = type2size(node->lhs->type->ptrof);
-         }
+         // if (node->lhs->type->ty == TY_PTR || node->lhs->type->ty == TY_ARRAY) {
+         // Moved to analyzing process.
       } else if (consume_node(TK_SUBSUB)) {
          node = new_node(ND_FSUBSUB, node, NULL);
          node->num_val = 1;
-         if (node->lhs->type->ty == TY_PTR || node->lhs->type->ty == TY_ARRAY) {
-            node->num_val = type2size(node->lhs->type->ptrof);
-         }
+         // if (node->lhs->type->ty == TY_PTR || node->lhs->type->ty == TY_ARRAY) {
+         // Moved to analyzing process.
       } else if (consume_node('[')) {
          node = new_deref_node(new_addsub_node('+', node, node_mathexpr()));
          expect_node(']');
       } else if (consume_node('.')) {
-         if (node->type->ty != TY_STRUCT) {
-            error("Error: dot operator to NOT struct");
-         }
          node = new_dot_node(node);
       } else if (consume_node(TK_ARROW)) {
          node = new_dot_node(new_deref_node(node));
@@ -2233,16 +2213,16 @@ Register *gen_register_2(Node *node, int unused_eval) {
          // TODO dirty: compare node->ty twice
          switch (node->ty) {
             case ND_FOR:
-               gen_register_2(node->args[0], 1);
+               gen_register_2(node->conds[0], 1);
                printf("jmp .Lcondition%d\n", cur_if_cnt);
                printf(".Lbeginwork%d:\n", cur_if_cnt);
                gen_register_2(node->rhs, 1);
                printf(".Lbegin%d:\n", cur_if_cnt);
-               gen_register_2(node->args[2], 1);
+               gen_register_2(node->conds[2], 1);
                printf(".Lcondition%d:\n", cur_if_cnt);
-               temp_reg = gen_register_2(node->args[1], 0);
+               temp_reg = gen_register_2(node->conds[1], 0);
 
-               printf("cmp %s, 0\n", node2reg(node->args[1], temp_reg));
+               printf("cmp %s, 0\n", node2reg(node->conds[1], temp_reg));
                release_reg(temp_reg);
                printf("jne .Lbeginwork%d\n", cur_if_cnt);
                printf(".Lend%d:\n", cur_if_cnt);
@@ -2823,7 +2803,6 @@ Type *read_type(Type *type, char **input) {
          concrete_type->ret = type;
          concrete_type->argc = 0;
          concrete_type->is_omiited = 0;
-         concrete_type->context = malloc(sizeof(Context));
          
 
          // follow concrete_type if real type !is not supported yet!
@@ -2853,7 +2832,7 @@ Type *read_type(Type *type, char **input) {
 }
 
 Type *read_type_all(char **input) {
-   Type *type = read_fundamental_type();
+   Type *type = read_fundamental_type(NULL);
    type = read_type(type, input);
    return type;
 }
@@ -2863,7 +2842,8 @@ Node *stmt() {
    int pline = tokens->data[pos]->pline;
    if (confirm_type()) {
       char *input = NULL;
-      Type *fundamental_type = read_fundamental_type();
+      // FIXME
+      Type *fundamental_type = read_fundamental_type(NULL);
       Type *type;
       do {
          type = read_type(fundamental_type, &input);
@@ -2972,16 +2952,16 @@ void program(Node *block_node) {
          Node *for_node = new_node(ND_FOR, NULL, NULL);
          expect_node('(');
          // TODO: should be splited between definition and expression
-         for_node->args[0] = stmt();
+         for_node->conds[0] = stmt();
          for_node->rhs = new_block_node(env);
          // expect_node(';');
          // TODO: to allow without lines
          if (!consume_node(';')) {
-            for_node->args[1] = assign();
+            for_node->conds[1] = assign();
             expect_node(';');
          }
          if (!consume_node(')')) {
-            for_node->args[2] = assign();
+            for_node->conds[2] = assign();
             expect_node(')');
          }
          program(for_node->rhs);
@@ -3044,9 +3024,13 @@ Type *find_typed_db(char *input, Map *db) {
    return NULL;
 }
 
-Type *read_fundamental_type() {
+Type *read_fundamental_type(Map *local_typedb) {
    int is_const = 0;
    int is_static = 0;
+   Map *_local_typedb = NULL;
+   char* template_typename = NULL;
+   Type *type = NULL;
+
    while (1) {
       if (tokens->data[pos]->ty == TK_STATIC) {
          is_static = 1;
@@ -3057,13 +3041,19 @@ Type *read_fundamental_type() {
       } else if (confirm_node(TK_TEMPLATE)) {
          expect_node('<');
          expect_node(TK_TYPENAME);
-         char* typename = expect_ident();
+         template_typename = expect_ident();
+         _local_typedb = new_map();
+         type = new_type();
+         type->ty = TY_TEMPLATE;
+         type->name = template_typename;
+         map_put(_local_typedb, template_typename, type);
          expect_node('>');
+         break;
+      } else {
          break;
       }
    }
 
-   Type *type;
    if (tokens->data[pos]->ty == TK_ENUM) {
       // treat as anonymous enum
       expect_node(TK_ENUM);
@@ -3072,7 +3062,14 @@ Type *read_fundamental_type() {
    } else if (consume_node(TK_STRUCT)) {
       type = find_typed_db(expect_ident(), struct_typedb);
    } else {
-      type = find_typed_db(expect_ident(), typedb);
+      char *ident = expect_ident();
+      if (local_typedb) {
+         type = find_typed_db(ident, local_typedb);
+         if (!type) {
+            type = find_typed_db(ident, typedb);
+         }
+      }
+      type = find_typed_db(ident, typedb);
    }
    if (type) {
       type->is_const = is_const;
@@ -3247,8 +3244,6 @@ void toplevel() {
             }
             char *name = NULL;
             Type *type = read_type_all(&name);
-            type->context = malloc(sizeof(Context));
-            type->context->is_previous_class = 1;
             
             // edit for instanced function.
             if ((lang & 1) && type->ty == TY_FUNC && type->is_static > 0) {
@@ -3595,6 +3590,124 @@ Vector *read_tokenize(char *fname) {
    return tokenize(buf);
 }
 
+Node* analyzing(Node* node) {
+   switch (node->ty) {
+      case ND_DOT:
+         if (node->lhs->type->ty != TY_STRUCT) {
+            fprintf(stderr, "Error: dot operator to NOT struct\n");
+            exit(1);
+         }
+         break;
+      default:
+         break;
+   }
+   int j;
+
+   if (node->lhs) {
+      node->lhs = analyzing(node->lhs);
+   }
+   if (node->rhs) {
+      node->rhs = analyzing(node->rhs);
+   }
+   if (node->code) {
+      for (j = 0; node->code->data[j]; j++) { 
+         node->code->data[j] = (Token*)analyzing((Node*)node->code->data[j]);
+      }
+   }
+   if (node->argc > 0) {
+      for (j = 0; j<node->argc; j++) {
+         if (node->args[j]) {
+            node->args[j] = analyzing(node->args[j]);
+         }
+      }
+   }
+
+   for (j = 0;j<3;j++) {
+      if (node->conds[j]) {
+         node->conds[j] = analyzing(node->conds[j]);
+      }
+   }
+
+   switch (node->ty) {
+      case ND_ADD:
+      case ND_SUB:
+         if (node->lhs->type->ty == TY_PTR || node->lhs->type->ty == TY_ARRAY) {
+            // This should be becasuse of pointer types should be long
+            node->rhs = new_node(ND_MULTIPLY_IMMUTABLE_VALUE, node->rhs, NULL);
+            /*
+            if (node->lhs->type->ty == TY_PTR) {
+               node->rhs->num_val = 8;
+            } else {
+            */
+               node->rhs->num_val = cnt_size(node->lhs->type->ptrof);
+            //}
+            //node->rhs->num_val = cnt_size(node->lhs->type->ptrof);
+         } else if (node->rhs->type->ty == TY_PTR || node->rhs->type->ty == TY_ARRAY) {
+            node->lhs = new_node(ND_MULTIPLY_IMMUTABLE_VALUE, node->lhs, NULL);
+            /*
+            if (node->rhs->type->ty == TY_PTR) {
+               node->lhs->num_val = 8;
+            } else {
+            */
+               node->lhs->num_val = cnt_size(node->rhs->type->ptrof);
+            //}
+         } else if (type2size(node->lhs->type) < type2size(node->rhs->type)) {
+            node->lhs = new_node(ND_CAST, node->lhs, NULL);
+            node->lhs->type = node->rhs->type;
+         } else if (type2size(node->lhs->type) > type2size(node->rhs->type)) {
+            node->rhs = new_node(ND_CAST, node->rhs, NULL);
+            node->rhs->type = node->lhs->type;
+         }
+         if (node->rhs->type->ty == TY_PTR || node->rhs->type->ty == TY_ARRAY) {
+            node->type = node->rhs->type;
+            // TY_PTR no matter when node->lhs->node->lhs is INT or PTR
+         } else if (node->lhs->type->ty == TY_PTR || node->lhs->type->ty == TY_ARRAY) {
+            node->type = node->lhs->type;
+            // TY_PTR no matter when node->lhs->node->lhs is INT or PTR
+         }
+         break;
+      case '<':
+      case '>':
+      case ND_ISEQ:
+      case ND_ISNOTEQ:
+      case ND_ISLESSEQ:
+      case ND_ISMOREEQ:
+      case ND_MUL:
+         {
+            // TODO This has problem like: long + pointer -> pointer + pointer
+            if (type2size(node->lhs->type) < type2size(node->rhs->type)) {
+               node->lhs = new_node(ND_CAST, node->lhs, NULL);
+               node->lhs->type = node->rhs->type;
+            } else if (type2size(node->lhs->type) > type2size(node->rhs->type)) {
+               node->rhs = new_node(ND_CAST, node->rhs, NULL);
+               node->rhs->type = node->lhs->type;
+            }
+         }
+         break;
+      case ND_FPLUSPLUS:
+      case ND_FSUBSUB:
+         // Moved to analyzing process.
+         if (node->lhs->type->ty == TY_PTR || node->lhs->type->ty == TY_ARRAY) {
+            node->num_val = type2size(node->lhs->type->ptrof);
+         }
+         break;
+      case ND_DEREF:
+         node->type = node->lhs->type->ptrof;
+         break;
+      default:
+         break;
+   }
+   return node;
+}
+
+void analyzing_process() {
+   int len = globalcode->len;
+   int i;
+   for (i = 0; i < len; i++) {
+      globalcode->data[i] = (Token*) analyzing((Node *)globalcode->data[i]);
+   }
+}
+
 int main(int argc, char **argv) {
    if (argc < 2) {
       error("Incorrect Arguments");
@@ -3625,6 +3738,8 @@ int main(int argc, char **argv) {
    init_typedb();
 
    toplevel();
+
+   analyzing_process();
 
    puts(".intel_syntax noprefix");
    puts(".align 4");

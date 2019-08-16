@@ -172,6 +172,7 @@ typedef struct Type {
       TY_VOID,
       TY_DOUBLE,
       TY_FUNC,
+      TY_TEMPLATE,
    } ty;
    Map *structure; // <name, Type*>
    struct Type *ptrof;
@@ -200,6 +201,7 @@ typedef struct Node {
    NodeType ty;
    struct Node *lhs;
    struct Node *rhs;
+   struct Node *conds[3];
    struct Node *args[6];
    Vector *code;
    long argc;
