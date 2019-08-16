@@ -40,7 +40,7 @@ Map *typedb;
 Map *struct_typedb;
 Map *enum_typedb;
 Map *current_local_typedb;
-int is_recursive(Node* node, char* name);
+int is_recursive(Node *node, char *name);
 
 int env_for_while = 0;
 int env_for_while_switch = 0;
@@ -56,6 +56,7 @@ int lang = 0;
 Node *new_node(NodeType ty, Node *lhs, Node *rhs);
 int type2size(Type *type);
 Type *read_type_all(char **input);
+Type *read_type(Type *type, char **input, Map *local_typedb);
 Type *read_fundamental_type(Map *local_typedb);
 int confirm_type();
 int confirm_node(TokenConst ty);
@@ -73,7 +74,7 @@ int cnt_size(Type *type);
 Type *get_type_local(Node *node);
 void gen(Node *node);
 Node *new_addsub_node(NodeType ty, Node *lhs, Node *rhs);
-Node* generate_template(Node* node, Type* new_type);
+Node *generate_template(Node *node, Type *new_type);
 
 Register *gen_register_2(Node *node, int unused_eval);
 char *node2reg(Node *node, Register *reg);
@@ -100,12 +101,24 @@ void *malloc(int size);
 void *realloc(void *ptr, int size);
 #endif
 
-char *type2name(Type* type) {
-   switch(type->ty) {
+char *type2name(Type *type) {
+   char *buf = malloc(sizeof(char) * 256);
+   switch (type->ty) {
       case TY_INT:
          return "int";
       case TY_CHAR:
          return "char";
+      case TY_PTR:
+      case TY_ARRAY:
+         sprintf(buf, "%s_ptr", type2name(type->ptrof));
+         return buf;
+      case TY_STRUCT:
+         if (type->name) {
+            sprintf(buf, "%s_struct", type->name);
+         } else {
+            sprintf(buf, "nonname_struct");
+         }
+         return buf;
       default:
          return "type";
    }
@@ -130,7 +143,7 @@ Type *new_type() {
    return type;
 }
 
-Type *type_pointer(Type* base_type) {
+Type *type_pointer(Type *base_type) {
    Type *type = new_type();
    type->ty = TY_PTR;
    type->ptrof = base_type;
@@ -181,7 +194,8 @@ int vec_push(Vector *vec, Token *element) {
 
 void error(const char *str) {
    if (tokens) {
-      fprintf(stderr, "%s on line %d pos %d: %s\n", str, tokens->data[pos]->pline, pos, tokens->data[pos]->input);
+      fprintf(stderr, "%s on line %d pos %d: %s\n", str,
+              tokens->data[pos]->pline, pos, tokens->data[pos]->input);
    } else {
       fprintf(stderr, "%s\n", str);
    }
@@ -391,7 +405,7 @@ Node *new_ident_node(char *name) {
    // Try global variable.
    node->ty = ND_GLOBAL_IDENT;
    node->type = map_get(global_vars, node->name);
-   
+
    if (!node->type) {
       error("Error: New Variable Definition.");
    }
@@ -433,13 +447,14 @@ Node *new_func_node(Node *ident, Type *template_type) {
       // TODO support global variable function call
       node->name = ident->name;
       node->gen_name = mangle_func_name(node->name);
-      Node* result = map_get(funcdefs, ident->name);
+      Node *result = map_get(funcdefs, ident->name);
       if (result) {
          node->funcdef = result;
          node->type = result->type->ret;
          if (template_type) {
             char *buf = malloc(sizeof(char) * 256);
-            sprintf(buf, "%s_template_%s", ident->name, type2name(template_type));
+            sprintf(buf, "%s_template_%s", ident->name,
+                    type2name(template_type));
             node->gen_name = buf;
             if (!map_get(funcdefs_generated_template, buf)) {
                result = generate_template(result, template_type);
@@ -447,7 +462,7 @@ Node *new_func_node(Node *ident, Type *template_type) {
                node = generate_template(node, template_type);
                result->gen_name = buf;
                map_put(funcdefs_generated_template, result->gen_name, result);
-               vec_push(globalcode, (Node*) result);
+               vec_push(globalcode, (Token *)result);
             }
          }
       } else {
@@ -1124,24 +1139,26 @@ Node *node_term() {
    }
 
    Type *template_type = NULL;
-   while(1) {
+   while (1) {
       // Postfix Expression
-      
+
       // Template
       if ((lang & 1) && confirm_node('<')) {
          if (node->ty != ND_SYMBOL) {
             continue;
          }
-         Node* result = map_get(funcdefs, node->name);
-         if (!result || !result->type->local_typedb || result->type->local_typedb->keys->len <= 0) {
+         Node *result = map_get(funcdefs, node->name);
+         if (!result || !result->type->local_typedb ||
+             result->type->local_typedb->keys->len <= 0) {
             continue;
          }
          expect_node('<');
          template_type = read_fundamental_type(NULL);
+         template_type = read_type(template_type, NULL, NULL);
          expect_node('>');
       } else if (confirm_node('(')) {
          // Function Call
-         //char *fname = expect_ident();
+         // char *fname = expect_ident();
          char *fname = "";
          if (node->ty == ND_IDENT) {
             fname = node->name;
@@ -1165,17 +1182,17 @@ Node *node_term() {
          }
          // assert(node->argc <= 6);
          // pos++ because of consume_node(')')
-         //return node;
+         // return node;
       } else if (consume_node(TK_PLUSPLUS)) {
          node = new_node(ND_FPLUSPLUS, node, NULL);
          node->num_val = 1;
-         // if (node->lhs->type->ty == TY_PTR || node->lhs->type->ty == TY_ARRAY) {
-         // Moved to analyzing process.
+         // if (node->lhs->type->ty == TY_PTR || node->lhs->type->ty ==
+         // TY_ARRAY) { Moved to analyzing process.
       } else if (consume_node(TK_SUBSUB)) {
          node = new_node(ND_FSUBSUB, node, NULL);
          node->num_val = 1;
-         // if (node->lhs->type->ty == TY_PTR || node->lhs->type->ty == TY_ARRAY) {
-         // Moved to analyzing process.
+         // if (node->lhs->type->ty == TY_PTR || node->lhs->type->ty ==
+         // TY_ARRAY) { Moved to analyzing process.
       } else if (consume_node('[')) {
          node = new_deref_node(new_addsub_node('+', node, node_mathexpr()));
          expect_node(']');
@@ -1214,26 +1231,35 @@ Type *get_type_local(Node *node) {
 }
 
 char *_rax(Node *node) {
-   switch(type2size(node->type)) {
-      case 1: return "al";
-      case 4: return "eax";
-      default: return "rax";
+   switch (type2size(node->type)) {
+      case 1:
+         return "al";
+      case 4:
+         return "eax";
+      default:
+         return "rax";
    }
 }
 
 char *_rdi(Node *node) {
-   switch(type2size(node->type)) {
-      case 1: return "dil";
-      case 4: return "edi";
-      default: return "rdi";
+   switch (type2size(node->type)) {
+      case 1:
+         return "dil";
+      case 4:
+         return "edi";
+      default:
+         return "rdi";
    }
 }
 
 char *_rdx(Node *node) {
-   switch(type2size(node->type)) {
-      case 1: return "dl";
-      case 4: return "edx";
-      default: return "rdx";
+   switch (type2size(node->type)) {
+      case 1:
+         return "dl";
+      case 4:
+         return "edx";
+      default:
+         return "rdx";
    }
 }
 
@@ -1590,7 +1616,7 @@ Register *gen_register_2(Node *node, int unused_eval) {
    if (!node) {
       return NO_REGISTER;
    }
-   
+
    // Write down line number
    if (node->pline >= 0) {
       // 1 means the file number
@@ -2072,7 +2098,7 @@ Register *gen_register_2(Node *node, int unused_eval) {
          }
          puts("mov rsp, rbp");
          puts("#test end expansion ");
-         //puts("pop rbp");
+         // puts("pop rbp");
          return NO_REGISTER;
 
       case ND_FUNC:
@@ -2090,13 +2116,14 @@ Register *gen_register_2(Node *node, int unused_eval) {
 
          save_reg();
          // FIXME: alignment should be 64-bit
-         puts("mov al, 0"); // TODO to preserve float
+         puts("mov al, 0");    // TODO to preserve float
          if (node->gen_name) { // ND_GLOBAL_IDENT, called from local vars.
             printf("call %s\n",
-                  node->gen_name); // rax should be aligned with the size
+                   node->gen_name); // rax should be aligned with the size
          } else if (node->type->context->is_previous_class) {
             char *buf = malloc(sizeof(char) * 256);
-            snprintf(buf, 255, "%s::%s", node->type->context->is_previous_class, node->type->context->method_name);
+            snprintf(buf, 255, "%s::%s", node->type->context->is_previous_class,
+                     node->type->context->method_name);
             printf("call %s\n", mangle_func_name(buf));
          } else {
             temp_reg = gen_register_2(node->lhs, 0);
@@ -2814,7 +2841,7 @@ Node *assign() {
    return node;
 }
 
-Type *read_type(Type *type, char **input, Map* local_typedb) {
+Type *read_type(Type *type, char **input, Map *local_typedb) {
    int ptr_cnt = 0;
    int i = 0;
    Type *concrete_type;
@@ -2845,7 +2872,7 @@ Type *read_type(Type *type, char **input, Map* local_typedb) {
    }
    consume_node(TK_IDENT);
 
-   for (i=0;i<ptr_cnt;i++) {
+   for (i = 0; i < ptr_cnt; i++) {
       type = type_pointer(type);
    }
    // array
@@ -2873,12 +2900,11 @@ Type *read_type(Type *type, char **input, Map* local_typedb) {
          }
       } else if (consume_node('(')) {
          // Function call.
-         Type* concrete_type = new_type();
+         Type *concrete_type = new_type();
          concrete_type->ty = TY_FUNC;
          concrete_type->ret = type;
          concrete_type->argc = 0;
          concrete_type->is_omiited = 0;
-         
 
          // follow concrete_type if real type !is not supported yet!
          // to set...
@@ -2887,15 +2913,18 @@ Type *read_type(Type *type, char **input, Map* local_typedb) {
          type = concrete_type;
 
          // treat as function.
-         for (concrete_type->argc = 0; concrete_type->argc <= 6 && !consume_node(')');) {
+         for (concrete_type->argc = 0;
+              concrete_type->argc <= 6 && !consume_node(')');) {
             if (consume_node(TK_OMIITED)) {
                type->is_omiited = 1;
                expect_node(')');
                break;
             }
             char *buf;
-            concrete_type->args[concrete_type->argc] = read_fundamental_type(local_typedb);
-            concrete_type->args[concrete_type->argc] = read_type(concrete_type->args[concrete_type->argc], &buf, local_typedb);
+            concrete_type->args[concrete_type->argc] =
+                read_fundamental_type(local_typedb);
+            concrete_type->args[concrete_type->argc] = read_type(
+                concrete_type->args[concrete_type->argc], &buf, local_typedb);
             // Save its variable name, if any.
             concrete_type->args[concrete_type->argc++]->name = buf;
             consume_node(',');
@@ -2963,7 +2992,7 @@ Node *node_if() {
    node->argc = 1;
    node->args[0] = assign();
    node->args[1] = NULL;
-   node->pline = tokens->data[pos-1]->pline;
+   node->pline = tokens->data[pos - 1]->pline;
    // Suppress COndition
 
    if (confirm_node(TK_BLOCKBEGIN)) {
@@ -3149,7 +3178,7 @@ Type *find_typed_db(char *input, Map *db) {
 Type *read_fundamental_type(Map *local_typedb) {
    int is_const = 0;
    int is_static = 0;
-   char* template_typename = NULL;
+   char *template_typename = NULL;
    Type *type = NULL;
 
    while (1) {
@@ -3217,10 +3246,11 @@ int split_type_caller() {
          return typedb->vals->data[j]->ty;
       }
    }
-   for (int j = 0; current_local_typedb &&  j < current_local_typedb->keys->len; j++) {
+   for (int j = 0; current_local_typedb && j < current_local_typedb->keys->len;
+        j++) {
       // for template
-      if (strcmp(tokens->data[pos]->input, (char *)current_local_typedb->keys->data[j]) ==
-          0) {
+      if (strcmp(tokens->data[pos]->input,
+                 (char *)current_local_typedb->keys->data[j]) == 0) {
          return 3;
       }
    }
@@ -3288,9 +3318,9 @@ void define_enum(int assign_name) {
    }
 }
 
-void new_fdef(char *name, Type *type, Map* local_typedb) {
+void new_fdef(char *name, Type *type, Map *local_typedb) {
    Node *newfunc;
-   //Type *previoustype;
+   // Type *previoustype;
    int pline = tokens->data[pos]->pline;
    newfunc = new_fdef_node(name, type, type->is_static);
    newfunc->type->local_typedb = local_typedb;
@@ -3314,13 +3344,14 @@ void new_fdef(char *name, Type *type, Map* local_typedb) {
       saved_var_type->ptrof = find_typed_db("long", typedb);
       saved_var_type->array_size = 7;
       newfunc->is_omiited =
-         new_ident_node_with_new_variable("_saved_var", saved_var_type);
+          new_ident_node_with_new_variable("_saved_var", saved_var_type);
       omiited_argc = newfunc->argc;
    }
    newfunc->argc = type->argc;
    int i;
-   for (i =0; i<newfunc->argc;i++) {
-      newfunc->args[i] = new_ident_node_with_new_variable(type->args[i]->name, type->args[i]);
+   for (i = 0; i < newfunc->argc; i++) {
+      newfunc->args[i] =
+          new_ident_node_with_new_variable(type->args[i]->name, type->args[i]);
    }
    env = prev_env;
    // to support prototype def.
@@ -3392,7 +3423,7 @@ void toplevel() {
             }
             char *name = NULL;
             Type *type = read_type_all(&name);
-            
+
             // edit for instanced function.
             if ((lang & 1) && type->ty == TY_FUNC && type->is_static == 0) {
                Type *thistype = new_type();
@@ -3509,7 +3540,7 @@ void toplevel() {
    vec_push(globalcode, (Token *)new_block_node(NULL));
 }
 
-Node* generate_template(Node* node, Type* new_type) {
+Node *generate_template(Node *node, Type *new_type) {
    node = duplicate_node(node);
    int j;
    Node *code_node;
@@ -3525,20 +3556,20 @@ Node* generate_template(Node* node, Type* new_type) {
    if (node->code) {
       Vector *vec = new_vector();
       for (j = 0; j < node->code->len && node->code->data[j]; j++) {
-         code_node = generate_template((Node*)node->code->data[j], new_type);
-         vec_push(vec, (Token*)code_node);
+         code_node = generate_template((Node *)node->code->data[j], new_type);
+         vec_push(vec, (Token *)code_node);
       }
       node->code = vec;
    }
    if (node->argc > 0) {
-      for (j = 0; j<node->argc; j++) {
+      for (j = 0; j < node->argc; j++) {
          if (node->args[j]) {
             node->args[j] = generate_template(node->args[j], new_type);
          }
       }
    }
 
-   for (j = 0;j<3;j++) {
+   for (j = 0; j < 3; j++) {
       if (node->conds[j]) {
          node->conds[j] = generate_template(node->conds[j], new_type);
       }
@@ -3546,7 +3577,7 @@ Node* generate_template(Node* node, Type* new_type) {
    return node;
 }
 
-int is_recursive(Node* node, char* name) {
+int is_recursive(Node *node, char *name) {
    int j;
    if (!node) {
       return 0;
@@ -3566,19 +3597,19 @@ int is_recursive(Node* node, char* name) {
 
    if (node->code) {
       for (j = 0; j < node->code->len && node->code->data[j]; j++) {
-         if (is_recursive((Node*)node->code->data[j], name)) {
+         if (is_recursive((Node *)node->code->data[j], name)) {
             return 1;
          }
       }
    }
 
-   for (j = 0; j<node->argc; j++) {
+   for (j = 0; j < node->argc; j++) {
       if (is_recursive(node->args[j], name)) {
          return 1;
       }
    }
 
-   for (j = 0;j<3;j++) {
+   for (j = 0; j < 3; j++) {
       if (is_recursive(node->conds[j], name)) {
          return 1;
       }
@@ -3841,18 +3872,18 @@ Node* analyzing(Node* node) {
    }
    if (node->code) {
       for (j = 0; j < node->code->len && node->code->data[j]; j++) {
-         node->code->data[j] = (Token*)analyzing((Node*)node->code->data[j]);
+         node->code->data[j] = (Token *)analyzing((Node *)node->code->data[j]);
       }
    }
    if (node->argc > 0) {
-      for (j = 0; j<node->argc; j++) {
+      for (j = 0; j < node->argc; j++) {
          if (node->args[j]) {
             node->args[j] = analyzing(node->args[j]);
          }
       }
    }
 
-   for (j = 0;j<3;j++) {
+   for (j = 0; j < 3; j++) {
       if (node->conds[j]) {
          node->conds[j] = analyzing(node->conds[j]);
       }
@@ -3869,17 +3900,18 @@ Node* analyzing(Node* node) {
                node->rhs->num_val = 8;
             } else {
             */
-               node->rhs->num_val = cnt_size(node->lhs->type->ptrof);
+            node->rhs->num_val = cnt_size(node->lhs->type->ptrof);
             //}
-            //node->rhs->num_val = cnt_size(node->lhs->type->ptrof);
-         } else if (node->rhs->type->ty == TY_PTR || node->rhs->type->ty == TY_ARRAY) {
+            // node->rhs->num_val = cnt_size(node->lhs->type->ptrof);
+         } else if (node->rhs->type->ty == TY_PTR ||
+                    node->rhs->type->ty == TY_ARRAY) {
             node->lhs = new_node(ND_MULTIPLY_IMMUTABLE_VALUE, node->lhs, NULL);
             /*
             if (node->rhs->type->ty == TY_PTR) {
                node->lhs->num_val = 8;
             } else {
             */
-               node->lhs->num_val = cnt_size(node->rhs->type->ptrof);
+            node->lhs->num_val = cnt_size(node->rhs->type->ptrof);
             //}
          } else if (type2size(node->lhs->type) < type2size(node->rhs->type)) {
             node->lhs = new_node(ND_CAST, node->lhs, NULL);
@@ -3891,7 +3923,8 @@ Node* analyzing(Node* node) {
          if (node->rhs->type->ty == TY_PTR || node->rhs->type->ty == TY_ARRAY) {
             node->type = node->rhs->type;
             // TY_PTR no matter when node->lhs->node->lhs is INT or PTR
-         } else if (node->lhs->type->ty == TY_PTR || node->lhs->type->ty == TY_ARRAY) {
+         } else if (node->lhs->type->ty == TY_PTR ||
+                    node->lhs->type->ty == TY_ARRAY) {
             node->type = node->lhs->type;
             // TY_PTR no matter when node->lhs->node->lhs is INT or PTR
          }
@@ -3902,18 +3935,16 @@ Node* analyzing(Node* node) {
       case ND_ISNOTEQ:
       case ND_ISLESSEQ:
       case ND_ISMOREEQ:
-      case ND_MUL:
-         {
-            // TODO This has problem like: long + pointer -> pointer + pointer
-            if (type2size(node->lhs->type) < type2size(node->rhs->type)) {
-               node->lhs = new_node(ND_CAST, node->lhs, NULL);
-               node->lhs->type = node->rhs->type;
-            } else if (type2size(node->lhs->type) > type2size(node->rhs->type)) {
-               node->rhs = new_node(ND_CAST, node->rhs, NULL);
-               node->rhs->type = node->lhs->type;
-            }
+      case ND_MUL: {
+         // TODO This has problem like: long + pointer -> pointer + pointer
+         if (type2size(node->lhs->type) < type2size(node->rhs->type)) {
+            node->lhs = new_node(ND_CAST, node->lhs, NULL);
+            node->lhs->type = node->rhs->type;
+         } else if (type2size(node->lhs->type) > type2size(node->rhs->type)) {
+            node->rhs = new_node(ND_CAST, node->rhs, NULL);
+            node->rhs->type = node->lhs->type;
          }
-         break;
+      } break;
       case ND_FPLUSPLUS:
       case ND_FSUBSUB:
          // Moved to analyzing process.
@@ -3935,8 +3966,7 @@ Node* analyzing(Node* node) {
    return node;
 }
 
-
-Node* optimizing(Node* node) {
+Node *optimizing(Node *node) {
    Node *node_new;
    int new_num_val;
    int j;
@@ -3945,13 +3975,16 @@ Node* optimizing(Node* node) {
       case ND_SUB:
       case ND_MUL:
          if (node->lhs->ty == ND_NUM && node->rhs->ty == ND_NUM) {
-            switch(node->ty) {
+            switch (node->ty) {
                case ND_ADD:
-                  new_num_val = node->lhs->num_val + node->rhs->num_val; break;
+                  new_num_val = node->lhs->num_val + node->rhs->num_val;
+                  break;
                case ND_SUB:
-                  new_num_val = node->lhs->num_val - node->rhs->num_val; break;
+                  new_num_val = node->lhs->num_val - node->rhs->num_val;
+                  break;
                case ND_MUL:
-                  new_num_val = node->lhs->num_val * node->rhs->num_val; break;
+                  new_num_val = node->lhs->num_val * node->rhs->num_val;
+                  break;
                default:
                   fprintf(stderr, "Error: Uncalled\n");
                   exit(1);
@@ -3969,11 +4002,13 @@ Node* optimizing(Node* node) {
 
          // inline expansion
          /*
-         if ((node->funcdef->code->len > 0) && (node->funcdef->code->len < 2) && (node->funcdef->is_recursive == 0) && (node->type->ty == TY_VOID)) {
+         if ((node->funcdef->code->len > 0) && (node->funcdef->code->len < 2) &&
+         (node->funcdef->is_recursive == 0) && (node->type->ty == TY_VOID)) {
 
             node_new = new_block_node(NULL);
             for (j = 0;j < node->argc;j++) {
-               node_new->args[j] = new_node(ND_EQUAL, node->funcdef->args[j], node->args[j]);
+               node_new->args[j] = new_node(ND_EQUAL, node->funcdef->args[j],
+         node->args[j]);
             }
             if (node_new) {
                // constant function
@@ -3997,19 +4032,19 @@ Node* optimizing(Node* node) {
       node->rhs = optimizing(node->rhs);
    }
    if (node->code) {
-      for (j = 0; j<node->code->len && node->code->data[j]; j++) { 
-         node->code->data[j] = (Token*)optimizing((Node*)node->code->data[j]);
+      for (j = 0; j < node->code->len && node->code->data[j]; j++) {
+         node->code->data[j] = (Token *)optimizing((Node *)node->code->data[j]);
       }
    }
    if (node->argc > 0) {
-      for (j = 0; j<node->argc; j++) {
+      for (j = 0; j < node->argc; j++) {
          if (node->args[j]) {
             node->args[j] = optimizing(node->args[j]);
          }
       }
    }
 
-   for (j = 0;j<3;j++) {
+   for (j = 0; j < 3; j++) {
       if (node->conds[j]) {
          node->conds[j] = optimizing(node->conds[j]);
       }
@@ -4021,7 +4056,7 @@ void analyzing_process() {
    int len = globalcode->len;
    int i;
    for (i = 0; i < len; i++) {
-      globalcode->data[i] = (Token*) analyzing((Node *)globalcode->data[i]);
+      globalcode->data[i] = (Token *)analyzing((Node *)globalcode->data[i]);
    }
 }
 
@@ -4029,7 +4064,7 @@ void optimizaion_process() {
    int len = globalcode->len;
    int i;
    for (i = 0; i < len; i++) {
-      globalcode->data[i] = (Token*) optimizing((Node *)globalcode->data[i]);
+      globalcode->data[i] = (Token *)optimizing((Node *)globalcode->data[i]);
    }
 }
 
@@ -4065,7 +4100,7 @@ int main(int argc, char **argv) {
    toplevel();
 
    analyzing_process();
-   
+
    optimizaion_process();
 
    puts(".intel_syntax noprefix");
