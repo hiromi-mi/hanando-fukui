@@ -39,6 +39,7 @@ Vector *strs;
 Map *typedb;
 Map *struct_typedb;
 Map *enum_typedb;
+Map *current_local_typedb;
 int is_recursive(Node* node, char* name);
 
 int env_for_while = 0;
@@ -248,10 +249,11 @@ Node *new_node_with_cast(NodeType ty, Node *lhs, Node *rhs) {
 }
 
 Node *new_assign_node(Node *lhs, Node *rhs) {
-   if (type2size(lhs->type) != type2size(rhs->type)) {
+   /*if (type2size(lhs->type) != type2size(rhs->type)) {
       rhs = new_node(ND_CAST, rhs, NULL);
       rhs->type = lhs->type;
-   }
+   }*/
+   // Moved to Analyzing Process
    return new_node(ND_EQUAL, lhs, rhs);
 }
 Node *new_char_node(long num_val) {
@@ -2917,7 +2919,7 @@ Node *stmt() {
    if (confirm_type()) {
       char *input = NULL;
       // FIXME
-      Type *fundamental_type = read_fundamental_type(NULL);
+      Type *fundamental_type = read_fundamental_type(current_local_typedb);
       Type *type;
       do {
          type = read_type(fundamental_type, &input, NULL);
@@ -3094,7 +3096,7 @@ Node *copy_node(Node *old_node, Node *node) {
    node->name = old_node->name;
    node->gen_name = old_node->gen_name;
    node->env = old_node->env;
-   node->type = old_node->type;
+   node->type = duplicate_type(old_node->type);
    node->lvar_offset = old_node->lvar_offset;
    node->is_omiited = old_node->is_omiited;
    node->is_static = old_node->is_static;
@@ -3117,13 +3119,18 @@ Node *duplicate_node(Node *old_node) {
 }
 
 Type *copy_type(Type *old_type, Type *type) {
+   if (!old_type) {
+      return NULL;
+   }
    type->ty = old_type->ty;
    type->structure = old_type->structure;
    type->array_size = old_type->array_size;
    type->ptrof = old_type->ptrof;
    type->offset = old_type->offset;
    type->is_const = old_type->is_const;
-   type->is_static = type->is_static;
+   type->is_static = old_type->is_static;
+   type->name = old_type->name;
+   type->ret = old_type->ret;
    return type;
 }
 
@@ -3208,6 +3215,13 @@ int split_type_caller() {
       if (strcmp(tokens->data[pos]->input, (char *)typedb->keys->data[j]) ==
           0) {
          return typedb->vals->data[j]->ty;
+      }
+   }
+   for (int j = 0; current_local_typedb &&  j < current_local_typedb->keys->len; j++) {
+      // for template
+      if (strcmp(tokens->data[pos]->input, (char *)current_local_typedb->keys->data[j]) ==
+          0) {
+         return 3;
       }
    }
    return 2; // IDENT
@@ -3311,7 +3325,9 @@ void new_fdef(char *name, Type *type, Map* local_typedb) {
    env = prev_env;
    // to support prototype def.
    if (confirm_node('{')) {
+      current_local_typedb = local_typedb;
       program(newfunc);
+      current_local_typedb = NULL;
       newfunc->is_recursive = is_recursive(newfunc, name);
       if (local_typedb->keys->len <= 0) {
          // There are no typedb: template
@@ -3726,6 +3742,7 @@ void init_typedb() {
    enum_typedb = new_map();
    struct_typedb = new_map();
    typedb = new_map();
+   current_local_typedb = NULL; // Initiazlied on function.
 
    Type *typeint = new_type();
    typeint->ty = TY_INT;
@@ -3907,6 +3924,11 @@ Node* analyzing(Node* node) {
       case ND_DEREF:
          node->type = node->lhs->type->ptrof;
          break;
+      case ND_EQUAL:
+         if (type2size(node->lhs->type) != type2size(node->rhs->type)) {
+            node->rhs = new_node(ND_CAST, node->rhs, NULL);
+            node->rhs->type = node->lhs->type;
+         }
       default:
          break;
    }
