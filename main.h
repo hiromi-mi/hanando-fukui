@@ -190,6 +190,7 @@ typedef struct Type {
    char* name; // for args
    MemberAccess memaccess;
    Context* context;
+   Map* local_typedb;
 } Type;
 
 typedef struct Env {

@@ -32,6 +32,7 @@ Vector *tokens;
 int pos = 0;
 Vector *globalcode;
 Map *global_vars;
+Map *funcdefs_generated_template;
 Map *funcdefs;
 Map *consts;
 Vector *strs;
@@ -65,11 +66,13 @@ void define_enum(int use);
 char *expect_ident();
 void program(Node *block_node);
 Type *duplicate_type(Type *old_type);
+Type *copy_type(Type *old_type, Type *type);
 Type *find_typed_db(char *input, Map *db);
 int cnt_size(Type *type);
 Type *get_type_local(Node *node);
 void gen(Node *node);
 Node *new_addsub_node(NodeType ty, Node *lhs, Node *rhs);
+Node* generate_template(Node* node, Type* new_type);
 
 Register *gen_register_2(Node *node, int unused_eval);
 char *node2reg(Node *node, Register *reg);
@@ -96,6 +99,17 @@ void *malloc(int size);
 void *realloc(void *ptr, int size);
 #endif
 
+char *type2name(Type* type) {
+   switch(type->ty) {
+      case TY_INT:
+         return "int";
+      case TY_CHAR:
+         return "char";
+      default:
+         return "type";
+   }
+}
+
 Type *new_type() {
    Type *type = malloc(sizeof(Type));
    type->ptrof = NULL;
@@ -111,6 +125,7 @@ Type *new_type() {
    type->context = malloc(sizeof(Type));
    type->context->is_previous_class = NULL;
    type->context->method_name = NULL;
+   type->local_typedb = NULL;
    return type;
 }
 
@@ -407,7 +422,7 @@ char *mangle_func_name(char *name) {
    }
 }
 
-Node *new_func_node(Node *ident) {
+Node *new_func_node(Node *ident, Type *template_type) {
    Node *node = new_node(ND_FUNC, ident, NULL);
    node->type = NULL;
    node->argc = 0;
@@ -420,6 +435,19 @@ Node *new_func_node(Node *ident) {
       if (result) {
          node->funcdef = result;
          node->type = result->type->ret;
+         if (template_type) {
+            char *buf = malloc(sizeof(char) * 256);
+            sprintf(buf, "%s_template_%s", ident->name, type2name(template_type));
+            node->gen_name = buf;
+            if (!map_get(funcdefs_generated_template, buf)) {
+               result = generate_template(result, template_type);
+               // specialize on local var.
+               node = generate_template(node, template_type);
+               result->gen_name = buf;
+               map_put(funcdefs_generated_template, result->gen_name, result);
+               vec_push(globalcode, (Node*) result);
+            }
+         }
       } else {
          node->type = find_typed_db("int", typedb);
       }
@@ -783,6 +811,10 @@ Vector *tokenize(char *p) {
             token->ty = TK_PUBLIC;
          } else if (strcmp(token->input, "private") == 0) {
             token->ty = TK_PRIVATE;
+         } else if (strcmp(token->input, "template") == 0) {
+            token->ty = TK_TEMPLATE;
+         } else if (strcmp(token->input, "typename") == 0) {
+            token->ty = TK_TYPENAME;
          } else if (strcmp(token->input, "__LINE__") == 0) {
             token->ty = TK_NUM;
             token->num_val = pline;
@@ -1089,10 +1121,24 @@ Node *node_term() {
       expect_node(TK_STRING);
    }
 
+   Type *template_type = NULL;
    while(1) {
       // Postfix Expression
-      // Function Call
-      if (tokens->data[pos]->ty == '(') {
+      
+      // Template
+      if ((lang & 1) && confirm_node('<')) {
+         if (node->ty != ND_SYMBOL) {
+            continue;
+         }
+         Node* result = map_get(funcdefs, node->name);
+         if (!result || !result->type->local_typedb || result->type->local_typedb->keys->len <= 0) {
+            continue;
+         }
+         expect_node('<');
+         template_type = read_fundamental_type(NULL);
+         expect_node('>');
+      } else if (confirm_node('(')) {
+         // Function Call
          //char *fname = expect_ident();
          char *fname = "";
          if (node->ty == ND_IDENT) {
@@ -1106,8 +1152,7 @@ Node *node_term() {
             return treat_va_end();
          }
 
-         // TODO: To support functional pointer
-         node = new_func_node(node);
+         node = new_func_node(node, template_type);
          // skip func , (
          expect_node('(');
          while (1) {
@@ -1296,6 +1341,8 @@ int cnt_size(Type *type) {
          return cnt_size(type->ptrof) * type->array_size;
       case TY_STRUCT:
          return type->offset;
+      case TY_TEMPLATE:
+         return 8; // FIXME
       default:
          error("Error: on void type error.");
          return 0;
@@ -2765,7 +2812,7 @@ Node *assign() {
    return node;
 }
 
-Type *read_type(Type *type, char **input) {
+Type *read_type(Type *type, char **input, Map* local_typedb) {
    int ptr_cnt = 0;
    int i = 0;
    Type *concrete_type;
@@ -2783,7 +2830,7 @@ Type *read_type(Type *type, char **input) {
          *input = tokens->data[pos]->input;
       } else if (consume_node('(')) {
          // functional pointer. declarator
-         concrete_type = read_type(NULL, input);
+         concrete_type = read_type(NULL, input, local_typedb);
          Type *base_type = concrete_type;
          while (base_type->ptrof != NULL) {
             base_type = base_type->ptrof;
@@ -2845,7 +2892,8 @@ Type *read_type(Type *type, char **input) {
                break;
             }
             char *buf;
-            concrete_type->args[concrete_type->argc] = read_type_all(&buf);
+            concrete_type->args[concrete_type->argc] = read_fundamental_type(local_typedb);
+            concrete_type->args[concrete_type->argc] = read_type(concrete_type->args[concrete_type->argc], &buf, local_typedb);
             // Save its variable name, if any.
             concrete_type->args[concrete_type->argc++]->name = buf;
             consume_node(',');
@@ -2859,7 +2907,7 @@ Type *read_type(Type *type, char **input) {
 
 Type *read_type_all(char **input) {
    Type *type = read_fundamental_type(NULL);
-   type = read_type(type, input);
+   type = read_type(type, input, NULL);
    return type;
 }
 
@@ -2872,7 +2920,7 @@ Node *stmt() {
       Type *fundamental_type = read_fundamental_type(NULL);
       Type *type;
       do {
-         type = read_type(fundamental_type, &input);
+         type = read_type(fundamental_type, &input, NULL);
          node = new_ident_node_with_new_variable(input, type);
          // if there is int a =1;
          if (consume_node('=')) {
@@ -3027,7 +3075,48 @@ void program(Node *block_node) {
 
 Type *duplicate_type(Type *old_type) {
    Type *type = new_type();
-   // copy all
+   type = copy_type(old_type, type);
+   return type;
+}
+
+Node *copy_node(Node *old_node, Node *node) {
+   // only supported primitive node
+   node->ty = old_node->ty;
+   node->lhs = old_node->lhs;
+   node->rhs = old_node->rhs;
+   node->conds[0] = old_node->conds[0];
+   node->conds[1] = old_node->conds[1];
+   node->conds[2] = old_node->conds[2];
+
+   node->code = old_node->code;
+   node->argc = old_node->argc;
+   node->num_val = old_node->num_val;
+   node->name = old_node->name;
+   node->gen_name = old_node->gen_name;
+   node->env = old_node->env;
+   node->type = old_node->type;
+   node->lvar_offset = old_node->lvar_offset;
+   node->is_omiited = old_node->is_omiited;
+   node->is_static = old_node->is_static;
+   node->is_recursive = old_node->is_static;
+   node->args[0] = old_node->args[0];
+   node->args[1] = old_node->args[1];
+   node->args[2] = old_node->args[2];
+   node->args[3] = old_node->args[3];
+   node->args[4] = old_node->args[4];
+   node->args[5] = old_node->args[5];
+   node->pline = -1; // TODO for more advenced text
+   node->funcdef = old_node->funcdef;
+   return node;
+}
+
+Node *duplicate_node(Node *old_node) {
+   Node *node = new_node(0, NULL, NULL);
+   node = copy_node(old_node, node);
+   return node;
+}
+
+Type *copy_type(Type *old_type, Type *type) {
    type->ty = old_type->ty;
    type->structure = old_type->structure;
    type->array_size = old_type->array_size;
@@ -3053,7 +3142,6 @@ Type *find_typed_db(char *input, Map *db) {
 Type *read_fundamental_type(Map *local_typedb) {
    int is_const = 0;
    int is_static = 0;
-   Map *_local_typedb = NULL;
    char* template_typename = NULL;
    Type *type = NULL;
 
@@ -3064,15 +3152,14 @@ Type *read_fundamental_type(Map *local_typedb) {
       } else if (tokens->data[pos]->ty == TK_CONST) {
          is_const = 1;
          expect_node(TK_CONST);
-      } else if (confirm_node(TK_TEMPLATE)) {
+      } else if (consume_node(TK_TEMPLATE)) {
          expect_node('<');
          expect_node(TK_TYPENAME);
          template_typename = expect_ident();
-         _local_typedb = new_map();
          type = new_type();
          type->ty = TY_TEMPLATE;
          type->name = template_typename;
-         map_put(_local_typedb, template_typename, type);
+         map_put(local_typedb, template_typename, type);
          expect_node('>');
          break;
       } else {
@@ -3089,13 +3176,14 @@ Type *read_fundamental_type(Map *local_typedb) {
       type = find_typed_db(expect_ident(), struct_typedb);
    } else {
       char *ident = expect_ident();
-      if (local_typedb) {
+      if (local_typedb && local_typedb->keys->len > 0) {
          type = find_typed_db(ident, local_typedb);
          if (!type) {
             type = find_typed_db(ident, typedb);
          }
+      } else {
+         type = find_typed_db(ident, typedb);
       }
-      type = find_typed_db(ident, typedb);
    }
    if (type) {
       type->is_const = is_const;
@@ -3108,6 +3196,9 @@ int split_type_caller() {
    // static may be ident or func
    if (tokens->data[pos]->ty == TK_STATIC) {
       pos++;
+   }
+   if (tokens->data[pos]->ty == TK_TEMPLATE) {
+      return 3;
    }
    if (tokens->data[pos]->ty != TK_IDENT) {
       return 0;
@@ -3183,12 +3274,22 @@ void define_enum(int assign_name) {
    }
 }
 
-void new_fdef(char *name, Type *type) {
+void new_fdef(char *name, Type *type, Map* local_typedb) {
    Node *newfunc;
+   //Type *previoustype;
    int pline = tokens->data[pos]->pline;
    newfunc = new_fdef_node(name, type, type->is_static);
+   newfunc->type->local_typedb = local_typedb;
    newfunc->pline = pline;
    // Function definition because toplevel func call
+
+   // On CPP: Read from Previous Definition on Struct
+   /*
+   if ((lang & 1) && strstr(name, "::")) {
+      previoustype = find_typed_db(typedb, subname);
+   }
+   */
+   // FIXME
 
    // TODO env should be treated as cooler bc. of splitted namespaces
    Env *prev_env = env;
@@ -3212,7 +3313,10 @@ void new_fdef(char *name, Type *type) {
    if (confirm_node('{')) {
       program(newfunc);
       newfunc->is_recursive = is_recursive(newfunc, name);
-      vec_push(globalcode, (Token *)newfunc);
+      if (local_typedb->keys->len <= 0) {
+         // There are no typedb: template
+         vec_push(globalcode, (Token *)newfunc);
+      }
    } else {
       expect_node(';');
    }
@@ -3232,6 +3336,7 @@ void toplevel() {
    // consume_node('}')
    global_vars = new_map();
    funcdefs = new_map();
+   funcdefs_generated_template = new_map();
    consts = new_map();
    strs = new_vector();
    globalcode = new_vector();
@@ -3357,9 +3462,11 @@ void toplevel() {
 
       if (confirm_type()) {
          char *name = NULL;
-         Type *type = read_type_all(&name);
+         Map *local_typedb = new_map();
+         Type *type = read_fundamental_type(local_typedb);
+         type = read_type(type, &name, local_typedb);
          if (type->ty == TY_FUNC) {
-            new_fdef(name, type);
+            new_fdef(name, type, local_typedb);
             continue;
          } else {
             // Global Variables.
@@ -3384,6 +3491,83 @@ void toplevel() {
       vec_push(globalcode, (Token *)stmt());
    }
    vec_push(globalcode, (Token *)new_block_node(NULL));
+}
+
+Node* generate_template(Node* node, Type* new_type) {
+   node = duplicate_node(node);
+   int j;
+   Node *code_node;
+   if (node->type && node->type->ty == TY_TEMPLATE) {
+      node->type = copy_type(new_type, node->type);
+   }
+   if (node->lhs) {
+      node->lhs = generate_template(node->lhs, new_type);
+   }
+   if (node->rhs) {
+      node->rhs = generate_template(node->rhs, new_type);
+   }
+   if (node->code) {
+      Vector *vec = new_vector();
+      for (j = 0; j < node->code->len && node->code->data[j]; j++) {
+         code_node = generate_template((Node*)node->code->data[j], new_type);
+         vec_push(vec, (Token*)code_node);
+      }
+      node->code = vec;
+   }
+   if (node->argc > 0) {
+      for (j = 0; j<node->argc; j++) {
+         if (node->args[j]) {
+            node->args[j] = generate_template(node->args[j], new_type);
+         }
+      }
+   }
+
+   for (j = 0;j<3;j++) {
+      if (node->conds[j]) {
+         node->conds[j] = generate_template(node->conds[j], new_type);
+      }
+   }
+   return node;
+}
+
+int is_recursive(Node* node, char* name) {
+   int j;
+   if (!node) {
+      return 0;
+   }
+   if (node->ty == ND_FUNC) {
+      if (node->name && strcmp(node->name, name) == 0) {
+         return 1;
+      }
+   }
+
+   if (is_recursive(node->lhs, name)) {
+      return 1;
+   }
+   if (is_recursive(node->rhs, name)) {
+      return 1;
+   }
+
+   if (node->code) {
+      for (j = 0; j < node->code->len && node->code->data[j]; j++) {
+         if (is_recursive((Node*)node->code->data[j], name)) {
+            return 1;
+         }
+      }
+   }
+
+   for (j = 0; j<node->argc; j++) {
+      if (is_recursive(node->args[j], name)) {
+         return 1;
+      }
+   }
+
+   for (j = 0;j<3;j++) {
+      if (is_recursive(node->conds[j], name)) {
+         return 1;
+      }
+   }
+   return 0;
 }
 
 void test_map() {
@@ -3729,45 +3913,6 @@ Node* analyzing(Node* node) {
    return node;
 }
 
-int is_recursive(Node* node, char* name) {
-   int j;
-   if (!node) {
-      return 0;
-   }
-   if (node->ty == ND_FUNC) {
-      if (node->name && strcmp(node->name, name) == 0) {
-         return 1;
-      }
-   }
-
-   if (is_recursive(node->lhs, name)) {
-      return 1;
-   }
-   if (is_recursive(node->rhs, name)) {
-      return 1;
-   }
-
-   if (node->code) {
-      for (j = 0; j < node->code->len && node->code->data[j]; j++) {
-         if (is_recursive((Node*)node->code->data[j], name)) {
-            return 1;
-         }
-      }
-   }
-
-   for (j = 0; j<node->argc; j++) {
-      if (is_recursive(node->args[j], name)) {
-         return 1;
-      }
-   }
-
-   for (j = 0;j<3;j++) {
-      if (is_recursive(node->conds[j], name)) {
-         return 1;
-      }
-   }
-   return 0;
-}
 
 Node* optimizing(Node* node) {
    Node *node_new;
