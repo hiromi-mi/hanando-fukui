@@ -158,7 +158,8 @@ typedef struct {
 } Map;
 
 typedef struct Context {
-   int is_previous_class;
+   char* is_previous_class;
+   char* method_name;
 } Context;
 
 typedef struct Type {

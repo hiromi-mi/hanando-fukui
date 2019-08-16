@@ -108,6 +108,9 @@ Type *new_type() {
    type->is_static = 0;
    type->is_omiited = 0;
    type->name = NULL;
+   type->context = malloc(sizeof(Type));
+   type->context->is_previous_class = NULL;
+   type->context->method_name = NULL;
    return type;
 }
 
@@ -2042,6 +2045,10 @@ Register *gen_register_2(Node *node, int unused_eval) {
          if (node->gen_name) { // ND_GLOBAL_IDENT, called from local vars.
             printf("call %s\n",
                   node->gen_name); // rax should be aligned with the size
+         } else if (node->type->context->is_previous_class) {
+            char *buf = malloc(sizeof(char) * 256);
+            snprintf(buf, 255, "%s::%s", node->type->context->is_previous_class, node->type->context->method_name);
+            printf("call %s\n", mangle_func_name(buf));
          } else {
             temp_reg = gen_register_2(node->lhs, 0);
             secure_mutable(temp_reg);
@@ -3247,7 +3254,7 @@ void toplevel() {
          structuretype->ptrof = NULL;
          int offset = 0;
          int size = 0;
-         char *name = expect_ident();
+         char *structurename = expect_ident();
          expect_node('{');
          MemberAccess memaccess;
          memaccess = PRIVATE; // on Struct, it is public
@@ -3266,17 +3273,19 @@ void toplevel() {
             Type *type = read_type_all(&name);
             
             // edit for instanced function.
-            if ((lang & 1) && type->ty == TY_FUNC && type->is_static > 0) {
+            if ((lang & 1) && type->ty == TY_FUNC && type->is_static == 0) {
                Type *thistype = new_type();
                thistype->ptrof = structuretype;
                thistype->ty = TY_PTR;
-               strncpy(thistype->name, "this", 5);
+               thistype->name = "this";
                type->args[5] = type->args[4];
                type->args[4] = type->args[3];
                type->args[3] = type->args[2];
                type->args[2] = type->args[1];
                type->args[1] = type->args[0];
                type->args[0] = thistype;
+               type->context->is_previous_class = structurename;
+               type->context->method_name = name;
             }
             size = type2size3(type);
 
@@ -3293,7 +3302,7 @@ void toplevel() {
          }
          structuretype->offset = offset;
          expect_node(';');
-         map_put(typedb, name, structuretype);
+         map_put(typedb, structurename, structuretype);
          continue;
       }
 
