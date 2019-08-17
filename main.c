@@ -323,11 +323,13 @@ Node *new_double_node(double num_val) {
 Node *new_deref_node(Node *lhs) {
    Node *node = new_node(ND_DEREF, lhs, NULL);
    // moved to new_deref_node
-   node->type = node->lhs->type->ptrof;
-   node->pline = -1; // TODO for more advenced textj
-   if (!node->type) {
-      error("Error: Dereference on NOT pointered.");
+   if (node->type->ty != TY_TEMPLATE) {
+      node->type = node->lhs->type->ptrof;
+      if (!node->type) {
+         error("Error: Dereference on NOT pointered.");
+      }
    }
+   node->pline = -1; // TODO for more advenced textj
    return node;
 }
 
@@ -1059,9 +1061,11 @@ Node *node_mul() {
 Node *new_dot_node(Node *node) {
    node = new_node('.', node, NULL);
    node->name = expect_ident();
-   node->type = (Type *)map_get(node->lhs->type->structure, node->name);
-   if (!node->type) {
-      error("Error: structure not found.");
+   if (node->type->ty != TY_TEMPLATE) {
+      node->type = (Type *)map_get(node->lhs->type->structure, node->name);
+      if (!node->type) {
+         error("Error: structure not found.");
+      }
    }
    // Member Accesss Control p.231
    if ((lang & 1) && (node->type->memaccess == PRIVATE)) {
@@ -3407,6 +3411,7 @@ void toplevel() {
          int offset = 0;
          int size = 0;
          char *structurename = expect_ident();
+         structuretype->name = structurename;
          expect_node('{');
          MemberAccess memaccess;
          memaccess = PRIVATE; // on Struct, it is public
@@ -3493,6 +3498,7 @@ void toplevel() {
          }
          structuretype->offset = offset;
          char *name = expect_ident();
+         structuretype->name = name;
          expect_node(';');
          map_put(typedb, name, structuretype);
          continue;
@@ -3852,16 +3858,6 @@ Vector *read_tokenize(char *fname) {
 }
 
 Node* analyzing(Node* node) {
-   switch (node->ty) {
-      case ND_DOT:
-         if (node->lhs->type->ty != TY_STRUCT) {
-            fprintf(stderr, "Error: dot operator to NOT struct\n");
-            exit(1);
-         }
-         break;
-      default:
-         break;
-   }
    int j;
 
    if (node->lhs) {
@@ -3953,13 +3949,29 @@ Node* analyzing(Node* node) {
          }
          break;
       case ND_DEREF:
+         // FIXME Just adding it on analyzing pharase will fail to selfhosting.
          node->type = node->lhs->type->ptrof;
+         if (!node->type) {
+            error("Error: Dereference on NOT pointered.");
+         }
          break;
       case ND_EQUAL:
          if (type2size(node->lhs->type) != type2size(node->rhs->type)) {
             node->rhs = new_node(ND_CAST, node->rhs, NULL);
             node->rhs->type = node->lhs->type;
          }
+         break;
+      case ND_DOT:
+         // FIXME Just adding it on analyzing pharase will fail to selfhosting.
+         node->type = (Type *)map_get(node->lhs->type->structure, node->name);
+         if (!node->type) {
+            error("Error: structure not found.");
+         }
+         if (node->lhs->type->ty != TY_STRUCT) {
+            fprintf(stderr, "Error: dot operator to NOT struct\n");
+            exit(1);
+         }
+         break;
       default:
          break;
    }

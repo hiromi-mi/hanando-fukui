@@ -21,4 +21,5 @@ int main() {
    Token d;
    d.pline = 8;
    printf("token: %d\n", get<Token*>(&d));
+   return 0;
 }
