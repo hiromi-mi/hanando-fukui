@@ -1,5 +1,7 @@
 # hanando-fukui
-Self-hostable C Compiler Prototype: Version 2.0 (Register-based)
+Self-hostable C(+something) Compiler Prototype: Version 3.0 (2019/8/17 version)
+
+*Japanese README is avaliable on README.ja.md*
 
 ## How to install
 By just typing `$ make` will compile as `./hanando`.
