@@ -6,6 +6,7 @@ Output:
    char: 101
 */
 
+#include <stdio.h>
 template<typename T> T add(T a, T b) {
    T c;
    c = a+b;

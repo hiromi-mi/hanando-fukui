@@ -10,15 +10,19 @@ class Test {
    int Emacs();
 };
 
+int Test::Emacs() {
+   printf("From Test::Emacs!\n");
+   return 8;
+}
+static int Test::Vim(int c) {
+   printf("From Test::Vim %d\n", c);
+   return 1;
+}
+
 int main() {
    Test c;
    c.a = 9;
-   printf("%d\n", c.Emacs());
+   Test::Vim(32);
+   c.Emacs();
    return 0;
-}
-
-int Test::Emacs() {
-   //printf("From Test::Emacs, %d\n", this->a);
-   printf("From Test::Emacs!\n");
-   return 8;
 }
