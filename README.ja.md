@@ -27,9 +27,27 @@ $ make selfselftest
 
 ## template もどき (多重展開できない)
 
-`test3.cpp` にある。
+```cpp
+#include <stdio.h>
+template<typename T> T add(T a, T b) {
+   T c;
+   c = a+b;
+   return c;
+}
+
+int main() {
+   printf("int: %d\n", add<int>(234, 123));
+   printf("char: %d\n", add<char>(234, 123));
+   return 0;
+}
+```
+
+このコードは `cppsamples/test3.cpp` にある。
+
 ```
 $ ./hanando -cpp -r -f test3.cpp > test3.s
 $ gcc test3.s -o test3
 $ ./test3
 ```
+
+すると、 char 型と int 型のサイズが異なることを利用して異なる結果になると分かる。

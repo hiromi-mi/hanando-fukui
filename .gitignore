@@ -90,13 +90,12 @@ samples/41
 test.s
 test
 
-test2
-test2.s
-test3
-test3.s
+cppsamples/*.s
+cppsamples/1
+cppsamples/2
+cppsamples/3
+cppsamples/4
 samples/32
 samples/34
 samples/34.s
 
-test4
-test4.s

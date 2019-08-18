@@ -16,4 +16,5 @@ template<typename T> T add(T a, T b) {
 int main() {
    printf("int: %d\n", add<int>(234, 123));
    printf("char: %d\n", add<char>(234, 123));
+   return 0;
 }
