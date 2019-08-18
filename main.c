@@ -248,26 +248,10 @@ Node *new_node(NodeType ty, Node *lhs, Node *rhs) {
 }
 
 Node *new_node_with_cast(NodeType ty, Node *lhs, Node *rhs) {
-   /*
-   // TODO This has problem like: long + pointer -> pointer + pointer
-   if (type2size(lhs->type) < type2size(rhs->type)) {
-      lhs = new_node(ND_CAST, lhs, NULL);
-
-      lhs->type = rhs->type;
-   } else if (type2size(lhs->type) > type2size(rhs->type)) {
-      rhs = new_node(ND_CAST, rhs, NULL);
-      rhs->type = lhs->type;
-   }
-   */
    return new_node(ty, lhs, rhs);
 }
 
 Node *new_assign_node(Node *lhs, Node *rhs) {
-   /*if (type2size(lhs->type) != type2size(rhs->type)) {
-      rhs = new_node(ND_CAST, rhs, NULL);
-      rhs->type = lhs->type;
-   }*/
-   // Moved to Analyzing Process
    return new_node(ND_EQUAL, lhs, rhs);
 }
 Node *new_char_node(long num_val) {
@@ -1142,6 +1126,7 @@ Node *node_term() {
       expect_node(TK_STRING);
    }
 
+   Map *template_type_db = new_map();
    Type *template_type = NULL;
    while (1) {
       // Postfix Expression
@@ -1157,8 +1142,11 @@ Node *node_term() {
             continue;
          }
          expect_node('<');
-         template_type = read_fundamental_type(NULL);
-         template_type = read_type(template_type, NULL, NULL);
+         while (!consume_node('>')) {
+            template_type = read_fundamental_type(NULL);
+            template_type = read_type(template_type, NULL, NULL);
+            consume_node(',');
+         }
          expect_node('>');
       } else if (confirm_node('(')) {
          // Function Call
@@ -3546,6 +3534,37 @@ void toplevel() {
    vec_push(globalcode, (Token *)new_block_node(NULL));
 }
 
+Type *generate_class_template(Type *type, Type *new_type) {
+   type = duplicate_type(type);
+   int j;
+
+   if (type && type->ty == TY_TEMPLATE) {
+      type = copy_type(new_type, type);
+   }
+   if (type->ptrof) {
+      type = generate_class_template(type->ptrof, new_type);
+   }
+   if (type->ret) {
+      type = generate_class_template(type->ret, new_type);
+   }
+   if (type->argc > 0) {
+      for (j = 0; j < type->argc; j++) {
+         if (type->args[j]) {
+            type->args[j] = generate_class_template(type->args[j], new_type);
+         }
+      }
+   }
+   if (type->structure) {
+      for (j = 0; j < type->structure->keys->len; j++) {
+         if (type->structure->vals->data[j]) {
+            type->structure->vals->data[j] = (Token *)generate_class_template(
+                (Type *)type->structure->vals->data[j], new_type);
+         }
+      }
+   }
+   return type;
+}
+
 Node *generate_template(Node *node, Type *new_type) {
    node = duplicate_node(node);
    int j;
@@ -3857,7 +3876,7 @@ Vector *read_tokenize(char *fname) {
    return tokenize(buf);
 }
 
-Node* analyzing(Node* node) {
+Node *analyzing(Node *node) {
    int j;
 
    if (node->lhs) {
