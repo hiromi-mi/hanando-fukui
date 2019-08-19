@@ -1582,7 +1582,9 @@ Register *gen_register_leftval(Node *node) {
 
       case ND_DOT:
          lhs_reg = gen_register_leftval(node->lhs);
-         printf("add %s, %d\n", size2reg(8, lhs_reg), node->type->offset);
+         if (node->type->offset > 0) {
+            printf("add %s, %d\n", size2reg(8, lhs_reg), node->type->offset);
+         }
          return lhs_reg;
 
       default:
