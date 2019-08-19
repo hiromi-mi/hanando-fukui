@@ -91,10 +91,10 @@ test.s
 test
 
 cppsamples/*.s
-cppsamples/1
-cppsamples/2
-cppsamples/3
-cppsamples/4
+cppsamples/test1
+cppsamples/test2
+cppsamples/test3
+cppsamples/test4
 samples/32
 samples/34
 samples/34.s

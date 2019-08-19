@@ -3151,10 +3151,15 @@ Type *copy_type(Type *old_type, Type *type) {
    type->is_static = old_type->is_static;
    type->name = old_type->name;
    type->ret = old_type->ret;
+   type->template_name = old_type->template_name;
    return type;
 }
 
 Type *find_typed_db(char *input, Map *db) {
+   if (!input) {
+      fprintf(stderr, "Error: find_typed_db with null input\n");
+      exit(1);
+   }
    for (int j = 0; j < db->keys->len; j++) {
       // for struct
       if (strcmp(input, (char *)db->keys->data[j]) == 0) {
@@ -3931,12 +3936,16 @@ Node *analyzing(Node *node) {
             */
             node->lhs->num_val = cnt_size(node->rhs->type->ptrof);
             //}
-         } else if (type2size(node->lhs->type) < type2size(node->rhs->type)) {
+         } else {
+            // Cast to node->type
+            if (type2size(node->type) != type2size(node->lhs->type)) {
             node->lhs = new_node(ND_CAST, node->lhs, NULL);
             node->lhs->type = node->rhs->type;
-         } else if (type2size(node->lhs->type) > type2size(node->rhs->type)) {
+            }
+            if (type2size(node->type) != type2size(node->rhs->type)) {
             node->rhs = new_node(ND_CAST, node->rhs, NULL);
             node->rhs->type = node->lhs->type;
+            }
          }
          if (node->rhs->type->ty == TY_PTR || node->rhs->type->ty == TY_ARRAY) {
             node->type = node->rhs->type;
