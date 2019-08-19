@@ -1147,7 +1147,6 @@ Node *node_term() {
             template_type = read_type(template_type, NULL, NULL);
             consume_node(',');
          }
-         expect_node('>');
       } else if (confirm_node('(')) {
          // Function Call
          // char *fname = expect_ident();
