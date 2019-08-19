@@ -76,7 +76,7 @@ void gen(Node *node);
 Node *new_addsub_node(NodeType ty, Node *lhs, Node *rhs);
 Node *generate_template(Node *node, Type *new_type);
 
-Register *gen_register_2(Node *node, int unused_eval);
+Register *gen_register_rightval(Node *node, int unused_eval);
 char *node2reg(Node *node, Register *reg);
 
 Node *node_mul();
@@ -1528,7 +1528,7 @@ void secure_mutable(Register *reg) {
    }
 }
 
-Register *gen_register_3(Node *node) {
+Register *gen_register_leftval(Node *node) {
    Register *temp_reg;
    Register *lhs_reg;
    // Treat as lvalue.
@@ -1543,7 +1543,7 @@ Register *gen_register_3(Node *node) {
          return temp_reg;
 
       case ND_DEREF:
-         lhs_reg = gen_register_2(node->lhs, 0);
+         lhs_reg = gen_register_rightval(node->lhs, 0);
          if (lhs_reg->kind != R_REGISTER) {
             temp_reg = retain_reg();
             printf("mov %s, %s\n", size2reg(8, temp_reg),
@@ -1562,7 +1562,7 @@ Register *gen_register_3(Node *node) {
          return temp_reg;
 
       case ND_DOT:
-         lhs_reg = gen_register_3(node->lhs);
+         lhs_reg = gen_register_leftval(node->lhs);
          printf("add %s, %d\n", size2reg(8, lhs_reg), node->type->offset);
          return lhs_reg;
 
@@ -1598,7 +1598,7 @@ void restore_reg() {
    }
 }
 
-Register *gen_register_2(Node *node, int unused_eval) {
+Register *gen_register_rightval(Node *node, int unused_eval) {
    Register *temp_reg;
    Register *lhs_reg;
    Register *rhs_reg;
@@ -1645,7 +1645,7 @@ Register *gen_register_2(Node *node, int unused_eval) {
 
       case ND_IDENT:
          if (node->type->ty == TY_ARRAY) {
-            return gen_register_3(node);
+            return gen_register_leftval(node);
          } else {
             temp_reg = malloc(sizeof(Register));
             temp_reg->id = node->lvar_offset;
@@ -1657,7 +1657,7 @@ Register *gen_register_2(Node *node, int unused_eval) {
 
       case ND_GLOBAL_IDENT:
          if (node->type->ty == TY_ARRAY) {
-            return gen_register_3(node);
+            return gen_register_leftval(node);
          } else {
             temp_reg = malloc(sizeof(Register));
             temp_reg->id = 0;
@@ -1668,7 +1668,7 @@ Register *gen_register_2(Node *node, int unused_eval) {
          }
 
       case ND_DOT:
-         temp_reg = gen_register_3(node);
+         temp_reg = gen_register_leftval(node);
          if (node->type->ty != TY_ARRAY) {
             printf("mov %s, [%s]\n", node2reg(node, temp_reg),
                    id2reg64(temp_reg->id));
@@ -1678,8 +1678,8 @@ Register *gen_register_2(Node *node, int unused_eval) {
       case ND_EQUAL:
          // This behaivour can be revised. like [rbp-8+2]
          if (node->lhs->ty == ND_IDENT || node->lhs->ty == ND_GLOBAL_IDENT) {
-            lhs_reg = gen_register_2(node->lhs, 0);
-            rhs_reg = gen_register_2(node->rhs, 0);
+            lhs_reg = gen_register_rightval(node->lhs, 0);
+            rhs_reg = gen_register_rightval(node->rhs, 0);
             secure_mutable(rhs_reg);
             printf("mov %s, %s\n", node2reg(node->lhs, lhs_reg),
                    node2reg(node->lhs, rhs_reg));
@@ -1689,8 +1689,8 @@ Register *gen_register_2(Node *node, int unused_eval) {
             }
             return lhs_reg;
          } else {
-            lhs_reg = gen_register_3(node->lhs);
-            rhs_reg = gen_register_2(node->rhs, 0);
+            lhs_reg = gen_register_leftval(node->lhs);
+            rhs_reg = gen_register_rightval(node->rhs, 0);
             // TODO
             secure_mutable(rhs_reg);
             printf("mov %s [%s], %s\n", node2specifier(node),
@@ -1703,7 +1703,7 @@ Register *gen_register_2(Node *node, int unused_eval) {
          }
 
       case ND_CAST:
-         temp_reg = gen_register_2(node->lhs, 0);
+         temp_reg = gen_register_rightval(node->lhs, 0);
          secure_mutable(temp_reg);
          if (type2size(node->type) > type2size(node->lhs->type)) {
             switch (type2size(node->lhs->type)) {
@@ -1720,14 +1720,14 @@ Register *gen_register_2(Node *node, int unused_eval) {
          return temp_reg;
 
       case ND_COMMA:
-         lhs_reg = gen_register_2(node->lhs, 0);
-         rhs_reg = gen_register_2(node->rhs, 0);
+         lhs_reg = gen_register_rightval(node->lhs, 0);
+         rhs_reg = gen_register_rightval(node->rhs, 0);
          release_reg(lhs_reg);
          return rhs_reg;
 
       case ND_ADD:
-         lhs_reg = gen_register_2(node->lhs, 0);
-         rhs_reg = gen_register_2(node->rhs, 0);
+         lhs_reg = gen_register_rightval(node->lhs, 0);
+         rhs_reg = gen_register_rightval(node->rhs, 0);
          secure_mutable(lhs_reg);
          printf("add %s, %s\n", node2reg(node, lhs_reg),
                 node2reg(node, rhs_reg));
@@ -1740,8 +1740,8 @@ Register *gen_register_2(Node *node, int unused_eval) {
          }
 
       case ND_SUB:
-         lhs_reg = gen_register_2(node->lhs, 0);
-         rhs_reg = gen_register_2(node->rhs, 0);
+         lhs_reg = gen_register_rightval(node->lhs, 0);
+         rhs_reg = gen_register_rightval(node->rhs, 0);
          secure_mutable(lhs_reg);
          printf("sub %s, %s\n", node2reg(node, lhs_reg),
                 node2reg(node, rhs_reg));
@@ -1755,14 +1755,14 @@ Register *gen_register_2(Node *node, int unused_eval) {
 
       case ND_MULTIPLY_IMMUTABLE_VALUE:
          // after optimizing, this will be deleted.
-         lhs_reg = gen_register_2(node->lhs, 0);
+         lhs_reg = gen_register_rightval(node->lhs, 0);
          secure_mutable(lhs_reg);
          printf("imul %s, %ld\n", node2reg(node, lhs_reg), node->num_val);
          return lhs_reg;
 
       case ND_MUL:
-         lhs_reg = gen_register_2(node->lhs, 0);
-         rhs_reg = gen_register_2(node->rhs, 0);
+         lhs_reg = gen_register_rightval(node->lhs, 0);
+         rhs_reg = gen_register_rightval(node->rhs, 0);
          secure_mutable(lhs_reg);
          printf("imul %s, %s\n", node2reg(node->lhs, lhs_reg),
                 node2reg(node->rhs, rhs_reg));
@@ -1775,8 +1775,8 @@ Register *gen_register_2(Node *node, int unused_eval) {
          }
 
       case ND_DIV:
-         lhs_reg = gen_register_2(node->lhs, 0);
-         rhs_reg = gen_register_2(node->rhs, 0);
+         lhs_reg = gen_register_rightval(node->lhs, 0);
+         rhs_reg = gen_register_rightval(node->rhs, 0);
          // TODO should support char
          printf("mov %s, %s\n", _rax(node->lhs), node2reg(node->lhs, lhs_reg));
          puts("cqo");
@@ -1792,8 +1792,8 @@ Register *gen_register_2(Node *node, int unused_eval) {
          }
 
       case ND_MOD:
-         lhs_reg = gen_register_2(node->lhs, 0);
-         rhs_reg = gen_register_2(node->rhs, 0);
+         lhs_reg = gen_register_rightval(node->lhs, 0);
+         rhs_reg = gen_register_rightval(node->rhs, 0);
          // TODO should support char: idiv only support r32 or r64
          printf("mov %s, %s\n", _rax(node->lhs), node2reg(node->lhs, lhs_reg));
          puts("cqo");
@@ -1809,8 +1809,8 @@ Register *gen_register_2(Node *node, int unused_eval) {
          }
 
       case ND_XOR:
-         lhs_reg = gen_register_2(node->lhs, 0);
-         rhs_reg = gen_register_2(node->rhs, 0);
+         lhs_reg = gen_register_rightval(node->lhs, 0);
+         rhs_reg = gen_register_rightval(node->rhs, 0);
          secure_mutable(lhs_reg);
          printf("xor %s, %s\n", node2reg(node, lhs_reg),
                 node2reg(node, rhs_reg));
@@ -1818,8 +1818,8 @@ Register *gen_register_2(Node *node, int unused_eval) {
          return lhs_reg;
 
       case ND_AND:
-         lhs_reg = gen_register_2(node->lhs, 0);
-         rhs_reg = gen_register_2(node->rhs, 0);
+         lhs_reg = gen_register_rightval(node->lhs, 0);
+         rhs_reg = gen_register_rightval(node->rhs, 0);
          secure_mutable(lhs_reg);
          printf("and %s, %s\n", node2reg(node, lhs_reg),
                 node2reg(node, rhs_reg));
@@ -1828,8 +1828,8 @@ Register *gen_register_2(Node *node, int unused_eval) {
          break;
 
       case ND_OR:
-         lhs_reg = gen_register_2(node->lhs, 0);
-         rhs_reg = gen_register_2(node->rhs, 0);
+         lhs_reg = gen_register_rightval(node->lhs, 0);
+         rhs_reg = gen_register_rightval(node->rhs, 0);
          secure_mutable(lhs_reg);
          printf("or %s, %s\n", node2reg(node, lhs_reg),
                 node2reg(node, rhs_reg));
@@ -1838,8 +1838,8 @@ Register *gen_register_2(Node *node, int unused_eval) {
 
       case ND_RSHIFT:
          // SHOULD be int
-         lhs_reg = gen_register_2(node->lhs, 0);
-         rhs_reg = gen_register_2(node->rhs, 0);
+         lhs_reg = gen_register_rightval(node->lhs, 0);
+         rhs_reg = gen_register_rightval(node->rhs, 0);
          // FIXME: for signed int (Arthmetric)
          // mov rdi[8] -> rax
          printf("mov cl, %s\n", id2reg8(rhs_reg->id));
@@ -1850,8 +1850,8 @@ Register *gen_register_2(Node *node, int unused_eval) {
 
       case ND_LSHIFT:
          // SHOULD be int
-         lhs_reg = gen_register_2(node->lhs, 0);
-         rhs_reg = gen_register_2(node->rhs, 0);
+         lhs_reg = gen_register_rightval(node->lhs, 0);
+         rhs_reg = gen_register_rightval(node->rhs, 0);
          // FIXME: for signed int (Arthmetric)
          // mov rdi[8] -> rax
          // TODO Support minus
@@ -1862,8 +1862,8 @@ Register *gen_register_2(Node *node, int unused_eval) {
          return lhs_reg;
 
       case ND_ISEQ:
-         lhs_reg = gen_register_2(node->lhs, 0);
-         rhs_reg = gen_register_2(node->rhs, 0);
+         lhs_reg = gen_register_rightval(node->lhs, 0);
+         rhs_reg = gen_register_rightval(node->rhs, 0);
          cmp_regs(node, lhs_reg, rhs_reg);
          // TODO Support minus
          puts("sete al");
@@ -1875,8 +1875,8 @@ Register *gen_register_2(Node *node, int unused_eval) {
          return temp_reg;
 
       case ND_ISNOTEQ:
-         lhs_reg = gen_register_2(node->lhs, 0);
-         rhs_reg = gen_register_2(node->rhs, 0);
+         lhs_reg = gen_register_rightval(node->lhs, 0);
+         rhs_reg = gen_register_rightval(node->rhs, 0);
          cmp_regs(node, lhs_reg, rhs_reg);
          puts("setne al");
          release_reg(lhs_reg);
@@ -1887,8 +1887,8 @@ Register *gen_register_2(Node *node, int unused_eval) {
          return temp_reg;
 
       case ND_GREATER:
-         lhs_reg = gen_register_2(node->lhs, 0);
-         rhs_reg = gen_register_2(node->rhs, 0);
+         lhs_reg = gen_register_rightval(node->lhs, 0);
+         rhs_reg = gen_register_rightval(node->rhs, 0);
          secure_mutable(rhs_reg);
          cmp_regs(node, lhs_reg, rhs_reg);
          puts("setg al");
@@ -1900,8 +1900,8 @@ Register *gen_register_2(Node *node, int unused_eval) {
          return temp_reg;
 
       case ND_LESS:
-         lhs_reg = gen_register_2(node->lhs, 0);
-         rhs_reg = gen_register_2(node->rhs, 0);
+         lhs_reg = gen_register_rightval(node->lhs, 0);
+         rhs_reg = gen_register_rightval(node->rhs, 0);
 
          secure_mutable(rhs_reg);
          cmp_regs(node, lhs_reg, rhs_reg);
@@ -1915,8 +1915,8 @@ Register *gen_register_2(Node *node, int unused_eval) {
          return temp_reg;
 
       case ND_ISMOREEQ:
-         lhs_reg = gen_register_2(node->lhs, 0);
-         rhs_reg = gen_register_2(node->rhs, 0);
+         lhs_reg = gen_register_rightval(node->lhs, 0);
+         rhs_reg = gen_register_rightval(node->rhs, 0);
          cmp_regs(node, lhs_reg, rhs_reg);
          puts("setge al");
          puts("and al, 1");
@@ -1928,8 +1928,8 @@ Register *gen_register_2(Node *node, int unused_eval) {
          return temp_reg;
 
       case ND_ISLESSEQ:
-         lhs_reg = gen_register_2(node->lhs, 0);
-         rhs_reg = gen_register_2(node->rhs, 0);
+         lhs_reg = gen_register_rightval(node->lhs, 0);
+         rhs_reg = gen_register_rightval(node->rhs, 0);
          cmp_regs(node, lhs_reg, rhs_reg);
          puts("setle al");
          puts("and al, 1");
@@ -1942,7 +1942,7 @@ Register *gen_register_2(Node *node, int unused_eval) {
 
       case ND_RETURN:
          if (node->lhs) {
-            lhs_reg = gen_register_2(node->lhs, 0);
+            lhs_reg = gen_register_rightval(node->lhs, 0);
             printf("mov %s, %s\n", _rax(node->lhs),
                    node2reg(node->lhs, lhs_reg));
             release_reg(lhs_reg);
@@ -1955,22 +1955,22 @@ Register *gen_register_2(Node *node, int unused_eval) {
       case ND_ADDRESS:
          if (node->lhs->ty == ND_IDENT || node->lhs->ty == ND_GLOBAL_IDENT) {
             temp_reg = retain_reg();
-            lhs_reg = gen_register_2(node->lhs, 0);
+            lhs_reg = gen_register_rightval(node->lhs, 0);
             printf("lea %s, %s\n", id2reg64(temp_reg->id),
                    node2reg(node, lhs_reg));
             release_reg(lhs_reg);
             return temp_reg;
          } else {
-            return gen_register_3(node->lhs);
+            return gen_register_leftval(node->lhs);
          }
 
       case ND_NEG:
-         lhs_reg = gen_register_2(node->lhs, 0);
+         lhs_reg = gen_register_rightval(node->lhs, 0);
          printf("neg %s\n", node2reg(node, lhs_reg));
          return lhs_reg;
 
       case ND_FPLUSPLUS:
-         lhs_reg = gen_register_3(node->lhs);
+         lhs_reg = gen_register_leftval(node->lhs);
          if (unused_eval) {
             secure_mutable(lhs_reg);
             printf("add %s [%s], %ld\n", node2specifier(node),
@@ -1995,7 +1995,7 @@ Register *gen_register_2(Node *node, int unused_eval) {
          }
 
       case ND_FSUBSUB:
-         lhs_reg = gen_register_3(node->lhs);
+         lhs_reg = gen_register_leftval(node->lhs);
          if (unused_eval) {
             secure_mutable(lhs_reg);
             printf("sub %s [%s], %ld\n", node2specifier(node),
@@ -2015,7 +2015,7 @@ Register *gen_register_2(Node *node, int unused_eval) {
          }
 
       case ND_APOS:
-         lhs_reg = gen_register_2(node->lhs, 0);
+         lhs_reg = gen_register_rightval(node->lhs, 0);
          printf("cmp %s, 0\n", node2reg(node->lhs, lhs_reg));
          puts("sete al");
          release_reg(lhs_reg);
@@ -2024,7 +2024,7 @@ Register *gen_register_2(Node *node, int unused_eval) {
          return temp_reg;
 
       case ND_DEREF:
-         lhs_reg = gen_register_2(node->lhs, 0);
+         lhs_reg = gen_register_rightval(node->lhs, 0);
 
          // this is because we cannot [[lhs_reg]] (double deref)
          secure_mutable(lhs_reg);
@@ -2046,7 +2046,7 @@ Register *gen_register_2(Node *node, int unused_eval) {
          puts("mov rbp, rsp");
          printf("sub rsp, %d\n", *node->env->rsp_offset_max);
          for (j = 0; j < node->argc; j++) {
-            temp_reg = gen_register_2(node->args[j], 0);
+            temp_reg = gen_register_rightval(node->args[j], 0);
             // TODO : not to use eax, so on
             printf("mov %s, %s\n", size2reg(8, temp_reg), arg_registers[j]);
          }
@@ -2058,7 +2058,7 @@ Register *gen_register_2(Node *node, int unused_eval) {
          }
          for (j = 0; j < node->code->len; j++) {
             // read inside functions.
-            gen_register_2((Node *)node->code->data[j], 1);
+            gen_register_rightval((Node *)node->code->data[j], 1);
          }
          if (node->type->ret->ty == TY_VOID) {
             puts("mov rsp, rbp");
@@ -2072,7 +2072,7 @@ Register *gen_register_2(Node *node, int unused_eval) {
 
       case ND_BLOCK:
          for (j = 0; j < node->code->len && node->code->data[j]; j++) {
-            gen_register_2((Node *)node->code->data[j], 1);
+            gen_register_rightval((Node *)node->code->data[j], 1);
          }
          return NO_REGISTER;
 
@@ -2081,12 +2081,12 @@ Register *gen_register_2(Node *node, int unused_eval) {
          printf("sub rsp, %d\n", *node->env->rsp_offset_max);
          puts("#test begin expansion");
          for (j = 0; j < node->argc; j++) {
-            temp_reg = gen_register_2(node->args[j], 0);
-            gen_register_2(node->args[j], 1);
+            temp_reg = gen_register_rightval(node->args[j], 0);
+            gen_register_rightval(node->args[j], 1);
          }
          puts("#test end expansion of args");
          for (j = 0; j < node->code->len && node->code->data[j]; j++) {
-            gen_register_2((Node *)node->code->data[j], 1);
+            gen_register_rightval((Node *)node->code->data[j], 1);
          }
          puts("mov rsp, rbp");
          puts("#test end expansion ");
@@ -2095,7 +2095,7 @@ Register *gen_register_2(Node *node, int unused_eval) {
 
       case ND_FUNC:
          for (j = 0; j < node->argc; j++) {
-            temp_reg = gen_register_2(node->args[j], 0);
+            temp_reg = gen_register_rightval(node->args[j], 0);
             // TODO Dirty: Should implement 642node
             secure_mutable(temp_reg);
             printf("push %s\n", id2reg64(temp_reg->id));
@@ -2118,7 +2118,7 @@ Register *gen_register_2(Node *node, int unused_eval) {
                      node->type->context->method_name);
             printf("call %s\n", mangle_func_name(buf));
          } else {
-            temp_reg = gen_register_2(node->lhs, 0);
+            temp_reg = gen_register_rightval(node->lhs, 0);
             secure_mutable(temp_reg);
             printf("call %s\n", size2reg(8, temp_reg));
             release_reg(temp_reg);
@@ -2135,7 +2135,7 @@ Register *gen_register_2(Node *node, int unused_eval) {
 
       case ND_VAARG:
          // SEE in AMD64 ABI Draft 0.99.7 p.53 (uglibc.org )
-         lhs_reg = gen_register_3(node->lhs); // meaning ap
+         lhs_reg = gen_register_leftval(node->lhs); // meaning ap
          /*
          // rax as temporary register.
          temp_reg = retain_reg();
@@ -2161,7 +2161,7 @@ Register *gen_register_2(Node *node, int unused_eval) {
          return temp_reg;
 
       case ND_VASTART:
-         lhs_reg = gen_register_3(node->lhs); // meaning ap's address
+         lhs_reg = gen_register_leftval(node->lhs); // meaning ap's address
          // node->num_val means the first undefined argument No.
          // from lval_offset:
          // rbp-80 : r0
@@ -2190,12 +2190,12 @@ Register *gen_register_2(Node *node, int unused_eval) {
          return NO_REGISTER;
 
       case ND_LOR:
-         lhs_reg = gen_register_2(node->lhs, 0);
+         lhs_reg = gen_register_rightval(node->lhs, 0);
          printf("cmp %s, 0\n", node2reg(node->lhs, lhs_reg));
          release_reg(lhs_reg);
          cur_if_cnt = if_cnt++;
          printf("jne .Lorend%d\n", cur_if_cnt);
-         rhs_reg = gen_register_2(node->rhs, 0);
+         rhs_reg = gen_register_rightval(node->rhs, 0);
          printf("cmp %s, 0\n", node2reg(node->rhs, rhs_reg));
          release_reg(rhs_reg);
          printf(".Lorend%d:\n", cur_if_cnt);
@@ -2209,12 +2209,12 @@ Register *gen_register_2(Node *node, int unused_eval) {
          return temp_reg;
 
       case ND_LAND:
-         lhs_reg = gen_register_2(node->lhs, 0);
+         lhs_reg = gen_register_rightval(node->lhs, 0);
          printf("cmp %s, 0\n", node2reg(node->lhs, lhs_reg));
          release_reg(lhs_reg);
          cur_if_cnt = if_cnt++;
          printf("je .Lorend%d\n", cur_if_cnt);
-         rhs_reg = gen_register_2(node->rhs, 0);
+         rhs_reg = gen_register_rightval(node->rhs, 0);
          printf("cmp %s, 0\n", node2reg(node->rhs, rhs_reg));
          release_reg(rhs_reg);
          printf(".Lorend%d:\n", cur_if_cnt);
@@ -2228,19 +2228,19 @@ Register *gen_register_2(Node *node, int unused_eval) {
          return temp_reg;
 
       case ND_IF:
-         temp_reg = gen_register_2(node->args[0], 0);
+         temp_reg = gen_register_rightval(node->args[0], 0);
          printf("cmp %s, 0\n", node2reg(node->args[0], temp_reg));
          release_reg(temp_reg);
          cur_if_cnt = if_cnt++;
          printf("je .Lendif%d\n", cur_if_cnt);
-         gen_register_2(node->lhs, 1);
+         gen_register_rightval(node->lhs, 1);
          if (node->rhs) {
             printf("jmp .Lelseend%d\n", cur_if_cnt);
          }
          printf(".Lendif%d:\n", cur_if_cnt);
          if (node->rhs) {
             // There are else
-            gen_register_2(node->rhs, 1);
+            gen_register_rightval(node->rhs, 1);
             printf(".Lelseend%d:\n", cur_if_cnt);
          }
          return NO_REGISTER;
@@ -2251,7 +2251,7 @@ Register *gen_register_2(Node *node, int unused_eval) {
          int prev_env_for_while_switch = env_for_while_switch;
          env_for_while_switch = cur_if_cnt;
 
-         lhs_reg = gen_register_2(node->lhs, 0);
+         lhs_reg = gen_register_rightval(node->lhs, 0);
          // find CASE Labels and lookup into args[0]->code->data
          for (j = 0; node->rhs->code->data[j]; j++) {
             Node *curnode = (Node *)node->rhs->code->data[j];
@@ -2265,7 +2265,7 @@ Register *gen_register_2(Node *node, int unused_eval) {
                   curnode->lhs = new_node(ND_CAST, curnode->lhs, NULL);
                   curnode->lhs->type = node->lhs->type;
                }
-               temp_reg = gen_register_2(curnode->lhs, 0);
+               temp_reg = gen_register_rightval(curnode->lhs, 0);
                printf("cmp %s, %s\n", node2reg(node->lhs, lhs_reg),
                       node2reg(curnode->lhs, temp_reg));
                release_reg(temp_reg);
@@ -2280,7 +2280,7 @@ Register *gen_register_2(Node *node, int unused_eval) {
          }
          release_reg(lhs_reg);
          // content
-         gen_register_2(node->rhs, 1);
+         gen_register_rightval(node->rhs, 1);
          printf(".Lend%d:\n", cur_if_cnt);
          env_for_while_switch = prev_env_for_while_switch;
          return NO_REGISTER;
@@ -2307,14 +2307,14 @@ Register *gen_register_2(Node *node, int unused_eval) {
          // TODO dirty: compare node->ty twice
          switch (node->ty) {
             case ND_FOR:
-               gen_register_2(node->conds[0], 1);
+               gen_register_rightval(node->conds[0], 1);
                printf("jmp .Lcondition%d\n", cur_if_cnt);
                printf(".Lbeginwork%d:\n", cur_if_cnt);
-               gen_register_2(node->rhs, 1);
+               gen_register_rightval(node->rhs, 1);
                printf(".Lbegin%d:\n", cur_if_cnt);
-               gen_register_2(node->conds[2], 1);
+               gen_register_rightval(node->conds[2], 1);
                printf(".Lcondition%d:\n", cur_if_cnt);
-               temp_reg = gen_register_2(node->conds[1], 0);
+               temp_reg = gen_register_rightval(node->conds[1], 0);
 
                printf("cmp %s, 0\n", node2reg(node->conds[1], temp_reg));
                release_reg(temp_reg);
@@ -2324,19 +2324,19 @@ Register *gen_register_2(Node *node, int unused_eval) {
 
             case ND_WHILE:
                printf(".Lbegin%d:\n", cur_if_cnt);
-               lhs_reg = gen_register_2(node->lhs, 0);
+               lhs_reg = gen_register_rightval(node->lhs, 0);
                printf("cmp %s, 0\n", node2reg(node->lhs, lhs_reg));
                release_reg(lhs_reg);
                printf("je .Lend%d\n", cur_if_cnt);
-               gen_register_2(node->rhs, 1);
+               gen_register_rightval(node->rhs, 1);
                printf("jmp .Lbegin%d\n", cur_if_cnt);
                printf(".Lend%d:\n", cur_if_cnt);
                break;
 
             case ND_DOWHILE:
                printf(".Lbegin%d:\n", cur_if_cnt);
-               gen_register_2(node->rhs, 1);
-               lhs_reg = gen_register_2(node->lhs, 0);
+               gen_register_rightval(node->rhs, 1);
+               lhs_reg = gen_register_rightval(node->lhs, 0);
                printf("cmp %s, 0\n", node2reg(node->lhs, lhs_reg));
                release_reg(lhs_reg);
                printf("jne .Lbegin%d\n", cur_if_cnt);
@@ -2369,7 +2369,7 @@ void gen_register_top() {
    init_reg_table();
    init_reg_registers();
    for (int j = 0; j < globalcode->len; j++) {
-      gen_register_2((Node *)globalcode->data[j], 1);
+      gen_register_rightval((Node *)globalcode->data[j], 1);
    }
 }
 
@@ -3878,6 +3878,10 @@ Vector *read_tokenize(char *fname) {
 
 Node *analyzing(Node *node) {
    int j;
+   Env *prev_env = env;
+   if (node->ty == ND_BLOCK || node->ty == ND_FDEF) {
+      env = node->env;
+   }
 
    if (node->lhs) {
       node->lhs = analyzing(node->lhs);
@@ -3994,6 +3998,8 @@ Node *analyzing(Node *node) {
       default:
          break;
    }
+
+   env = prev_env;
    return node;
 }
 
@@ -4091,7 +4097,7 @@ void analyzing_process() {
    }
 }
 
-void optimizaion_process() {
+void optimizing_process() {
    int len = globalcode->len;
    int i;
    for (i = 0; i < len; i++) {
@@ -4132,7 +4138,7 @@ int main(int argc, char **argv) {
 
    analyzing_process();
 
-   optimizaion_process();
+   optimizing_process();
 
    puts(".intel_syntax noprefix");
    puts(".align 4");
