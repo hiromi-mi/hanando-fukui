@@ -74,7 +74,7 @@ int cnt_size(Type *type);
 Type *get_type_local(Node *node);
 void gen(Node *node);
 Node *new_addsub_node(NodeType ty, Node *lhs, Node *rhs);
-Node *generate_template(Node *node, Type *new_type);
+Node *generate_template(Node *node, Map *template_type_db);
 
 Register *gen_register_rightval(Node *node, int unused_eval);
 char *node2reg(Node *node, Register *reg);
@@ -140,6 +140,7 @@ Type *new_type() {
    type->context->is_previous_class = NULL;
    type->context->method_name = NULL;
    type->local_typedb = NULL;
+   type->template_name = NULL;
    return type;
 }
 
@@ -424,10 +425,13 @@ char *mangle_func_name(char *name) {
    }
 }
 
-Node *new_func_node(Node *ident, Type *template_type) {
+Node *new_func_node(Node *ident, Vector *template_types) {
    Node *node = new_node(ND_FUNC, ident, NULL);
+   Map *template_type_db = new_map();
    node->type = NULL;
    node->argc = 0;
+   Type *template_type = NULL;
+   int j;
    node->pline = -1; // TODO for more advenced textj
    if (ident->ty == ND_SYMBOL) {
       // TODO support global variable function call
@@ -437,15 +441,25 @@ Node *new_func_node(Node *ident, Type *template_type) {
       if (result) {
          node->funcdef = result;
          node->type = result->type->ret;
-         if (template_type) {
-            char *buf = malloc(sizeof(char) * 256);
-            sprintf(buf, "%s_template_%s", ident->name,
-                    type2name(template_type));
+         if (template_types) {
+            if (template_types->len != result->type->local_typedb->keys->len) {
+               error("Error: The number of template arguments does not match.");
+            }
+            // Make connection from template_types to local_typedb
+
+            char *buf = malloc(sizeof(char) * 1024);
+            sprintf(buf, "%s", ident->name);
+            for (j = 0; j < result->type->local_typedb->keys->len; j++) {
+               template_type = (Type*)result->type->local_typedb->vals->data[j];
+               map_put(template_type_db, template_type->template_name, template_types->data[j]);
+               strncat(buf, "_template_", 12);
+               strncat(buf, type2name((Type*)template_types->data[j]), 128);
+            }
             node->gen_name = buf;
             if (!map_get(funcdefs_generated_template, buf)) {
-               result = generate_template(result, template_type);
+               result = generate_template(result, template_type_db);
                // specialize on local var.
-               node = generate_template(node, template_type);
+               node = generate_template(node, template_type_db);
                result->gen_name = buf;
                map_put(funcdefs_generated_template, result->gen_name, result);
                vec_push(globalcode, (Token *)result);
@@ -1126,13 +1140,14 @@ Node *node_term() {
       expect_node(TK_STRING);
    }
 
-   Map *template_type_db = new_map();
+   Vector *template_types =  NULL;
    Type *template_type = NULL;
    while (1) {
       // Postfix Expression
 
       // Template
       if ((lang & 1) && confirm_node('<')) {
+         template_types = new_vector();
          if (node->ty != ND_SYMBOL) {
             continue;
          }
@@ -1142,10 +1157,15 @@ Node *node_term() {
             continue;
          }
          expect_node('<');
-         while (!consume_node('>')) {
+         while (1) {
             template_type = read_fundamental_type(NULL);
             template_type = read_type(template_type, NULL, NULL);
-            consume_node(',');
+            // In this position, we don't know definition of template_type_db
+            vec_push(template_types, (Token*)template_type);
+            if (!consume_node(',')) {
+               expect_node('>');
+               break;
+            }
          }
       } else if (confirm_node('(')) {
          // Function Call
@@ -1162,7 +1182,7 @@ Node *node_term() {
             return treat_va_end();
          }
 
-         node = new_func_node(node, template_type);
+         node = new_func_node(node, template_types);
          // skip func , (
          expect_node('(');
          while (1) {
@@ -3186,12 +3206,17 @@ Type *read_fundamental_type(Map *local_typedb) {
          expect_node(TK_CONST);
       } else if (consume_node(TK_TEMPLATE)) {
          expect_node('<');
-         expect_node(TK_TYPENAME);
-         template_typename = expect_ident();
-         type = new_type();
-         type->ty = TY_TEMPLATE;
-         type->name = template_typename;
-         map_put(local_typedb, template_typename, type);
+         while (1) {
+            expect_node(TK_TYPENAME);
+            template_typename = expect_ident();
+            type = new_type();
+            type->ty = TY_TEMPLATE;
+            type->template_name = template_typename;
+            map_put(local_typedb, template_typename, type);
+            if (!consume_node(',')) {
+               break;
+            }
+         }
          expect_node('>');
          break;
       } else {
@@ -3569,23 +3594,29 @@ Type *generate_class_template(Type *type, Type *new_type) {
    return type;
 }
 
-Node *generate_template(Node *node, Type *new_type) {
+Node *generate_template(Node *node, Map *template_type_db) {
    node = duplicate_node(node);
    int j;
    Node *code_node;
+   Type *new_type;
    if (node->type && node->type->ty == TY_TEMPLATE) {
-      node->type = copy_type(new_type, node->type);
+      new_type = find_typed_db(node->type->template_name, template_type_db);
+      if (!new_type) {
+         fprintf(stderr, "Error: Incorrect Template type: %s\n", node->type->template_name);
+         exit(1);
+      }
+      node->type = copy_type(new_type, new_type);
    }
    if (node->lhs) {
-      node->lhs = generate_template(node->lhs, new_type);
+      node->lhs = generate_template(node->lhs, template_type_db);
    }
    if (node->rhs) {
-      node->rhs = generate_template(node->rhs, new_type);
+      node->rhs = generate_template(node->rhs, template_type_db);
    }
    if (node->code) {
       Vector *vec = new_vector();
       for (j = 0; j < node->code->len && node->code->data[j]; j++) {
-         code_node = generate_template((Node *)node->code->data[j], new_type);
+         code_node = generate_template((Node *)node->code->data[j], template_type_db);
          vec_push(vec, (Token *)code_node);
       }
       node->code = vec;
@@ -3593,14 +3624,14 @@ Node *generate_template(Node *node, Type *new_type) {
    if (node->argc > 0) {
       for (j = 0; j < node->argc; j++) {
          if (node->args[j]) {
-            node->args[j] = generate_template(node->args[j], new_type);
+            node->args[j] = generate_template(node->args[j], template_type_db);
          }
       }
    }
 
    for (j = 0; j < 3; j++) {
       if (node->conds[j]) {
-         node->conds[j] = generate_template(node->conds[j], new_type);
+         node->conds[j] = generate_template(node->conds[j], template_type_db);
       }
    }
    return node;

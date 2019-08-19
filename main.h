@@ -188,6 +188,7 @@ typedef struct Type {
    int is_static;
    int is_omiited;
    char* name; // for args
+   char* template_name;
    MemberAccess memaccess;
    Context* context;
    Map* local_typedb;
