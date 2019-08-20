@@ -4,14 +4,13 @@ class Test {
    public:
    int a;
    char b;
-   static int func();
    static int Vim(int c);
    int instancefunc();
    int Emacs();
 };
 
 int Test::Emacs() {
-   printf("From Test::Emacs!\n");
+   printf("From Test::Emacs! %d\n", this->a);
    return 8;
 }
 static int Test::Vim(int c) {

@@ -26,6 +26,8 @@ limitations under the License.
 
 #define NO_REGISTER NULL
 
+char *strdup(const char *s);
+
 // double ceil(double x);
 // to use vector instead of something
 Vector *tokens;
@@ -432,15 +434,27 @@ Node *new_func_node(Node *ident, Vector *template_types) {
    node->argc = 0;
    Type *template_type = NULL;
    int j;
+   char *name = malloc(sizeof(char) * 256);
    node->pline = -1; // TODO for more advenced textj
-   if (ident->ty == ND_SYMBOL) {
-      // TODO support global variable function call
-      node->name = ident->name;
+   if (ident->ty == ND_SYMBOL || ident->ty == ND_DOT) {
+      if (ident->ty == ND_SYMBOL) {
+         name = ident->name;
+      } else if (ident->ty == ND_DOT) {
+         sprintf(name, "%s::%s", ident->lhs->type->name, ident->name);
+      }
+      node->name = name;
       node->gen_name = mangle_func_name(node->name);
-      Node *result = map_get(funcdefs, ident->name);
+      Node *result = map_get(funcdefs, node->name);
       if (result) {
          node->funcdef = result;
          node->type = result->type->ret;
+
+         // use the function definition.
+         if (ident->ty == ND_DOT) {
+            // TODO: Dirty: Add "this"
+            node->args[0] = new_node(ND_ADDRESS, ident->lhs, NULL);
+            node->argc = 1;
+         }
          if (template_types) {
             if (template_types->len != result->type->local_typedb->keys->len) {
                error("Error: The number of template arguments does not match.");
@@ -2111,7 +2125,6 @@ Register *gen_register_rightval(Node *node, int unused_eval) {
          }
          puts("mov rsp, rbp");
          puts("#test end expansion ");
-         // puts("pop rbp");
          return NO_REGISTER;
 
       case ND_FUNC:
@@ -2129,7 +2142,7 @@ Register *gen_register_rightval(Node *node, int unused_eval) {
 
          save_reg();
          // FIXME: alignment should be 64-bit
-         puts("mov al, 0");    // TODO to preserve float
+         puts("mov al, 0");
          if (node->gen_name) { // ND_GLOBAL_IDENT, called from local vars.
             printf("call %s\n",
                    node->gen_name); // rax should be aligned with the size
@@ -2157,15 +2170,6 @@ Register *gen_register_rightval(Node *node, int unused_eval) {
       case ND_VAARG:
          // SEE in AMD64 ABI Draft 0.99.7 p.53 (uglibc.org )
          lhs_reg = gen_register_leftval(node->lhs); // meaning ap
-         /*
-         // rax as temporary register.
-         temp_reg = retain_reg();
-         // temporaily use lhs_reg as ptr
-         printf("mov %s, %s\n", node2reg(node->lhs, temp_reg),
-         node2reg(node->lhs, lhs_reg)); printf("mov %s, [%s]\n", size2reg(8,
-         temp_reg), size2reg(8, temp_reg)); printf("add %s, 8\n",
-         node2reg(node->lhs, lhs_reg));
-         */
          temp_reg = retain_reg();
 
          // gp_offset
@@ -2919,6 +2923,9 @@ Type *read_type(Type *type, char **input, Map *local_typedb) {
          concrete_type->argc = 0;
          concrete_type->is_omiited = 0;
 
+         // Propagate is_static func or not
+         concrete_type->is_static = concrete_type->is_static;
+
          // follow concrete_type if real type !is not supported yet!
          // to set...
          // BEFORE: TY_PTR -> TY_PTR -> TY_PTR -> TY_INT
@@ -3252,19 +3259,20 @@ Type *read_fundamental_type(Map *local_typedb) {
 }
 
 int split_type_caller() {
+   int tos = pos; // for skipping tk_static
    // static may be ident or func
-   if (tokens->data[pos]->ty == TK_STATIC) {
-      pos++;
+   if (tokens->data[tos]->ty == TK_STATIC) {
+      tos++;
    }
-   if (tokens->data[pos]->ty == TK_TEMPLATE) {
+   if (tokens->data[tos]->ty == TK_TEMPLATE) {
       return 3;
    }
-   if (tokens->data[pos]->ty != TK_IDENT) {
+   if (tokens->data[tos]->ty != TK_IDENT) {
       return 0;
    }
    for (int j = 0; j < typedb->keys->len; j++) {
       // for struct
-      if (strcmp(tokens->data[pos]->input, (char *)typedb->keys->data[j]) ==
+      if (strcmp(tokens->data[tos]->input, (char *)typedb->keys->data[j]) ==
           0) {
          return typedb->vals->data[j]->ty;
       }
@@ -3272,7 +3280,7 @@ int split_type_caller() {
    for (int j = 0; current_local_typedb && j < current_local_typedb->keys->len;
         j++) {
       // for template
-      if (strcmp(tokens->data[pos]->input,
+      if (strcmp(tokens->data[tos]->input,
                  (char *)current_local_typedb->keys->data[j]) == 0) {
          return 3;
       }
@@ -3345,7 +3353,9 @@ void new_fdef(char *name, Type *type, Map *local_typedb) {
    Node *newfunc;
    // Type *previoustype;
    int pline = tokens->data[pos]->pline;
-   newfunc = new_fdef_node(name, type, type->is_static);
+
+   // This is type->ret->is_static because read_fundamental_type() calls static but it will be resulted in type->ret
+   newfunc = new_fdef_node(name, type, type->ret->is_static);
    newfunc->type->local_typedb = local_typedb;
    newfunc->pline = pline;
    // Function definition because toplevel func call
@@ -3358,6 +3368,24 @@ void new_fdef(char *name, Type *type, Map *local_typedb) {
    */
    // FIXME
 
+   // edit for instance function.
+   if ((lang & 1) && strstr(name, "::") && type->ty == TY_FUNC && type->ret->is_static == 0) {
+      char *class_name = strtok(strdup(name), "::");
+      Type *thistype = new_type();
+      thistype->ptrof = find_typed_db(class_name, typedb);
+      thistype->ty = TY_PTR;
+      thistype->name = "this";
+      type->args[5] = type->args[4];
+      type->args[4] = type->args[3];
+      type->args[3] = type->args[2];
+      type->args[2] = type->args[1];
+      type->args[1] = type->args[0];
+      type->args[0] = thistype;
+      type->argc++;
+
+      type->context->is_previous_class = class_name;
+      type->context->method_name = name;
+   }
    // TODO env should be treated as cooler bc. of splitted namespaces
    Env *prev_env = env;
    env = newfunc->env;
@@ -3447,24 +3475,12 @@ void toplevel() {
             }
             char *name = NULL;
             Type *type = read_type_all(&name);
-
-            // edit for instanced function.
-            if ((lang & 1) && type->ty == TY_FUNC && type->is_static == 0) {
-               Type *thistype = new_type();
-               thistype->ptrof = structuretype;
-               thistype->ty = TY_PTR;
-               thistype->name = "this";
-               type->args[5] = type->args[4];
-               type->args[4] = type->args[3];
-               type->args[3] = type->args[2];
-               type->args[2] = type->args[1];
-               type->args[1] = type->args[0];
-               type->args[0] = thistype;
-               type->context->is_previous_class = structurename;
-               type->context->method_name = name;
-            }
             size = type2size3(type);
 
+            // TODO it should be integrated into new_fdef_node()'s "this"
+            if ((lang & 1) && strstr(name, "::") && type->ty == TY_FUNC && type->is_static == 0) {
+               type->context->is_previous_class = structurename;
+            }
             if (size > 0 && (offset % size != 0)) {
                offset += (size - offset % size);
             }
