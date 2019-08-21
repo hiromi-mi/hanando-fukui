@@ -464,10 +464,12 @@ Node *new_func_node(Node *ident, Vector *template_types) {
             char *buf = malloc(sizeof(char) * 1024);
             sprintf(buf, "%s", ident->name);
             for (j = 0; j < result->type->local_typedb->keys->len; j++) {
-               template_type = (Type*)result->type->local_typedb->vals->data[j];
-               map_put(template_type_db, template_type->template_name, template_types->data[j]);
+               template_type =
+                   (Type *)result->type->local_typedb->vals->data[j];
+               map_put(template_type_db, template_type->template_name,
+                       template_types->data[j]);
                strncat(buf, "_template_", 12);
-               strncat(buf, type2name((Type*)template_types->data[j]), 128);
+               strncat(buf, type2name((Type *)template_types->data[j]), 128);
             }
             node->gen_name = buf;
             if (!map_get(funcdefs_generated_template, buf)) {
@@ -1154,7 +1156,7 @@ Node *node_term() {
       expect_node(TK_STRING);
    }
 
-   Vector *template_types =  NULL;
+   Vector *template_types = NULL;
    Type *template_type = NULL;
    while (1) {
       // Postfix Expression
@@ -1175,7 +1177,7 @@ Node *node_term() {
             template_type = read_fundamental_type(NULL);
             template_type = read_type(template_type, NULL, NULL);
             // In this position, we don't know definition of template_type_db
-            vec_push(template_types, (Token*)template_type);
+            vec_push(template_types, (Token *)template_type);
             if (!consume_node(',')) {
                expect_node('>');
                break;
@@ -1615,22 +1617,28 @@ void extend_al_ifneeded(Node *node, Register *reg) {
    }
 }
 
-void save_reg() {
+int save_reg() {
    int j;
+   int stored_cnt = 0;
    for (j = 0; j < 6; j++) {
       if (reg_table[j] <= 0)
          continue;
       printf("push %s\n", registers64[j]);
+      stored_cnt++;
    }
+   return stored_cnt;
 }
 
-void restore_reg() {
+int restore_reg() {
    int j;
+   int restored_cnt = 0;
    for (j = 0; j < 6; j++) {
       if (reg_table[j] <= 0)
          continue;
       printf("pop %s\n", registers64[j]);
+      restored_cnt++;
    }
+   return restored_cnt;
 }
 
 Register *gen_register_rightval(Node *node, int unused_eval) {
@@ -2924,7 +2932,7 @@ Type *read_type(Type *type, char **input, Map *local_typedb) {
          concrete_type->is_omiited = 0;
 
          // Propagate is_static func or not
-         concrete_type->is_static = concrete_type->is_static;
+         type->is_static = concrete_type->is_static;
 
          // follow concrete_type if real type !is not supported yet!
          // to set...
@@ -3354,7 +3362,8 @@ void new_fdef(char *name, Type *type, Map *local_typedb) {
    // Type *previoustype;
    int pline = tokens->data[pos]->pline;
 
-   // This is type->ret->is_static because read_fundamental_type() calls static but it will be resulted in type->ret
+   // This is type->ret->is_static because read_fundamental_type() calls static
+   // but it will be resulted in type->ret
    newfunc = new_fdef_node(name, type, type->ret->is_static);
    newfunc->type->local_typedb = local_typedb;
    newfunc->pline = pline;
@@ -3369,7 +3378,8 @@ void new_fdef(char *name, Type *type, Map *local_typedb) {
    // FIXME
 
    // edit for instance function.
-   if ((lang & 1) && strstr(name, "::") && type->ty == TY_FUNC && type->ret->is_static == 0) {
+   if ((lang & 1) && strstr(name, "::") && type->ty == TY_FUNC &&
+       type->ret->is_static == 0) {
       char *class_name = strtok(strdup(name), "::");
       Type *thistype = new_type();
       thistype->ptrof = find_typed_db(class_name, typedb);
@@ -3478,7 +3488,8 @@ void toplevel() {
             size = type2size3(type);
 
             // TODO it should be integrated into new_fdef_node()'s "this"
-            if ((lang & 1) && strstr(name, "::") && type->ty == TY_FUNC && type->is_static == 0) {
+            if ((lang & 1) && strstr(name, "::") && type->ty == TY_FUNC &&
+                type->is_static == 0) {
                type->context->is_previous_class = structurename;
             }
             if (size > 0 && (offset % size != 0)) {
@@ -3620,7 +3631,8 @@ Node *generate_template(Node *node, Map *template_type_db) {
    if (node->type && node->type->ty == TY_TEMPLATE) {
       new_type = find_typed_db(node->type->template_name, template_type_db);
       if (!new_type) {
-         fprintf(stderr, "Error: Incorrect Template type: %s\n", node->type->template_name);
+         fprintf(stderr, "Error: Incorrect Template type: %s\n",
+                 node->type->template_name);
          exit(1);
       }
       node->type = copy_type(new_type, new_type);
@@ -3634,7 +3646,8 @@ Node *generate_template(Node *node, Map *template_type_db) {
    if (node->code) {
       Vector *vec = new_vector();
       for (j = 0; j < node->code->len && node->code->data[j]; j++) {
-         code_node = generate_template((Node *)node->code->data[j], template_type_db);
+         code_node =
+             generate_template((Node *)node->code->data[j], template_type_db);
          vec_push(vec, (Token *)code_node);
       }
       node->code = vec;
@@ -3965,35 +3978,21 @@ Node *analyzing(Node *node) {
       case ND_ADD:
       case ND_SUB:
          if (node->lhs->type->ty == TY_PTR || node->lhs->type->ty == TY_ARRAY) {
-            // This should be becasuse of pointer types should be long
             node->rhs = new_node(ND_MULTIPLY_IMMUTABLE_VALUE, node->rhs, NULL);
-            /*
-            if (node->lhs->type->ty == TY_PTR) {
-               node->rhs->num_val = 8;
-            } else {
-            */
             node->rhs->num_val = cnt_size(node->lhs->type->ptrof);
-            //}
-            // node->rhs->num_val = cnt_size(node->lhs->type->ptrof);
          } else if (node->rhs->type->ty == TY_PTR ||
                     node->rhs->type->ty == TY_ARRAY) {
             node->lhs = new_node(ND_MULTIPLY_IMMUTABLE_VALUE, node->lhs, NULL);
-            /*
-            if (node->rhs->type->ty == TY_PTR) {
-               node->lhs->num_val = 8;
-            } else {
-            */
             node->lhs->num_val = cnt_size(node->rhs->type->ptrof);
-            //}
          } else {
             // Cast to node->type
             if (type2size(node->type) != type2size(node->lhs->type)) {
-            node->lhs = new_node(ND_CAST, node->lhs, NULL);
-            node->lhs->type = node->rhs->type;
+               node->lhs = new_node(ND_CAST, node->lhs, NULL);
+               node->lhs->type = node->rhs->type;
             }
             if (type2size(node->type) != type2size(node->rhs->type)) {
-            node->rhs = new_node(ND_CAST, node->rhs, NULL);
-            node->rhs->type = node->lhs->type;
+               node->rhs = new_node(ND_CAST, node->rhs, NULL);
+               node->rhs->type = node->lhs->type;
             }
          }
          if (node->rhs->type->ty == TY_PTR || node->rhs->type->ty == TY_ARRAY) {
