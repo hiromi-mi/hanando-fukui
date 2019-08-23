@@ -28,7 +28,7 @@ test:	test1 test2 test3 test4 \
    test10 test11 test19 test12 test13 test14\
    test15 test16 test17 test18 test20 test21\
    test22 test23 test24 test25 test26 test27\
-   test28 test30 test29 test31 test34
+   test28 test30 test29 test31 test34 test35
 	+ make -C samples/
 
 testreg: test1 test2 test3 test4 \
@@ -269,6 +269,10 @@ test34:
 	# TODO should add type conversation among TY_INT, TY_FLOAT, TY_DOUBLE
 	sh testfdef.sh 'int main(){float b; b = 3.4; printf("It should be 3: %%d\n", (int)b); return 0;}' 0
 	sh testfdef.sh 'float strtof(char* basestr, char* ocmpstr); int main(){int a;float b; b = strtof("3.4", NULL); printf("It should be 3.4: %%f\n", (double)b); return 0;}' 0
+
+test35:
+	sh testfdef.sh 'int main(){float a,b; a = 8;b=9; printf("It should be 17: %%f\n", (double)(a+b)); return 0;}' 0
+
 
 clean:
 	$(RM) -f $(target) $(objects) main.s main2.s main3.s main2 main3

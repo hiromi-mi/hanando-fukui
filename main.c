@@ -1570,6 +1570,32 @@ void release_all_reg() {
    }
 }
 
+void secure_mutable_with_type(Register *reg, Type *type) {
+   Register *new_reg;
+   // to enable to change
+   if (reg->kind != R_REGISTER && reg->kind != R_XMM) {
+      if (type->ty == TY_FLOAT || type->ty == TY_DOUBLE) {
+         new_reg = float_retain_reg();
+         printf("%s %s, %s\n", type2mov(type), size2reg(type2size(type), new_reg), size2reg(reg->size, reg));
+      } else {
+         new_reg = retain_reg();
+         if (reg->size <= 0) {
+            printf("mov %s, %s\n", size2reg(8, new_reg), size2reg(8, reg));
+         } else if (reg->size == 1) {
+            printf("movzx %s, %s\n", size2reg(8, new_reg),
+                  size2reg(reg->size, reg));
+         } else {
+            printf("mov %s, %s\n", size2reg(reg->size, new_reg),
+                  size2reg(reg->size, reg));
+         }
+      }
+      reg->id = new_reg->id;
+      reg->kind = new_reg->kind;
+      reg->name = new_reg->name;
+      reg->size = new_reg->size;
+   }
+}
+
 void secure_mutable(Register *reg) {
    // to enable to change
    if (reg->kind != R_REGISTER && reg->kind != R_XMM) {
@@ -1763,8 +1789,8 @@ Register *gen_register_rightval(Node *node, int unused_eval) {
          if (node->lhs->ty == ND_IDENT || node->lhs->ty == ND_GLOBAL_IDENT) {
             lhs_reg = gen_register_rightval(node->lhs, 0);
             rhs_reg = gen_register_rightval(node->rhs, 0);
-            secure_mutable(rhs_reg);
-            if (node->rhs->type->ty == TY_FLOAT || node->rhs->type->ty == TY_DOUBLE) {
+            secure_mutable_with_type(rhs_reg, node->lhs->type);
+            if (node->lhs->type->ty == TY_FLOAT || node->lhs->type->ty == TY_DOUBLE) {
                printf("%s %s, %s\n", type2mov(node->rhs->type), node2reg(node->lhs, lhs_reg), node2reg(node->lhs, rhs_reg));
             } else {
                // TODO
@@ -1850,7 +1876,7 @@ Register *gen_register_rightval(Node *node, int unused_eval) {
       case ND_ADD:
          lhs_reg = gen_register_rightval(node->lhs, 0);
          rhs_reg = gen_register_rightval(node->rhs, 0);
-         secure_mutable(lhs_reg);
+         secure_mutable_with_type(lhs_reg, node->lhs->type);
          if (node->lhs->type->ty == TY_FLOAT) {
             printf("addss %s, %s\n", node2reg(node, lhs_reg), node2reg(node, rhs_reg));
          } else if ( node->rhs->type->ty == TY_DOUBLE) {
