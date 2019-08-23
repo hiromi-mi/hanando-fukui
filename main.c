@@ -1790,6 +1790,9 @@ Register *gen_register_rightval(Node *node, int unused_eval) {
                   printf("cvtsi2ss %s, %s\n", node2reg(node, temp_reg), node2reg(node->lhs, lhs_reg));
                   release_reg(lhs_reg);
                   break;
+               case TY_FLOAT:
+                  temp_reg = float_retain_reg();
+                  printf("cvtss2sd %s, %s\n", node2reg(node, temp_reg), node2reg(node->lhs, lhs_reg));
                default:
                   break;
             }
@@ -1820,8 +1823,10 @@ Register *gen_register_rightval(Node *node, int unused_eval) {
          lhs_reg = gen_register_rightval(node->lhs, 0);
          rhs_reg = gen_register_rightval(node->rhs, 0);
          secure_mutable(lhs_reg);
-         if (node->lhs->type->ty == TY_FLOAT && node->rhs->type->ty == TY_FLOAT) {
+         if (node->lhs->type->ty == TY_FLOAT) {
             printf("addss %s, %s\n", node2reg(node, lhs_reg), node2reg(node, rhs_reg));
+         } else if ( node->rhs->type->ty == TY_DOUBLE) {
+            printf("addsd %s, %s\n", node2reg(node, lhs_reg), node2reg(node, rhs_reg));
          } else {
             printf("add %s, %s\n", node2reg(node, lhs_reg),
                 node2reg(node, rhs_reg));
@@ -1838,8 +1843,10 @@ Register *gen_register_rightval(Node *node, int unused_eval) {
          lhs_reg = gen_register_rightval(node->lhs, 0);
          rhs_reg = gen_register_rightval(node->rhs, 0);
          secure_mutable(lhs_reg);
-         if (node->lhs->type->ty == TY_FLOAT && node->rhs->type->ty == TY_DOUBLE) {
+         if (node->lhs->type->ty == TY_FLOAT) {
             printf("subss %s, %s\n", node2reg(node, lhs_reg), node2reg(node, rhs_reg));
+         } else if (node->rhs->type->ty == TY_DOUBLE) {
+            printf("subsd %s, %s\n", node2reg(node, lhs_reg), node2reg(node, rhs_reg));
          } else {
             printf("sub %s, %s\n", node2reg(node, lhs_reg),
                 node2reg(node, rhs_reg));
@@ -1863,8 +1870,10 @@ Register *gen_register_rightval(Node *node, int unused_eval) {
          lhs_reg = gen_register_rightval(node->lhs, 0);
          rhs_reg = gen_register_rightval(node->rhs, 0);
          secure_mutable(lhs_reg);
-         if (node->lhs->type->ty == TY_FLOAT && node->rhs->type->ty == TY_DOUBLE) {
+         if (node->lhs->type->ty == TY_FLOAT ) {
             printf("mulss %s, %s\n", node2reg(node, lhs_reg), node2reg(node, rhs_reg));
+         } else if (node->rhs->type->ty == TY_DOUBLE) {
+            printf("mulsd %s, %s\n", node2reg(node, lhs_reg), node2reg(node, rhs_reg));
          } else {
             printf("imul %s, %s\n", node2reg(node->lhs, lhs_reg),
                   node2reg(node->rhs, rhs_reg));
@@ -2210,9 +2219,11 @@ Register *gen_register_rightval(Node *node, int unused_eval) {
       case ND_FUNC:
          for (j = 0; j < node->argc; j++) {
             temp_reg = gen_register_rightval(node->args[j], 0);
-            if (node->args[j]->type->ty == TY_FLOAT || node->args[j]->type->ty == TY_DOUBLE) {
-               //printf("cvtss2sd %s, %s\n", float_registers[func_call_float_cnt], node2reg(node->args[j], temp_reg));
+            if (node->args[j]->type->ty == TY_FLOAT) {
                printf("movss %s, %s\n", float_registers[func_call_float_cnt], node2reg(node->args[j], temp_reg));
+               func_call_float_cnt++;
+            } else if (node->args[j]->type->ty == TY_DOUBLE) {
+               printf("movsd %s, %s\n", float_registers[func_call_float_cnt], node2reg(node->args[j], temp_reg));
                func_call_float_cnt++;
             } else {
                // TODO Dirty: Should implement 642node
