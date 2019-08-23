@@ -264,6 +264,8 @@ test33:
 test34:
 	sh testfdef.sh 'int main(){ int a; float b; b = 2.3; printf("Is 2.3?: %%f\n", b); return 0;}' 0
 	echo "This should be 2.3"
+	sh testfdef.sh 'int func(float c) {printf("Is 3.4?: %%f\n", c); return 0; } int main(){float b; b = 2.3; func(b); return 0;}' 0
+	echo "This should be 3.4"
 
 clean:
 	$(RM) -f $(target) $(objects) main.s main2.s main3.s main2 main3

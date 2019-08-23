@@ -174,6 +174,7 @@ typedef struct Type {
       TY_CLASS,
       TY_VOID,
       TY_FLOAT,
+      TY_DOUBLE,
       TY_FUNC,
       TY_TEMPLATE,
    } ty;
