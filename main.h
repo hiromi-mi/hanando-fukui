@@ -29,6 +29,7 @@ typedef enum {
    TK_SUBSUB = 90,   // '-' + '-',
    TK_NUM = 256,
    TK_FLOAT,
+   TK_DOUBLE,
    TK_IDENT,
    TK_EOF,
    TK_ISEQ,
@@ -135,7 +136,7 @@ typedef enum {
 typedef struct {
    TokenConst ty;
    long num_val;
-   float float_val;
+   double float_val;
    char *input;
    int pos;
    int type_size; // to treat 'a' as char. only used in TK_NUM
@@ -212,7 +213,7 @@ typedef struct Node {
    Vector *code;
    long argc;
    long num_val;
-   float float_val;
+   double float_val;
    char *name;     // Name Before Mangled
    char *gen_name; // Mangled Name
    Env *env;

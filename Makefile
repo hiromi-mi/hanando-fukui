@@ -262,7 +262,8 @@ test33:
 	sh testfdef.sh "int main(){ func(\"%%d %%s\n\", 3, \"test\"); return 0;} int func(char* str, ...) { va_list ap; va_start(ap, str); vprintf(str, ap); va_end(ap); return 0;}" 0 -r
 
 test34:
-	sh testfdef.sh 'int main(){ int a; float b; b = 2.3; printf("Is 2.3?: %%f\n", (double)b); return 0;}' 0
+	sh testfdef.sh 'int main(){ int a; float b; b = 2.3f; printf("Is 2.3?: %%f\n", (double)b); return 0;}' 0
+	sh testfdef.sh 'int main(){ int a; double b; b = 2432342343.5; printf("Is 2432342343.5?: %%f\n", b); return 0;}' 0
 	echo "This should be 2.3"
 	sh testfdef.sh 'int func(float c) {printf("Is 3.4?: %%f\n", (double)c); return 0; } int main(){float b; b = 3.4; func(b); return 0;}' 0
 	echo "This should be 3.4"

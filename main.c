@@ -35,6 +35,7 @@ int pos = 0;
 Vector *globalcode;
 Vector *strs;
 Vector *floats;
+Vector *float_doubles;
 Map *global_vars;
 Map *funcdefs_generated_template;
 Map *funcdefs;
@@ -304,13 +305,14 @@ Node *new_long_num_node(long num_val) {
    node->type = find_typed_db("long", typedb);
    return node;
 }
-Node *new_float_node(float num_val, char* _buf) {
+Node *new_float_node(double num_val, char* _buf, char* typename_float) {
+   // typename: should be "float" or "double"
    Node *node = new_node(ND_FLOAT, NULL, NULL);
    node->ty = ND_FLOAT;
    node->pline = -1; // TODO for more advenced textj
    node->num_val = num_val;
    node->name = _buf;
-   node->type = find_typed_db("float", typedb);
+   node->type = find_typed_db(typename_float, typedb);
    return node;
 }
 
@@ -779,8 +781,14 @@ Vector *tokenize(char *p) {
 
          // if there are FLOAT
          if (*p == '.') {
-            token->ty = TK_FLOAT;
-            token->float_val = strtof(token->input, &p);
+            token->float_val = strtod(token->input, &p);
+            if (*p == 'f') {
+               // when ends with f:
+               token->ty = TK_FLOAT;
+               p++;
+            } else {
+               token->ty = TK_DOUBLE;
+            }
          }
          vec_push(pre_tokens, token);
          continue;
@@ -1132,10 +1140,18 @@ Node *node_term() {
    // Primary Expression
    if (confirm_node(TK_FLOAT)) {
       char *_str = malloc(sizeof(char) * 256);
+      float *float_repr = malloc(sizeof(float));
+      *float_repr = (float)tokens->data[pos]->float_val;
       snprintf(_str, 255, ".LCF%d",
-               vec_push(floats, (Token*)&tokens->data[pos]->float_val));
-      node = new_float_node(tokens->data[pos]->float_val, _str);
+               vec_push(floats, (Token*)float_repr));
+      node = new_float_node(tokens->data[pos]->float_val, _str, "float");
       expect_node(TK_FLOAT);
+   } else if (confirm_node(TK_DOUBLE)) {
+      char *_str = malloc(sizeof(char) * 256);
+      snprintf(_str, 255, ".LCD%d",
+               vec_push(float_doubles, (Token*)&tokens->data[pos]->float_val));
+      node = new_float_node(tokens->data[pos]->float_val, _str, "double");
+      expect_node(TK_DOUBLE);
    } else if (confirm_node(TK_NUM)) {
       node = new_num_node(tokens->data[pos]->num_val);
       expect_node(TK_NUM);
@@ -1725,7 +1741,7 @@ Register *gen_register_rightval(Node *node, int unused_eval) {
 
       case ND_FLOAT:
          temp_reg = float_retain_reg();
-         printf("movss %s, %s[rip]\n", size2reg(4, temp_reg), node->name);
+         printf("%s %s, %s[rip]\n", type2mov(node->type), node2reg(node, temp_reg), node->name);
          return temp_reg;
 
       case ND_STRING:
@@ -3163,6 +3179,7 @@ void toplevel() {
    consts = new_map();
    strs = new_vector();
    floats = new_vector();
+   float_doubles = new_vector();
    globalcode = new_vector();
    env = NULL;
 
@@ -3482,8 +3499,15 @@ void globalvar_gen() {
    }
    for (int j = 0; j < floats->len; j++) {
       printf(".LCF%d:\n", j);
-      int* repr = (int*)floats->data[j];
-      printf(".long %d\n", *repr);
+      int* int_repr = (int*)floats->data[j];
+      printf(".long %d\n", *int_repr);
+   }
+   for (int j = 0; j < float_doubles->len; j++) {
+      printf(".LCD%d:\n", j);
+      long* repr = (long*)float_doubles->data[j];
+      // 4294967295 : 0xFFFFFFFF
+      printf(".long %ld\n", *repr & 4294967295);
+      printf(".long %ld\n", *repr >> 32);
    }
 }
 
@@ -3713,11 +3737,11 @@ Node *analyzing(Node *node) {
             node->lhs->num_val = cnt_size(node->rhs->type->ptrof);
          } else {
             // Cast to node->type
-            if (type2size(node->type) != type2size(node->lhs->type)) {
+            if (node->type->ty != node->lhs->type->ty) {
                node->lhs = new_node(ND_CAST, node->lhs, NULL);
                node->lhs->type = node->rhs->type;
             }
-            if (type2size(node->type) != type2size(node->rhs->type)) {
+            if (node->type->ty != node->rhs->type->ty) {
                node->rhs = new_node(ND_CAST, node->rhs, NULL);
                node->rhs->type = node->lhs->type;
             }
