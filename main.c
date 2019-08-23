@@ -28,7 +28,7 @@ limitations under the License.
 
 char *strdup(const char *s);
 
-// double ceil(double x);
+// float ceil(float x);
 // to use vector instead of something
 Vector *tokens;
 int pos = 0;
@@ -109,6 +109,8 @@ char *type2name(Type *type) {
          return "int";
       case TY_CHAR:
          return "char";
+      case TY_FLOAT:
+         return "float";
       case TY_PTR:
       case TY_ARRAY:
          sprintf(buf, "%s_ptr", type2name(type->ptrof));
@@ -226,6 +228,7 @@ Node *new_node(NodeType ty, Node *lhs, Node *rhs) {
    node->code = NULL;
    node->argc = 0;
    node->num_val = 0;
+   node->float_val = 0;
    node->name = NULL;
    node->gen_name = NULL;
    node->env = NULL;
@@ -254,7 +257,7 @@ Node *new_node_with_cast(NodeType ty, Node *lhs, Node *rhs) {
 }
 
 Node *new_assign_node(Node *lhs, Node *rhs) {
-   return new_node(ND_EQUAL, lhs, rhs);
+   return new_node(ND_ASSIGN, lhs, rhs);
 }
 Node *new_char_node(long num_val) {
    Node *node = new_node(ND_NUM, NULL, NULL);
@@ -297,12 +300,12 @@ Node *new_long_num_node(long num_val) {
    node->type = find_typed_db("long", typedb);
    return node;
 }
-Node *new_double_node(double num_val) {
+Node *new_float_node(float num_val) {
    Node *node = new_node(ND_FLOAT, NULL, NULL);
    node->ty = ND_FLOAT;
    node->pline = -1; // TODO for more advenced textj
    node->num_val = num_val;
-   node->type = find_typed_db("double", typedb);
+   node->type = find_typed_db("float", typedb);
    return node;
 }
 
@@ -769,10 +772,10 @@ Vector *tokenize(char *p) {
          token->num_val = strtol(p, &p, 10);
          token->type_size = 4; // to treat as int
 
-         // if there are DOUBLE
+         // if there are FLOAT
          if (*p == '.') {
             token->ty = TK_FLOAT;
-            token->num_val = strtod(token->input, &p);
+            token->num_val = strtof(token->input, &p);
          }
          vec_push(pre_tokens, token);
          continue;
@@ -1123,7 +1126,7 @@ Node *node_term() {
    Node *node;
    // Primary Expression
    if (confirm_type(TK_FLOAT)) {
-      node = new_double_node((double)tokens->data[pos]->num_val);
+      node = new_float_node((float)tokens->data[pos]->num_val);
       expect_node(TK_NUM);
    } else if (confirm_node(TK_NUM)) {
       node = new_num_node(tokens->data[pos]->num_val);
@@ -1334,6 +1337,8 @@ int type2size(Type *type) {
          return 8;
       case TY_INT:
          return 4;
+      case TY_FLOAT:
+         return 4;
       case TY_CHAR:
          return 1;
       case TY_ARRAY:
@@ -1352,6 +1357,7 @@ int cnt_size(Type *type) {
    switch (type->ty) {
       case TY_PTR:
       case TY_INT:
+      case TY_FLOAT:
       case TY_CHAR:
       case TY_LONG:
       case TY_FUNC:
@@ -1369,6 +1375,7 @@ int cnt_size(Type *type) {
 }
 
 int reg_table[6];
+int float_reg_table[8];
 char *registers8[6];
 char *registers16[6];
 char *registers32[6];
@@ -1477,6 +1484,21 @@ char *node2reg(Node *node, Register *reg) {
    return size2reg(type2size(node->type), reg);
 }
 
+Register *float_retain_reg() {
+   for (int j=0;j<8;j++) {
+      if (float_reg_table[j] > 0)
+         continue;
+      float_reg_table[j] = 1;
+
+      Register *reg = malloc(sizeof(Register));
+      reg->id = j;
+      reg->name = NULL;
+      reg->kind = R_XMM;
+   }
+   fprintf(stderr, "No more float registers are avaliable\n");
+   exit(1);
+}
+
 Register *retain_reg() {
    for (int j = 0; j < 6; j++) {
       if (reg_table[j] > 0)
@@ -1497,6 +1519,8 @@ Register *retain_reg() {
 void release_reg(Register *reg) {
    if (reg->kind == R_REGISTER) {
       reg_table[reg->id] = 0;
+   } else if (reg->kind == R_XMM) {
+      float_reg_table[reg->id] = 0;
    }
    free(reg);
 }
@@ -1505,11 +1529,14 @@ void release_all_reg() {
    for (int j = 0; j < 6; j++) {
       reg_table[j] = 0;
    }
+   for (int j = 0; j < 8; j++) {
+      float_reg_table[j] = 0;
+   }
 }
 
 void secure_mutable(Register *reg) {
    // to enable to change
-   if (reg->kind != R_REGISTER) {
+   if (reg->kind != R_REGISTER && reg->kind != R_XMM) {
       Register *new_reg = retain_reg();
       if (reg->size <= 0) {
          printf("mov %s, %s\n", size2reg(8, new_reg), size2reg(8, reg));
@@ -1543,7 +1570,7 @@ Register *gen_register_leftval(Node *node) {
 
       case ND_DEREF:
          lhs_reg = gen_register_rightval(node->lhs, 0);
-         if (lhs_reg->kind != R_REGISTER) {
+         if (lhs_reg->kind != R_REGISTER && lhs_reg->kind != R_XMM) {
             temp_reg = retain_reg();
             printf("mov %s, %s\n", size2reg(8, temp_reg),
                    node2reg(node->lhs, lhs_reg));
@@ -1633,6 +1660,10 @@ Register *gen_register_rightval(Node *node, int unused_eval) {
          printf("mov %s, %ld\n", node2reg(node, temp_reg), node->num_val);
          return temp_reg;
 
+      case ND_FLOAT:
+         temp_reg = float_retain_reg();
+         return temp_reg;
+
       case ND_STRING:
       case ND_SYMBOL:
          temp_reg = retain_reg();
@@ -1682,14 +1713,19 @@ Register *gen_register_rightval(Node *node, int unused_eval) {
          }
          return temp_reg;
 
-      case ND_EQUAL:
+      case ND_ASSIGN:
          // This behaivour can be revised. like [rbp-8+2]
          if (node->lhs->ty == ND_IDENT || node->lhs->ty == ND_GLOBAL_IDENT) {
             lhs_reg = gen_register_rightval(node->lhs, 0);
             rhs_reg = gen_register_rightval(node->rhs, 0);
             secure_mutable(rhs_reg);
-            printf("mov %s, %s\n", node2reg(node->lhs, lhs_reg),
-                   node2reg(node->lhs, rhs_reg));
+            if (node->lhs->type->ty == TY_FLOAT && node->rhs->type->ty == TY_FLOAT) {
+               printf("movss %s, %s\n", node2reg(node->lhs, lhs_reg), node2reg(node->lhs, rhs_reg));
+            } else {
+               // TODO
+               printf("mov %s, %s\n", node2reg(node->lhs, lhs_reg),
+                     node2reg(node->lhs, rhs_reg));
+            }
             release_reg(rhs_reg);
             if (unused_eval) {
                release_reg(lhs_reg);
@@ -1736,8 +1772,12 @@ Register *gen_register_rightval(Node *node, int unused_eval) {
          lhs_reg = gen_register_rightval(node->lhs, 0);
          rhs_reg = gen_register_rightval(node->rhs, 0);
          secure_mutable(lhs_reg);
-         printf("add %s, %s\n", node2reg(node, lhs_reg),
+         if (node->lhs->type->ty == TY_FLOAT && node->rhs->type->ty == TY_FLOAT) {
+            printf("addss %s, %s\n", node2reg(node, lhs_reg), node2reg(node, rhs_reg));
+         } else {
+            printf("add %s, %s\n", node2reg(node, lhs_reg),
                 node2reg(node, rhs_reg));
+         }
          release_reg(rhs_reg);
          if (unused_eval) {
             release_reg(lhs_reg);
@@ -1750,8 +1790,12 @@ Register *gen_register_rightval(Node *node, int unused_eval) {
          lhs_reg = gen_register_rightval(node->lhs, 0);
          rhs_reg = gen_register_rightval(node->rhs, 0);
          secure_mutable(lhs_reg);
-         printf("sub %s, %s\n", node2reg(node, lhs_reg),
+         if (node->lhs->type->ty == TY_FLOAT && node->rhs->type->ty == TY_FLOAT) {
+            printf("subss %s, %s\n", node2reg(node, lhs_reg), node2reg(node, rhs_reg));
+         } else {
+            printf("sub %s, %s\n", node2reg(node, lhs_reg),
                 node2reg(node, rhs_reg));
+         }
          release_reg(rhs_reg);
          if (unused_eval) {
             release_reg(lhs_reg);
@@ -1771,8 +1815,12 @@ Register *gen_register_rightval(Node *node, int unused_eval) {
          lhs_reg = gen_register_rightval(node->lhs, 0);
          rhs_reg = gen_register_rightval(node->rhs, 0);
          secure_mutable(lhs_reg);
-         printf("imul %s, %s\n", node2reg(node->lhs, lhs_reg),
-                node2reg(node->rhs, rhs_reg));
+         if (node->lhs->type->ty == TY_FLOAT && node->rhs->type->ty == TY_FLOAT) {
+            printf("mulss %s, %s\n", node2reg(node, lhs_reg), node2reg(node, rhs_reg));
+         } else {
+            printf("imul %s, %s\n", node2reg(node->lhs, lhs_reg),
+                  node2reg(node->rhs, rhs_reg));
+         }
          release_reg(rhs_reg);
          if (unused_eval) {
             release_reg(lhs_reg);
@@ -2033,7 +2081,7 @@ Register *gen_register_rightval(Node *node, int unused_eval) {
       case ND_DEREF:
          lhs_reg = gen_register_rightval(node->lhs, 0);
 
-         // this is because we cannot [[lhs_reg]] (double deref)
+         // this is because we cannot [[lhs_reg]] (float deref)
          secure_mutable(lhs_reg);
          if (type2size(node->type) == 1) {
             // when reading char, we should read just 1 byte
@@ -2680,6 +2728,7 @@ Node *copy_node(Node *old_node, Node *node) {
    node->code = old_node->code;
    node->argc = old_node->argc;
    node->num_val = old_node->num_val;
+   node->float_val = old_node->float_val;
    node->name = old_node->name;
    node->gen_name = old_node->gen_name;
    node->env = old_node->env;
@@ -3451,10 +3500,10 @@ void init_typedb() {
    map_put(typedb, "va_list", va_listtype);
 
    Type *typedou = new_type();
-   typedou->ty = TY_DOUBLE;
+   typedou->ty = TY_FLOAT;
    typedou->ptrof = NULL;
    typedou->offset = 8;
-   map_put(typedb, "double", typevoid);
+   map_put(typedb, "float", typevoid);
 }
 
 Vector *read_tokenize(char *fname) {
@@ -3564,7 +3613,7 @@ Node *analyzing(Node *node) {
             error("Error: Dereference on NOT pointered.");
          }
          break;
-      case ND_EQUAL:
+      case ND_ASSIGN:
          if (type2size(node->lhs->type) != type2size(node->rhs->type)) {
             node->rhs = new_node(ND_CAST, node->rhs, NULL);
             node->rhs->type = node->lhs->type;
@@ -3630,7 +3679,7 @@ Node *optimizing(Node *node) {
 
             node_new = new_block_node(NULL);
             for (j = 0;j < node->argc;j++) {
-               node_new->args[j] = new_node(ND_EQUAL, node->funcdef->args[j],
+               node_new->args[j] = new_node(ND_ASSIGN, node->funcdef->args[j],
          node->args[j]);
             }
             if (node_new) {

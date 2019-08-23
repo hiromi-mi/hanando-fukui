@@ -77,7 +77,7 @@ typedef enum {
    ND_ADD = '+',
    ND_SUB = '-',
    ND_MUL = '*',
-   ND_EQUAL = '=',
+   ND_ASSIGN = '=',
    ND_DIV = '/',
    ND_MOD = '%',
    ND_XOR = '^',
@@ -135,6 +135,7 @@ typedef enum {
 typedef struct {
    TokenConst ty;
    long num_val;
+   float float_val;
    char *input;
    int pos;
    int type_size; // to treat 'a' as char. only used in TK_NUM
@@ -172,7 +173,7 @@ typedef struct Type {
       TY_STRUCT,
       TY_CLASS,
       TY_VOID,
-      TY_DOUBLE,
+      TY_FLOAT,
       TY_FUNC,
       TY_TEMPLATE,
    } ty;
@@ -210,6 +211,7 @@ typedef struct Node {
    Vector *code;
    long argc;
    long num_val;
+   float float_val;
    char *name;     // Name Before Mangled
    char *gen_name; // Mangled Name
    Env *env;
@@ -225,7 +227,7 @@ typedef struct Node {
 // Extended Register. with global variables, local variables, memory map,
 // registers, ...
 typedef struct Register {
-   enum { R_REGISTER, R_LVAR, R_GVAR } kind;
+   enum { R_REGISTER, R_LVAR, R_GVAR, R_XMM } kind;
    int id; // offset or type
    int size;
    char *name; // for global variable
