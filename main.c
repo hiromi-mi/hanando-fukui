@@ -101,6 +101,7 @@ Node *assign();
 FILE *fopen(char *name, char *type);
 void *malloc(int size);
 void *realloc(void *ptr, int size);
+float strtof(char *nptr, char **endptr);
 #endif
 
 char *type2name(Type *type) {
@@ -231,7 +232,7 @@ Node *new_node(NodeType ty, Node *lhs, Node *rhs) {
    node->code = NULL;
    node->argc = 0;
    node->num_val = 0;
-   node->float_val = 0;
+   node->float_val = 0.0;
    node->name = NULL;
    node->gen_name = NULL;
    node->env = NULL;
@@ -1466,6 +1467,19 @@ char *node2specifier(Node *node) {
    }
 }
 
+char *type2mov(Type *type) {
+   switch (type->ty) {
+      case TY_FLOAT:
+         return "movss";
+      case TY_DOUBLE:
+         return "movsd";
+      /*case TY_CHAR:
+         return "movzx";*/
+      default:
+         return "mov";
+   }
+}
+
 char *gvar_node2reg(Node *node, char *name) {
    return gvar_size2reg(type2size(node->type), name);
 }
@@ -1731,7 +1745,14 @@ Register *gen_register_rightval(Node *node, int unused_eval) {
 
       case ND_DOT:
          temp_reg = gen_register_leftval(node);
-         if (node->type->ty != TY_ARRAY) {
+         if (node->type->ty == TY_ARRAY) {
+            return temp_reg;
+         } else if (node->type->ty == TY_FLOAT) {
+            lhs_reg = float_retain_reg();
+            printf("movss %s, [%s]\n", node2reg(node, lhs_reg), id2reg64(temp_reg->id));
+            release_reg(temp_reg);
+            return lhs_reg;
+         } else {
             printf("mov %s, [%s]\n", node2reg(node, temp_reg),
                    id2reg64(temp_reg->id));
          }
@@ -1745,6 +1766,8 @@ Register *gen_register_rightval(Node *node, int unused_eval) {
             secure_mutable(rhs_reg);
             if (node->rhs->type->ty == TY_FLOAT || node->rhs->type->ty == TY_DOUBLE) {
                printf("movss %s, %s\n", node2reg(node->lhs, lhs_reg), node2reg(node->lhs, rhs_reg));
+            } else if (node->rhs->type->ty == TY_DOUBLE) {
+               printf("movsd %s, %s\n", node2reg(node->lhs, lhs_reg), node2reg(node->lhs, rhs_reg));
             } else {
                // TODO
                printf("mov %s, %s\n", node2reg(node->lhs, lhs_reg),
@@ -1760,7 +1783,7 @@ Register *gen_register_rightval(Node *node, int unused_eval) {
             rhs_reg = gen_register_rightval(node->rhs, 0);
             // TODO
             secure_mutable(rhs_reg);
-            printf("mov %s [%s], %s\n", node2specifier(node),
+            printf("%s %s [%s], %s\n", type2mov(node->type), node2specifier(node),
                    id2reg64(lhs_reg->id), node2reg(node->lhs, rhs_reg));
             release_reg(lhs_reg);
             if (unused_eval) {
@@ -2151,6 +2174,11 @@ Register *gen_register_rightval(Node *node, int unused_eval) {
             // when reading char, we should read just 1 byte
             printf("movzx %s, byte ptr [%s]\n", size2reg(4, lhs_reg),
                    size2reg(8, lhs_reg));
+         } else if (node->type->ty == TY_FLOAT || node->type->ty == TY_DOUBLE) {
+            temp_reg = float_retain_reg();
+            printf("movss %s, [%s]\n", node2reg(node, temp_reg), size2reg(8, lhs_reg));
+            release_reg(lhs_reg);
+            return temp_reg;
          } else if (node->type->ty != TY_ARRAY) {
             printf("mov %s, [%s]\n", node2reg(node, lhs_reg),
                    size2reg(8, lhs_reg));
@@ -2168,9 +2196,13 @@ Register *gen_register_rightval(Node *node, int unused_eval) {
          int fdef_float_arguments = 0;
          j = 0;
          for (fdef_int_arguments = 0; (fdef_int_arguments + fdef_float_arguments) < node->argc; j++) {
-            if (node->args[j]->type->ty == TY_FLOAT || node->args[j]->type->ty == TY_DOUBLE) {
+            if (node->args[j]->type->ty == TY_FLOAT) {
                temp_reg = gen_register_rightval(node->args[j], 0);
                printf("movss %s, %s\n", node2reg(node->args[j], temp_reg), float_registers[fdef_float_arguments]);
+               fdef_float_arguments++;
+            } else if (node->args[j]->type->ty == TY_DOUBLE) {
+               temp_reg = gen_register_rightval(node->args[j], 0);
+               printf("movsd %s, %s\n", node2reg(node->args[j], temp_reg), float_registers[fdef_float_arguments]);
                fdef_float_arguments++;
             } else {
                temp_reg = gen_register_rightval(node->args[j], 0);
@@ -2266,6 +2298,11 @@ Register *gen_register_rightval(Node *node, int unused_eval) {
 
          if (node->type->ty == TY_VOID || unused_eval == 1) {
             return NO_REGISTER;
+         } else if (node->type->ty == TY_FLOAT || node->type->ty == TY_DOUBLE) {
+            temp_reg = float_retain_reg();
+            // movaps just move all of xmmx
+            printf("movaps %s, xmm0\n", node2reg(node, temp_reg));
+            return temp_reg;
          } else {
             temp_reg = retain_reg();
             printf("mov %s, %s\n", node2reg(node, temp_reg), _rax(node));
