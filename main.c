@@ -2667,7 +2667,7 @@ Node *stmt() {
       Type *fundamental_type = read_fundamental_type(current_local_typedb);
       Type *type;
       do {
-         type = read_type(fundamental_type, &input, NULL);
+         type = read_type(duplicate_type(fundamental_type), &input, NULL);
          node = new_ident_node_with_new_variable(input, type);
          // if there is int a =1;
          if (consume_node('=')) {
@@ -3736,7 +3736,7 @@ Node *analyzing(Node *node) {
          }
          break;
       case ND_ASSIGN:
-         if (type2size(node->lhs->type) != type2size(node->rhs->type)) {
+         if (node->lhs->type->ty != node->rhs->type->ty) {
             node->rhs = new_node(ND_CAST, node->rhs, NULL);
             node->rhs->type = node->lhs->type;
          }
