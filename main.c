@@ -1747,9 +1747,9 @@ Register *gen_register_rightval(Node *node, int unused_eval) {
          temp_reg = gen_register_leftval(node);
          if (node->type->ty == TY_ARRAY) {
             return temp_reg;
-         } else if (node->type->ty == TY_FLOAT) {
+         } else if (node->type->ty == TY_FLOAT || node->type->ty == TY_DOUBLE) {
             lhs_reg = float_retain_reg();
-            printf("movss %s, [%s]\n", node2reg(node, lhs_reg), id2reg64(temp_reg->id));
+            printf("%s %s, [%s]\n", type2mov(node->type), node2reg(node, lhs_reg), id2reg64(temp_reg->id));
             release_reg(temp_reg);
             return lhs_reg;
          } else {
@@ -1765,9 +1765,7 @@ Register *gen_register_rightval(Node *node, int unused_eval) {
             rhs_reg = gen_register_rightval(node->rhs, 0);
             secure_mutable(rhs_reg);
             if (node->rhs->type->ty == TY_FLOAT || node->rhs->type->ty == TY_DOUBLE) {
-               printf("movss %s, %s\n", node2reg(node->lhs, lhs_reg), node2reg(node->lhs, rhs_reg));
-            } else if (node->rhs->type->ty == TY_DOUBLE) {
-               printf("movsd %s, %s\n", node2reg(node->lhs, lhs_reg), node2reg(node->lhs, rhs_reg));
+               printf("%s %s, %s\n", type2mov(node->rhs->type), node2reg(node->lhs, lhs_reg), node2reg(node->lhs, rhs_reg));
             } else {
                // TODO
                printf("mov %s, %s\n", node2reg(node->lhs, lhs_reg),
@@ -2176,7 +2174,7 @@ Register *gen_register_rightval(Node *node, int unused_eval) {
                    size2reg(8, lhs_reg));
          } else if (node->type->ty == TY_FLOAT || node->type->ty == TY_DOUBLE) {
             temp_reg = float_retain_reg();
-            printf("movss %s, [%s]\n", node2reg(node, temp_reg), size2reg(8, lhs_reg));
+            printf("%s %s, [%s]\n",type2mov(node->type), node2reg(node, temp_reg), size2reg(8, lhs_reg));
             release_reg(lhs_reg);
             return temp_reg;
          } else if (node->type->ty != TY_ARRAY) {
@@ -2196,13 +2194,9 @@ Register *gen_register_rightval(Node *node, int unused_eval) {
          int fdef_float_arguments = 0;
          j = 0;
          for (fdef_int_arguments = 0; (fdef_int_arguments + fdef_float_arguments) < node->argc; j++) {
-            if (node->args[j]->type->ty == TY_FLOAT) {
+            if (node->args[j]->type->ty == TY_FLOAT || node->args[j]->type->ty == TY_DOUBLE) {
                temp_reg = gen_register_rightval(node->args[j], 0);
-               printf("movss %s, %s\n", node2reg(node->args[j], temp_reg), float_registers[fdef_float_arguments]);
-               fdef_float_arguments++;
-            } else if (node->args[j]->type->ty == TY_DOUBLE) {
-               temp_reg = gen_register_rightval(node->args[j], 0);
-               printf("movsd %s, %s\n", node2reg(node->args[j], temp_reg), float_registers[fdef_float_arguments]);
+               printf("%s %s, %s\n", type2mov(node->args[j]->type), node2reg(node->args[j], temp_reg), float_registers[fdef_float_arguments]);
                fdef_float_arguments++;
             } else {
                temp_reg = gen_register_rightval(node->args[j], 0);
@@ -2259,11 +2253,8 @@ Register *gen_register_rightval(Node *node, int unused_eval) {
       case ND_FUNC:
          for (j = 0; j < node->argc; j++) {
             temp_reg = gen_register_rightval(node->args[j], 0);
-            if (node->args[j]->type->ty == TY_FLOAT) {
-               printf("movss %s, %s\n", float_registers[func_call_float_cnt], node2reg(node->args[j], temp_reg));
-               func_call_float_cnt++;
-            } else if (node->args[j]->type->ty == TY_DOUBLE) {
-               printf("movsd %s, %s\n", float_registers[func_call_float_cnt], node2reg(node->args[j], temp_reg));
+            if (node->args[j]->type->ty == TY_FLOAT || node->args[j]->type->ty == TY_DOUBLE) {
+               printf("%s %s, %s\n", type2mov(node->args[j]->type), float_registers[func_call_float_cnt], node2reg(node->args[j], temp_reg));
                func_call_float_cnt++;
             } else {
                // TODO Dirty: Should implement 642node
