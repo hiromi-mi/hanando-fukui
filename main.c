@@ -33,11 +33,12 @@ char *strdup(const char *s);
 Vector *tokens;
 int pos = 0;
 Vector *globalcode;
+Vector *strs;
+Vector *floats;
 Map *global_vars;
 Map *funcdefs_generated_template;
 Map *funcdefs;
 Map *consts;
-Vector *strs;
 Map *typedb;
 Map *struct_typedb;
 Map *enum_typedb;
@@ -300,11 +301,12 @@ Node *new_long_num_node(long num_val) {
    node->type = find_typed_db("long", typedb);
    return node;
 }
-Node *new_float_node(float num_val) {
+Node *new_float_node(float num_val, char* _buf) {
    Node *node = new_node(ND_FLOAT, NULL, NULL);
    node->ty = ND_FLOAT;
    node->pline = -1; // TODO for more advenced textj
    node->num_val = num_val;
+   node->name = _buf;
    node->type = find_typed_db("float", typedb);
    return node;
 }
@@ -775,7 +777,7 @@ Vector *tokenize(char *p) {
          // if there are FLOAT
          if (*p == '.') {
             token->ty = TK_FLOAT;
-            token->num_val = strtof(token->input, &p);
+            token->float_val = strtof(token->input, &p);
          }
          vec_push(pre_tokens, token);
          continue;
@@ -1125,9 +1127,12 @@ Node *treat_va_end() {
 Node *node_term() {
    Node *node;
    // Primary Expression
-   if (confirm_type(TK_FLOAT)) {
-      node = new_float_node((float)tokens->data[pos]->num_val);
-      expect_node(TK_NUM);
+   if (confirm_node(TK_FLOAT)) {
+      char *_str = malloc(sizeof(char) * 256);
+      snprintf(_str, 255, ".LCF%d",
+               vec_push(floats, (Token*)&tokens->data[pos]->float_val));
+      node = new_float_node(tokens->data[pos]->float_val, _str);
+      expect_node(TK_FLOAT);
    } else if (confirm_node(TK_NUM)) {
       node = new_num_node(tokens->data[pos]->num_val);
       expect_node(TK_NUM);
@@ -1380,6 +1385,7 @@ char *registers8[6];
 char *registers16[6];
 char *registers32[6];
 char *registers64[6];
+char *float_registers[8];
 
 // These registers will be used to map into registers
 void init_reg_registers() {
@@ -1409,6 +1415,14 @@ void init_reg_registers() {
    registers64[3] = "r13";
    registers64[4] = "r14";
    registers64[5] = "r15";
+   float_registers[0] = "xmm0";
+   float_registers[1] = "xmm1";
+   float_registers[2] = "xmm2";
+   float_registers[3] = "xmm3";
+   float_registers[4] = "xmm4";
+   float_registers[5] = "xmm5";
+   float_registers[6] = "xmm6";
+   float_registers[7] = "xmm7";
 }
 
 char *id2reg8(int id) { return registers8[id]; }
@@ -1473,6 +1487,8 @@ char *size2reg(int size, Register *reg) {
       return _str;
    } else if (reg->kind == R_GVAR) {
       return gvar_size2reg(size, reg->name);
+   } else if (reg->kind == R_XMM) {
+      return float_registers[reg->id];
    }
    fprintf(stderr, "Error: Cannot Have Register\n");
    exit(1);
@@ -1494,6 +1510,7 @@ Register *float_retain_reg() {
       reg->id = j;
       reg->name = NULL;
       reg->kind = R_XMM;
+      return reg;
    }
    fprintf(stderr, "No more float registers are avaliable\n");
    exit(1);
@@ -1638,6 +1655,7 @@ Register *gen_register_rightval(Node *node, int unused_eval) {
    Register *rhs_reg;
    int j = 0;
    int cur_if_cnt;
+   int func_call_float_cnt = 0;
 
    if (!node) {
       return NO_REGISTER;
@@ -1662,6 +1680,7 @@ Register *gen_register_rightval(Node *node, int unused_eval) {
 
       case ND_FLOAT:
          temp_reg = float_retain_reg();
+         printf("movss %s, %s[rip]\n", size2reg(4, temp_reg), node->name);
          return temp_reg;
 
       case ND_STRING:
@@ -1719,7 +1738,7 @@ Register *gen_register_rightval(Node *node, int unused_eval) {
             lhs_reg = gen_register_rightval(node->lhs, 0);
             rhs_reg = gen_register_rightval(node->rhs, 0);
             secure_mutable(rhs_reg);
-            if (node->lhs->type->ty == TY_FLOAT && node->rhs->type->ty == TY_FLOAT) {
+            if (node->rhs->type->ty == TY_FLOAT) {
                printf("movss %s, %s\n", node2reg(node->lhs, lhs_reg), node2reg(node->lhs, rhs_reg));
             } else {
                // TODO
@@ -2153,19 +2172,24 @@ Register *gen_register_rightval(Node *node, int unused_eval) {
       case ND_FUNC:
          for (j = 0; j < node->argc; j++) {
             temp_reg = gen_register_rightval(node->args[j], 0);
-            // TODO Dirty: Should implement 642node
-            secure_mutable(temp_reg);
-            printf("push %s\n", id2reg64(temp_reg->id));
+            if (node->args[j]->type->ty == TY_FLOAT) {
+               printf("cvtss2sd %s, %s\n", float_registers[func_call_float_cnt], node2reg(node->args[j], temp_reg)); 
+               func_call_float_cnt++;
+            } else {
+               // TODO Dirty: Should implement 642node
+               secure_mutable(temp_reg);
+               printf("push %s\n", id2reg64(temp_reg->id));
+            }
             release_reg(temp_reg);
          }
-         for (j = node->argc - 1; j >= 0; j--) {
+         for (j = node->argc - 1 - func_call_float_cnt; j >= 0; j--) {
             // because of function call will break these registers
             printf("pop %s\n", arg_registers[j]);
          }
 
          save_reg();
          // FIXME: alignment should be 64-bit
-         puts("mov al, 0");
+         printf("mov al, %d\n", func_call_float_cnt);
          if (node->gen_name) { // ND_GLOBAL_IDENT, called from local vars.
             printf("call %s\n",
                    node->gen_name); // rax should be aligned with the size
@@ -3026,6 +3050,7 @@ void toplevel() {
    funcdefs_generated_template = new_map();
    consts = new_map();
    strs = new_vector();
+   floats = new_vector();
    globalcode = new_vector();
    env = NULL;
 
@@ -3343,6 +3368,11 @@ void globalvar_gen() {
       printf(".LC%d:\n", j);
       printf(".string \"%s\"\n", (char *)strs->data[j]);
    }
+   for (int j = 0; j < floats->len; j++) {
+      printf(".LCF%d:\n", j);
+      int* repr = (int*)floats->data[j];
+      printf(".long %d\n", *repr);
+   }
 }
 
 void preprocess(Vector *pre_tokens) {
@@ -3503,7 +3533,7 @@ void init_typedb() {
    typedou->ty = TY_FLOAT;
    typedou->ptrof = NULL;
    typedou->offset = 8;
-   map_put(typedb, "float", typevoid);
+   map_put(typedb, "float", typedou);
 }
 
 Vector *read_tokenize(char *fname) {

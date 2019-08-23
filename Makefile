@@ -261,6 +261,10 @@ test32:
 test33:
 	sh testfdef.sh "int main(){ func(\"%%d %%s\n\", 3, \"test\"); return 0;} int func(char* str, ...) { va_list ap; va_start(ap, str); vprintf(str, ap); va_end(ap); return 0;}" 0 -r
 
+test34:
+	sh testfdef.sh 'int main(){ int a; float b; b = 2.3; printf("Is 2.3?: %%f\n", b); return 0;}' 0
+	echo "This should be 2.3"
+
 clean:
 	$(RM) -f $(target) $(objects) main.s main2.s main3.s main2 main3
 
