@@ -125,7 +125,7 @@ test11:
 test19:
 	sh testfdef.sh "int main(){return func(8)+2;} int func(int a){return a-4;}" 6 -r
 	sh testfdef.sh "int main(){return func(6+2)+2;} int func(int a){return a-4;}" 6 -r
-	sh testfdef.sh "int main(){func(5);} int func(int a){ if (a==1){1;} 2;}" 2
+	sh testfdef.sh "int main(){return func(5); } int func(int a){ if (a==1){return 1;} return 2;}" 2
 
 test21:
 	sh testfdef.sh "int main(){return func(3);} int func(int a){if (a==1) {return 1;} else {return func(a-1)*a;}}" 6 -r

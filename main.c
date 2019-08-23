@@ -1765,21 +1765,33 @@ Register *gen_register_rightval(Node *node, int unused_eval) {
          }
 
       case ND_CAST:
-         temp_reg = gen_register_rightval(node->lhs, 0);
-         secure_mutable(temp_reg);
+         lhs_reg = gen_register_rightval(node->lhs, 0);
+         if (node->type->ty == TY_FLOAT) {
+            switch (node->lhs->type->ty) {
+               case TY_INT:
+                  temp_reg = float_retain_reg();
+                  printf("cvtsi2ss %s, %s\n", node2reg(node, temp_reg), node2reg(node->lhs, lhs_reg));
+                  release_reg(lhs_reg);
+                  break;
+               default:
+                  break;
+            }
+            return temp_reg;
+         }
+         secure_mutable(lhs_reg);
          if (type2size(node->type) > type2size(node->lhs->type)) {
             switch (type2size(node->lhs->type)) {
                case 1:
                   // TODO treat as unsigned char.
                   // for signed char, use movsx instead of.
-                  printf("movzx %s, %s\n", node2reg(node, temp_reg),
-                         id2reg8(temp_reg->id));
+                  printf("movzx %s, %s\n", node2reg(node, lhs_reg),
+                         id2reg8(lhs_reg->id));
                   break;
                default:
                   break;
             }
          }
-         return temp_reg;
+         return lhs_reg;
 
       case ND_COMMA:
          lhs_reg = gen_register_rightval(node->lhs, 0);
