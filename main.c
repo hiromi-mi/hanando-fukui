@@ -1824,16 +1824,16 @@ Register *gen_register_rightval(Node *node, int unused_eval) {
                   temp_reg = float_retain_reg();
                   printf("cvtsi2ss %s, %s\n", node2reg(node, temp_reg), node2reg(node->lhs, lhs_reg));
                   release_reg(lhs_reg);
-                  break;
+                  return temp_reg;
                case TY_DOUBLE:
                   temp_reg = float_retain_reg();
                   printf("cvtsd2ss %s, %s\n", node2reg(node, temp_reg), node2reg(node->lhs, lhs_reg));
                   release_reg(lhs_reg);
-                  break;
+                  return temp_reg;
                default:
                   break;
             }
-            return temp_reg;
+            return lhs_reg;
          }
          if (node->type->ty == TY_DOUBLE) {
             switch (node->lhs->type->ty) {
@@ -1841,16 +1841,16 @@ Register *gen_register_rightval(Node *node, int unused_eval) {
                   temp_reg = float_retain_reg();
                   printf("cvtsi2sd %s, %s\n", node2reg(node, temp_reg), node2reg(node->lhs, lhs_reg));
                   release_reg(lhs_reg);
-                  break;
+                  return temp_reg;
                case TY_FLOAT:
                   temp_reg = float_retain_reg();
                   printf("cvtss2sd %s, %s\n", node2reg(node, temp_reg), node2reg(node->lhs, lhs_reg));
                   release_reg(lhs_reg);
-                  break;
+                  return temp_reg;
                default:
                   break;
             }
-            return temp_reg;
+            return lhs_reg;
          }
          secure_mutable(lhs_reg);
          if (node->type->ty != node->lhs->type->ty) {
