@@ -1187,7 +1187,7 @@ Node *node_term() {
          // Function Call
          // char *fname = expect_ident();
          char *fname = "";
-         if (node->ty == ND_IDENT) {
+         if (node->ty == ND_SYMBOL) {
             fname = node->name;
          }
          if (strncmp(fname, "va_arg", 7) == 0) {
@@ -2098,6 +2098,9 @@ Register *gen_register_rightval(Node *node, int unused_eval) {
                printf("mov [rbp-%d], %s\n",
                       node->is_omiited->lvar_offset - j * 8, arg_registers[j]);
             }
+            for (j=0;j<8;j++) {
+               printf("movaps [rbp-%d], xmm%d\n", node->is_omiited->lvar_offset - 8 * 6 - j *16, j);
+            }
          }
          for (j = 0; j < node->code->len; j++) {
             // read inside functions.
@@ -2184,7 +2187,7 @@ Register *gen_register_rightval(Node *node, int unused_eval) {
          printf("mov eax, [%s]\n", id2reg64(lhs_reg->id)); // get gp_offset
          printf("mov edx, eax\n");
          printf("add rdx, 8\n");
-         printf("add rax, [%s+8]\n", id2reg64(lhs_reg->id));
+         printf("add rax, [%s+16]\n", id2reg64(lhs_reg->id));
          printf("mov [%s], edx\n", id2reg64(lhs_reg->id));
          // only supported register
          printf("mov %s, [rax]\n",
@@ -2205,7 +2208,7 @@ Register *gen_register_rightval(Node *node, int unused_eval) {
                 node->num_val * 8);
          printf("mov dword ptr [%s+4], 304\n", id2reg64(lhs_reg->id));
          printf("lea rax, [rbp-%d]\n", node->rhs->lvar_offset);
-         printf("mov qword ptr [%s+8], rax\n", id2reg64(lhs_reg->id));
+         printf("mov qword ptr [%s+16], rax\n", id2reg64(lhs_reg->id));
          /*
          // set reg_save_area
          printf("mov [%s], rax\n", node2reg(node->lhs, lhs_reg));
@@ -3403,7 +3406,7 @@ void new_fdef(char *name, Type *type, Map *local_typedb) {
       Type *saved_var_type = new_type();
       saved_var_type->ty = TY_ARRAY;
       saved_var_type->ptrof = find_typed_db("long", typedb);
-      saved_var_type->array_size = 7;
+      saved_var_type->array_size = 30; // for rsp
       newfunc->is_omiited =
           new_ident_node_with_new_variable("_saved_var", saved_var_type);
       omiited_argc = newfunc->argc;

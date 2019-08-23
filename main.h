@@ -158,8 +158,8 @@ typedef struct {
 } Map;
 
 typedef struct Context {
-   char* is_previous_class;
-   char* method_name;
+   char *is_previous_class;
+   char *method_name;
 } Context;
 
 typedef struct Type {
@@ -187,11 +187,11 @@ typedef struct Type {
    int is_const;
    int is_static;
    int is_omiited;
-   char* name; // for args
-   char* template_name;
+   char *name; // for args
+   char *template_name;
    MemberAccess memaccess;
-   Context* context;
-   Map* local_typedb;
+   Context *context;
+   Map *local_typedb;
 } Type;
 
 typedef struct Env {
