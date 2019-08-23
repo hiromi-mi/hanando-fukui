@@ -1778,6 +1778,11 @@ Register *gen_register_rightval(Node *node, int unused_eval) {
                   printf("cvtsi2ss %s, %s\n", node2reg(node, temp_reg), node2reg(node->lhs, lhs_reg));
                   release_reg(lhs_reg);
                   break;
+               case TY_DOUBLE:
+                  temp_reg = float_retain_reg();
+                  printf("cvtsd2ss %s, %s\n", node2reg(node, temp_reg), node2reg(node->lhs, lhs_reg));
+                  release_reg(lhs_reg);
+                  break;
                default:
                   break;
             }
@@ -1787,19 +1792,21 @@ Register *gen_register_rightval(Node *node, int unused_eval) {
             switch (node->lhs->type->ty) {
                case TY_INT:
                   temp_reg = float_retain_reg();
-                  printf("cvtsi2ss %s, %s\n", node2reg(node, temp_reg), node2reg(node->lhs, lhs_reg));
+                  printf("cvtsi2sd %s, %s\n", node2reg(node, temp_reg), node2reg(node->lhs, lhs_reg));
                   release_reg(lhs_reg);
                   break;
                case TY_FLOAT:
                   temp_reg = float_retain_reg();
                   printf("cvtss2sd %s, %s\n", node2reg(node, temp_reg), node2reg(node->lhs, lhs_reg));
+                  release_reg(lhs_reg);
+                  break;
                default:
                   break;
             }
             return temp_reg;
          }
          secure_mutable(lhs_reg);
-         if (type2size(node->type) > type2size(node->lhs->type)) {
+         if (node->type->ty != node->lhs->type->ty) {
             switch (type2size(node->lhs->type)) {
                case 1:
                   // TODO treat as unsigned char.
@@ -2159,13 +2166,14 @@ Register *gen_register_rightval(Node *node, int unused_eval) {
          printf("sub rsp, %d\n", *node->env->rsp_offset_max);
          int fdef_int_arguments = 0;
          int fdef_float_arguments = 0;
-         for (fdef_int_arguments = 0; (fdef_int_arguments + fdef_float_arguments) < node->argc; 0) {
+         j = 0;
+         for (fdef_int_arguments = 0; (fdef_int_arguments + fdef_float_arguments) < node->argc; j++) {
             if (node->args[j]->type->ty == TY_FLOAT || node->args[j]->type->ty == TY_DOUBLE) {
-               temp_reg = gen_register_rightval(node->args[fdef_float_arguments], 0);
+               temp_reg = gen_register_rightval(node->args[j], 0);
                printf("movss %s, %s\n", node2reg(node->args[j], temp_reg), float_registers[fdef_float_arguments]);
                fdef_float_arguments++;
             } else {
-               temp_reg = gen_register_rightval(node->args[fdef_int_arguments], 0);
+               temp_reg = gen_register_rightval(node->args[j], 0);
                // TODO : not to use eax, so on
                printf("mov %s, %s\n", size2reg(8, temp_reg), arg_registers[fdef_int_arguments]);
                fdef_int_arguments++;

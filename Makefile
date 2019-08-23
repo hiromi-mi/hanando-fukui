@@ -266,6 +266,8 @@ test34:
 	echo "This should be 2.3"
 	sh testfdef.sh 'int func(float c) {printf("Is 3.4?: %%f\n", (double)c); return 0; } int main(){float b; b = 3.4; func(b); return 0;}' 0
 	echo "This should be 3.4"
+	# TODO should add type conversation among TY_INT, TY_FLOAT, TY_DOUBLE
+	sh testfdef.sh 'int main(){float b; b = 3.4; printf("It should be 3: %%d\n", (int)b); return 0;}' 0
 
 clean:
 	$(RM) -f $(target) $(objects) main.s main2.s main3.s main2 main3
