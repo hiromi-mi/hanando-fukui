@@ -1876,7 +1876,7 @@ Register *gen_register_rightval(Node *node, int unused_eval) {
       case ND_ADD:
          lhs_reg = gen_register_rightval(node->lhs, 0);
          rhs_reg = gen_register_rightval(node->rhs, 0);
-         secure_mutable_with_type(lhs_reg, node->lhs->type);
+         secure_mutable_with_type(lhs_reg, node->type);
          if (node->lhs->type->ty == TY_FLOAT) {
             printf("addss %s, %s\n", node2reg(node, lhs_reg), node2reg(node, rhs_reg));
          } else if ( node->rhs->type->ty == TY_DOUBLE) {
@@ -1896,7 +1896,7 @@ Register *gen_register_rightval(Node *node, int unused_eval) {
       case ND_SUB:
          lhs_reg = gen_register_rightval(node->lhs, 0);
          rhs_reg = gen_register_rightval(node->rhs, 0);
-         secure_mutable(lhs_reg);
+         secure_mutable_with_type(lhs_reg, node->type);
          if (node->lhs->type->ty == TY_FLOAT) {
             printf("subss %s, %s\n", node2reg(node, lhs_reg), node2reg(node, rhs_reg));
          } else if (node->rhs->type->ty == TY_DOUBLE) {
@@ -1923,7 +1923,7 @@ Register *gen_register_rightval(Node *node, int unused_eval) {
       case ND_MUL:
          lhs_reg = gen_register_rightval(node->lhs, 0);
          rhs_reg = gen_register_rightval(node->rhs, 0);
-         secure_mutable(lhs_reg);
+         secure_mutable_with_type(lhs_reg, node->type);
          if (node->lhs->type->ty == TY_FLOAT ) {
             printf("mulss %s, %s\n", node2reg(node, lhs_reg), node2reg(node, rhs_reg));
          } else if (node->rhs->type->ty == TY_DOUBLE) {

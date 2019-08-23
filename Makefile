@@ -272,6 +272,9 @@ test34:
 
 test35:
 	sh testfdef.sh 'int main(){float a,b; a = 8;b=9; printf("It should be 17: %%f\n", (double)(a+b)); return 0;}' 0
+	sh testfdef.sh 'int main(){float a,b; a = 8;b=9; printf("It should be -1: %%f\n", (double)(a-b)); return 0;}' 0
+	sh testfdef.sh 'int main(){float a,b; a = 11;b=9; printf("It should be 2: %%f\n", (double)(a-b)); return 0;}' 0
+	sh testfdef.sh 'int main(){float a,b; a = 8;b=9; printf("It should be 72: %%f\n", (double)(a*b)); return 0;}' 0
 
 
 clean:
