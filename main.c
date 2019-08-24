@@ -74,6 +74,7 @@ void program(Node *block_node);
 Type *duplicate_type(Type *old_type);
 Type *copy_type(Type *old_type, Type *type);
 Type *find_typed_db(char *input, Map *db);
+Type *find_typed_db_without_copy(char *input, Map *db);
 int cnt_size(Type *type);
 Type *get_type_local(Node *node);
 Node *new_addsub_node(NodeType ty, Node *lhs, Node *rhs);
@@ -251,6 +252,7 @@ Node *new_node(NodeType ty, Node *lhs, Node *rhs) {
    node->args[5] = NULL;
    node->pline = -1; // TODO for more advenced text
    node->funcdef = NULL;
+   node->sizeof_type = NULL;
 
    if (lhs) {
       node->type = node->lhs->type;
@@ -320,7 +322,7 @@ Node *new_float_node(double num_val, char *_buf, char *typename_float) {
 Node *new_deref_node(Node *lhs) {
    Node *node = new_node(ND_DEREF, lhs, NULL);
    // moved to new_deref_node
-   if (node->type->ty != TY_TEMPLATE) {
+   if (node->type && node->type->ty != TY_TEMPLATE) {
       node->type = node->lhs->type->ptrof;
       if (!node->type) {
          error("Error: Dereference on NOT pointered.");
@@ -1052,10 +1054,11 @@ Node *node_increment() {
       node = new_deref_node(node_increment());
    } else if (consume_node(TK_SIZEOF)) {
       if (consume_node('(') && confirm_type()) {
-         // sizeof(int) read type without name
-         Type *type = read_type_all(NULL);
+         node = new_node(ND_SIZEOF, NULL, NULL);
+         node->sizeof_type = read_type_all(NULL);
+         node->type = find_typed_db("long", typedb);
          expect_node(')');
-         return new_num_node(cnt_size(type));
+         return node;
       }
       node = node_mathexpr();
       return new_long_num_node(type2size(node->type));
@@ -1083,7 +1086,7 @@ Node *node_mul() {
 Node *new_dot_node(Node *node) {
    node = new_node('.', node, NULL);
    node->name = expect_ident();
-   if (node->type->ty != TY_TEMPLATE) {
+   if (node->type && node->type->ty != TY_TEMPLATE) {
       node->type = (Type *)map_get(node->lhs->type->structure, node->name);
       if (!node->type) {
          error("Error: structure not found.");
@@ -1253,16 +1256,6 @@ Node *node_term() {
          return node;
       }
    }
-   /*
-   if (pos > 0) {
-      fprintf(stderr, "Error: Incorrect Paresis without %c %d -> %c %d\n",
-            tokens->data[pos - 1]->ty, tokens->data[pos - 1]->ty,
-            tokens->data[pos]->ty, tokens->data[pos]->ty);
-   } else {
-      fprintf(stderr, "Error: Incorrect Paresis without\n");
-   }
-   exit(1);
-*/
 }
 
 Type *get_type_local(Node *node) {
@@ -1388,9 +1381,16 @@ int cnt_size(Type *type) {
       case TY_ARRAY:
          return cnt_size(type->ptrof) * type->array_size;
       case TY_STRUCT:
+         // TODO its dirty
+         // As possible, propagate (previous) type->offset as you can
+         // TODO it causes bug when "Type" are duplicated typedb & struct_typedb buf different
+         type = find_typed_db(type->name, typedb);
+         if (!type) {
+            type = find_typed_db(type->name, struct_typedb);
+         }
          return type->offset;
       case TY_TEMPLATE:
-         return 8; // FIXME
+         return 8;
       default:
          error("Error: on void type error.");
          return 0;
@@ -2964,6 +2964,9 @@ void program(Node *block_node) {
 // 0: neither 1:TK_TYPE 2:TK_IDENT
 
 Type *duplicate_type(Type *old_type) {
+   if (!old_type) {
+      return NULL;
+   }
    Type *type = new_type();
    type = copy_type(old_type, type);
    return type;
@@ -2998,6 +3001,7 @@ Node *copy_node(Node *old_node, Node *node) {
    node->args[5] = old_node->args[5];
    node->pline = -1; // TODO for more advenced text
    node->funcdef = old_node->funcdef;
+   node->sizeof_type = old_node->sizeof_type;
    return node;
 }
 
@@ -3025,7 +3029,7 @@ Type *copy_type(Type *old_type, Type *type) {
    return type;
 }
 
-Type *find_typed_db(char *input, Map *db) {
+Type *find_typed_db_without_copy(char *input, Map *db) {
    if (!input) {
       fprintf(stderr, "Error: find_typed_db with null input\n");
       exit(1);
@@ -3035,10 +3039,43 @@ Type *find_typed_db(char *input, Map *db) {
       if (strcmp(input, (char *)db->keys->data[j]) == 0) {
          // copy type
          Type *old_type = (Type *)db->vals->data[j];
-         return duplicate_type(old_type);
+         return old_type;
       }
    }
    return NULL;
+}
+
+Type *find_typed_db(char *input, Map *db) {
+   return duplicate_type(find_typed_db_without_copy(input, db));
+}
+
+void generate_structure(Map *db) {
+   if (!db) {
+      return;
+   }
+   int size = 0;
+   int offset = 0;
+
+   // This depend on data structure: should be sorted as the number
+   for (int j = 0; j < db->keys->len; j++) {
+      Type *structuretype = (Type*)db->vals->data[j];
+      if (structuretype->ty != TY_STRUCT || structuretype->offset > 0) {
+         // structuretype->offset is required to treat FILE (already known)
+         continue;
+      }
+      offset = 0;
+
+      for (int k = 0; k < structuretype->structure->keys->len; k++) {
+         Type *type = (Type*)structuretype->structure->vals->data[k];
+         size = type2size3(type);
+         if (size > 0 && (offset % size != 0)) {
+            offset += (size - offset % size);
+         }
+         type->offset = offset;
+         offset += cnt_size(type);
+      }
+      structuretype->offset = offset;
+   }
 }
 
 Type *read_fundamental_type(Map *local_typedb) {
@@ -3300,8 +3337,8 @@ void toplevel() {
          structuretype->structure = new_map();
          structuretype->ty = TY_STRUCT;
          structuretype->ptrof = NULL;
-         int offset = 0;
-         int size = 0;
+         //int offset = 0;
+         //int size = 0;
          char *structurename = expect_ident();
          structuretype->name = structurename;
          expect_node('{');
@@ -3320,25 +3357,18 @@ void toplevel() {
             }
             char *name = NULL;
             Type *type = read_type_all(&name);
-            size = type2size3(type);
+            //size = type2size3(type);
 
             // TODO it should be integrated into new_fdef_node()'s "this"
             if ((lang & 1) && strstr(name, "::") && type->ty == TY_FUNC &&
                 type->is_static == 0) {
                type->context->is_previous_class = structurename;
             }
-            if (size > 0 && (offset % size != 0)) {
-               offset += (size - offset % size);
-            }
-            // all type should aligned with proper value.
-            // TODO assumption there are NO bytes over 8 bytes.
-            type->offset = offset;
-            offset += cnt_size(type);
             expect_node(';');
             type->memaccess = memaccess;
             map_put(structuretype->structure, name, type);
          }
-         structuretype->offset = offset;
+         //structuretype->offset = offset;
          expect_node(';');
          map_put(typedb, structurename, structuretype);
          continue;
@@ -3361,23 +3391,13 @@ void toplevel() {
          structuretype->structure = new_map();
          structuretype->ty = TY_STRUCT;
          structuretype->ptrof = NULL;
-         int offset = 0;
-         int size = 0;
          while (!consume_node('}')) {
             char *name = NULL;
             Type *type = read_type_all(&name);
-            size = type2size3(type);
-            if ((offset % size != 0)) {
-               offset += (size - offset % size);
-            }
-            // all type should aligned with proper value.
-            // TODO assumption there are NO bytes over 8 bytes.
-            type->offset = offset;
-            offset += cnt_size(type);
             expect_node(';');
             map_put(structuretype->structure, name, type);
          }
-         structuretype->offset = offset;
+         //structuretype->offset = offset;
          char *name = expect_ident();
          structuretype->name = name;
          expect_node(';');
@@ -3822,6 +3842,11 @@ Node *analyzing(Node *node) {
          node->lvar_offset = node->type->offset;
       }
    }
+   if (node->ty == ND_SIZEOF) {
+      // ND_SIZEOF should generate its type information.
+      // This is because: on parse, no (structured) type size are avaliable
+      node = new_num_node(cnt_size(node->sizeof_type));
+   }
 
    if (node->lhs) {
       node->lhs = analyzing(node->lhs);
@@ -4019,6 +4044,8 @@ Node *optimizing(Node *node) {
 }
 
 void analyzing_process() {
+   generate_structure(typedb);
+   generate_structure(struct_typedb);
    int len = globalcode->len;
    int i;
    for (i = 0; i < len; i++) {

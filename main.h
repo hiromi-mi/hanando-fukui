@@ -131,6 +131,7 @@ typedef enum {
    ND_SYMBOL,
    ND_VAEND,
    ND_EXPRESSION_BLOCK,
+   ND_SIZEOF,
 } NodeType;
 
 typedef struct {
@@ -219,6 +220,7 @@ typedef struct Node {
    char *gen_name; // Mangled Name
    Env *env;
    Type *type;
+   Type *sizeof_type;
    int lvar_offset;
    struct Node *is_omiited;
    int is_static;
