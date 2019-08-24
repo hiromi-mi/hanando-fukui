@@ -143,6 +143,7 @@ Type *new_type() {
    type->is_const = 0;
    type->is_static = 0;
    type->is_omiited = 0;
+   type->is_new_variable = 0;
    type->name = NULL;
    type->context = malloc(sizeof(Type));
    type->context->is_previous_class = NULL;
@@ -345,14 +346,7 @@ Node *new_ident_node_with_new_variable(char *name, Type *type) {
    node->name = name;
    node->type = type;
    node->pline = -1; // TODO for more advenced textj
-   int size = cnt_size(type);
-   // should aligned as x86_64
-   if (size % 8 != 0) {
-      size += (8 - size % 8);
-   }
-   update_rsp_offset(size);
-   node->lvar_offset = env->rsp_offset;
-   type->offset = env->rsp_offset;
+   node->type->is_new_variable = 1;
    map_put(env->idents, name, type);
    /*
    if ((lang & 1) && type->ty == TY_STRUCT) {
@@ -382,7 +376,6 @@ Node *new_ident_node(char *name) {
    }
    node->type = get_type_local(node);
    if (node->type) {
-      node->lvar_offset = node->type->offset;
       return node;
    }
 
@@ -3018,6 +3011,7 @@ Type *copy_type(Type *old_type, Type *type) {
    type->offset = old_type->offset;
    type->is_const = old_type->is_const;
    type->is_static = old_type->is_static;
+   type->is_new_variable = old_type->is_new_variable;
    type->name = old_type->name;
    type->ret = old_type->ret;
    type->template_name = old_type->template_name;
@@ -3477,6 +3471,14 @@ Node *generate_template(Node *node, Map *template_type_db) {
    if (node->rhs) {
       node->rhs = generate_template(node->rhs, template_type_db);
    }
+
+   if (node->argc > 0) {
+      for (j = 0; j < node->argc; j++) {
+         if (node->args[j]) {
+            node->args[j] = generate_template(node->args[j], template_type_db);
+         }
+      }
+   }
    if (node->code) {
       Vector *vec = new_vector();
       for (j = 0; j < node->code->len && node->code->data[j]; j++) {
@@ -3485,13 +3487,6 @@ Node *generate_template(Node *node, Map *template_type_db) {
          vec_push(vec, (Token *)code_node);
       }
       node->code = vec;
-   }
-   if (node->argc > 0) {
-      for (j = 0; j < node->argc; j++) {
-         if (node->args[j]) {
-            node->args[j] = generate_template(node->args[j], template_type_db);
-         }
-      }
    }
 
    for (j = 0; j < 3; j++) {
@@ -3623,7 +3618,8 @@ void preprocess(Vector *pre_tokens) {
    map_put(defined, "__HANANDO_FUKUI__", hanando_fukui_compiled);
 
    int skipped = 0;
-   for (int j = 0; j < pre_tokens->len; j++) {
+   int j;
+   for (j = 0; j < pre_tokens->len; j++) {
       if (pre_tokens->data[j]->ty == '#') {
          // preprocessor begin
          j++;
@@ -3799,6 +3795,25 @@ Node *analyzing(Node *node) {
    Env *prev_env = env;
    if (node->ty == ND_BLOCK || node->ty == ND_FDEF) {
       env = node->env;
+      if (prev_env) {
+         env->rsp_offset += prev_env->rsp_offset;
+      }
+   }
+   if (node->ty == ND_IDENT) {
+      if (node->type->is_new_variable > 0) {
+         int size = cnt_size(node->type);
+         // should aligned as x86_64
+         if (size % 8 != 0) {
+            size += (8 - size % 8);
+         }
+         update_rsp_offset(size);
+         node->lvar_offset = env->rsp_offset;
+         node->type->offset = env->rsp_offset;
+         node->type->is_new_variable = 0;
+      } else {
+         // already known
+         node->lvar_offset = node->type->offset;
+      }
    }
 
    if (node->lhs) {
@@ -3807,9 +3822,9 @@ Node *analyzing(Node *node) {
    if (node->rhs) {
       node->rhs = analyzing(node->rhs);
    }
-   if (node->code) {
-      for (j = 0; j < node->code->len && node->code->data[j]; j++) {
-         node->code->data[j] = (Token *)analyzing((Node *)node->code->data[j]);
+   for (j = 0; j < 3; j++) {
+      if (node->conds[j]) {
+         node->conds[j] = analyzing(node->conds[j]);
       }
    }
    if (node->argc > 0) {
@@ -3819,12 +3834,12 @@ Node *analyzing(Node *node) {
          }
       }
    }
-
-   for (j = 0; j < 3; j++) {
-      if (node->conds[j]) {
-         node->conds[j] = analyzing(node->conds[j]);
+   if (node->code) {
+      for (j = 0; j < node->code->len && node->code->data[j]; j++) {
+         node->code->data[j] = (Token *)analyzing((Node *)node->code->data[j]);
       }
    }
+
 
    switch (node->ty) {
       case ND_ADD:
