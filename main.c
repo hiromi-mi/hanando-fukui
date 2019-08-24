@@ -1404,6 +1404,7 @@ char *registers16[5];
 char *registers32[5];
 char *registers64[5];
 char *float_registers[8];
+char *float_arg_registers[6];
 
 char *callee_saved_registers[4];
 
@@ -1436,14 +1437,20 @@ void init_reg_registers() {
    registers64[2] = "r14";
    registers64[3] = "r11";
    registers64[4] = "r10";
-   float_registers[0] = "xmm0";
-   float_registers[1] = "xmm1";
-   float_registers[2] = "xmm2";
-   float_registers[3] = "xmm3";
-   float_registers[4] = "xmm4";
-   float_registers[5] = "xmm5";
-   float_registers[6] = "xmm6";
-   float_registers[7] = "xmm7";
+   float_arg_registers[0] = "xmm0";
+   float_arg_registers[1] = "xmm1";
+   float_arg_registers[2] = "xmm2";
+   float_arg_registers[3] = "xmm3";
+   float_arg_registers[4] = "xmm4";
+   float_arg_registers[5] = "xmm5";
+   float_registers[0] = "xmm6";
+   float_registers[1] = "xmm7";
+   float_registers[2] = "xmm8";
+   float_registers[3] = "xmm9";
+   float_registers[4] = "xmm10";
+   float_registers[5] = "xmm11";
+   float_registers[6] = "xmm12";
+   float_registers[7] = "xmm13";
 }
 
 char *id2reg8(int id) { return registers8[id]; }
@@ -2323,7 +2330,7 @@ Register *gen_register_rightval(Node *node, int unused_eval) {
                temp_reg = gen_register_rightval(node->args[j], 0);
                printf("%s %s, %s\n", type2mov(node->args[j]->type),
                       node2reg(node->args[j], temp_reg),
-                      float_registers[fdef_float_arguments]);
+                      float_arg_registers[fdef_float_arguments]);
                fdef_float_arguments++;
             } else {
                temp_reg = gen_register_rightval(node->args[j], 0);
@@ -2386,7 +2393,7 @@ Register *gen_register_rightval(Node *node, int unused_eval) {
             if (node->args[j]->type->ty == TY_FLOAT ||
                 node->args[j]->type->ty == TY_DOUBLE) {
                printf("%s %s, %s\n", type2mov(node->args[j]->type),
-                      float_registers[func_call_float_cnt],
+                      float_arg_registers[func_call_float_cnt],
                       node2reg(node->args[j], temp_reg));
                func_call_float_cnt++;
             } else {
@@ -3839,7 +3846,6 @@ Node *analyzing(Node *node) {
          node->code->data[j] = (Token *)analyzing((Node *)node->code->data[j]);
       }
    }
-
 
    switch (node->ty) {
       case ND_ADD:
