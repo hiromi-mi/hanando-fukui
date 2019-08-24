@@ -75,6 +75,7 @@ Type *duplicate_type(Type *old_type);
 Type *copy_type(Type *old_type, Type *type);
 Type *find_typed_db(char *input, Map *db);
 Type *find_typed_db_without_copy(char *input, Map *db);
+Type* class_declaration(Map* local_typedb);
 int cnt_size(Type *type);
 Type *get_type_local(Node *node);
 Node *new_addsub_node(NodeType ty, Node *lhs, Node *rhs);
@@ -3122,7 +3123,7 @@ Type *read_fundamental_type(Map *local_typedb) {
       } else if (tokens->data[pos]->ty == TK_CONST) {
          is_const = 1;
          expect_node(TK_CONST);
-      } else if (confirm_node(TK_TEMPLATE)) {
+      } else if ((lang & 1) && confirm_node(TK_TEMPLATE)) {
          type = read_template_parameter_list(local_typedb);
          type->local_typedb = local_typedb;
          break;
@@ -3138,6 +3139,8 @@ Type *read_fundamental_type(Map *local_typedb) {
       type = find_typed_db("int", typedb);
    } else if (consume_node(TK_STRUCT)) {
       type = find_typed_db(expect_ident(), struct_typedb);
+   } else if (consume_node(TK_CLASS)) {
+      type = class_declaration(local_typedb);
    } else {
       char *ident = expect_ident();
       // looking up template parameters
@@ -3352,7 +3355,7 @@ void new_fdef(char *name, Type *type, Map *local_typedb) {
    }
 }
 
-void class_declaration(Map* local_typedb) {
+Type* class_declaration(Map* local_typedb) {
    Type *structuretype = new_type();
    structuretype->structure = new_map();
    structuretype->ty = TY_STRUCT;
@@ -3390,6 +3393,7 @@ void class_declaration(Map* local_typedb) {
    // to set up local_typedb after instanciate 
    structuretype->local_typedb = local_typedb;
    map_put(typedb, structurename, structuretype);
+   return structuretype;
 }
 
 void toplevel() {
@@ -3422,14 +3426,6 @@ void toplevel() {
          map_put(global_vars, name, type);
          expect_node(';');
          continue;
-      }
-      // template declartion
-      if ((lang & 1) && confirm_node(TK_TEMPLATE)) {
-         Map *local_typedb = new_map();
-         read_template_parameter_list(local_typedb);
-         if (consume_node(TK_CLASS)) {
-            class_declaration(local_typedb);
-         }
       }
 
       // definition of class
@@ -3482,6 +3478,9 @@ void toplevel() {
          char *name = NULL;
          Map *local_typedb = new_map();
          Type *type = read_fundamental_type(local_typedb);
+         if (type->ty == TY_STRUCT) {
+            continue; // TODO for class definition, no need to have name
+         }
          type = read_type(type, &name, local_typedb);
          if (type->ty == TY_FUNC) {
             new_fdef(name, type, local_typedb);
