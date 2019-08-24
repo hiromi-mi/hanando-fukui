@@ -79,6 +79,7 @@ int cnt_size(Type *type);
 Type *get_type_local(Node *node);
 Node *new_addsub_node(NodeType ty, Node *lhs, Node *rhs);
 Node *generate_template(Node *node, Map *template_type_db);
+Type *generate_class_template(Type *type, Map *template_type_db);
 
 Register *gen_register_rightval(Node *node, int unused_eval);
 char *node2reg(Node *node, Register *reg);
@@ -1131,8 +1132,28 @@ Node *treat_va_end() {
    return node;
 }
 
+Vector *read_template_argument_list(Map *local_typedb) {
+   Vector *template_types = NULL;
+   Type *template_type = NULL;
+   expect_node('<');
+   template_types = new_vector();
+   while (1) {
+      template_type = read_fundamental_type(local_typedb);
+      template_type = read_type(template_type, NULL, local_typedb);
+      // In this position, we don't know definition of template_type_db
+      vec_push(template_types, (Token *)template_type);
+      if (!consume_node(',')) {
+         expect_node('>');
+         break;
+      }
+   }
+   return template_types;
+}
+
 Node *node_term() {
    Node *node = NULL;
+   Vector *template_types = NULL;
+
    // Primary Expression
    if (confirm_node(TK_FLOAT)) {
       char *_str = malloc(sizeof(char) * 256);
@@ -1181,14 +1202,11 @@ Node *node_term() {
       error("Error: No Primary Expression.");
    }
 
-   Vector *template_types = NULL;
-   Type *template_type = NULL;
    while (1) {
       // Postfix Expression
 
       // Template
       if ((lang & 1) && confirm_node('<')) {
-         template_types = new_vector();
          if (node->ty != ND_SYMBOL) {
             continue;
          }
@@ -1197,17 +1215,7 @@ Node *node_term() {
              result->type->local_typedb->keys->len <= 0) {
             continue;
          }
-         expect_node('<');
-         while (1) {
-            template_type = read_fundamental_type(NULL);
-            template_type = read_type(template_type, NULL, NULL);
-            // In this position, we don't know definition of template_type_db
-            vec_push(template_types, (Token *)template_type);
-            if (!consume_node(',')) {
-               expect_node('>');
-               break;
-            }
-         }
+         template_types = read_template_argument_list(NULL);
       } else if (confirm_node('(')) {
          // Function Call
          // char *fname = expect_ident();
@@ -2806,7 +2814,6 @@ Node *stmt() {
    int pline = tokens->data[pos]->pline;
    if (confirm_type()) {
       char *input = NULL;
-      // FIXME
       Type *fundamental_type = read_fundamental_type(current_local_typedb);
       Type *type;
       do {
@@ -3026,6 +3033,7 @@ Type *copy_type(Type *old_type, Type *type) {
    type->name = old_type->name;
    type->ret = old_type->ret;
    type->template_name = old_type->template_name;
+   type->local_typedb = old_type->local_typedb; // TODO is duplicate of local_typedb required?
    return type;
 }
 
@@ -3057,9 +3065,11 @@ void generate_structure(Map *db) {
    int offset = 0;
 
    // This depend on data structure: should be sorted as the number
+   // Should skip TEMPLATE_TYPE
+   // How to detect template_based class? -> local_typedb
    for (int j = 0; j < db->keys->len; j++) {
       Type *structuretype = (Type*)db->vals->data[j];
-      if (structuretype->ty != TY_STRUCT || structuretype->offset > 0) {
+      if (structuretype->ty != TY_STRUCT || structuretype->offset > 0 || (structuretype->local_typedb && structuretype->local_typedb->keys->len > 0)) {
          // structuretype->offset is required to treat FILE (already known)
          continue;
       }
@@ -3078,10 +3088,31 @@ void generate_structure(Map *db) {
    }
 }
 
+   // return last templated parameter list
+Type *read_template_parameter_list(Map *local_typedb) {
+   Type *type = NULL;
+   char *template_typename = NULL;
+   expect_node(TK_TEMPLATE);
+   expect_node('<');
+   while (1) {
+      expect_node(TK_TYPENAME);
+      template_typename = expect_ident();
+      type = new_type();
+      type->ty = TY_TEMPLATE;
+      type->template_name = template_typename;
+      map_put(local_typedb, template_typename, type);
+      if (!consume_node(',')) {
+         break;
+      }
+   }
+   expect_node('>');
+
+   return type;
+}
+
 Type *read_fundamental_type(Map *local_typedb) {
    int is_const = 0;
    int is_static = 0;
-   char *template_typename = NULL;
    Type *type = NULL;
 
    while (1) {
@@ -3091,20 +3122,9 @@ Type *read_fundamental_type(Map *local_typedb) {
       } else if (tokens->data[pos]->ty == TK_CONST) {
          is_const = 1;
          expect_node(TK_CONST);
-      } else if (consume_node(TK_TEMPLATE)) {
-         expect_node('<');
-         while (1) {
-            expect_node(TK_TYPENAME);
-            template_typename = expect_ident();
-            type = new_type();
-            type->ty = TY_TEMPLATE;
-            type->template_name = template_typename;
-            map_put(local_typedb, template_typename, type);
-            if (!consume_node(',')) {
-               break;
-            }
-         }
-         expect_node('>');
+      } else if (confirm_node(TK_TEMPLATE)) {
+         type = read_template_parameter_list(local_typedb);
+         type->local_typedb = local_typedb;
          break;
       } else {
          break;
@@ -3120,6 +3140,7 @@ Type *read_fundamental_type(Map *local_typedb) {
       type = find_typed_db(expect_ident(), struct_typedb);
    } else {
       char *ident = expect_ident();
+      // looking up template parameters
       if (local_typedb && local_typedb->keys->len > 0) {
          type = find_typed_db(ident, local_typedb);
          if (!type) {
@@ -3127,6 +3148,37 @@ Type *read_fundamental_type(Map *local_typedb) {
          }
       } else {
          type = find_typed_db(ident, typedb);
+      }
+      if (confirm_node('<')) {
+         // by looking up template arguments
+         Vector *template_types = read_template_argument_list(NULL);
+         char *buf = malloc(sizeof(char) * 1024);
+         Type *template_type = NULL;
+         Map *template_type_db = new_map();
+
+         {
+            int j;
+            sprintf(buf, "%s", type->name);
+            for (j = 0; j < type->local_typedb->keys->len; j++) {
+               template_type =
+                   (Type *)type->local_typedb->vals->data[j];
+               map_put(template_type_db, template_type->template_name,
+                       template_types->data[j]);
+               strncat(buf, "_Template_", 12);
+               strncat(buf, type2name((Type *)template_types->data[j]), 128);
+            }
+         }
+         // create mangled template class name
+         // check if already has mangled definition?
+         template_type = find_typed_db(buf, typedb);
+         if (template_type) {
+            type = template_type;
+         } else {
+            type = generate_class_template(type, template_type_db);
+            type->local_typedb = NULL; // for the sake of configuring generate_structure
+            type->name = buf;
+            map_put(typedb, buf, type);
+         }
       }
    }
    if (type) {
@@ -3300,6 +3352,46 @@ void new_fdef(char *name, Type *type, Map *local_typedb) {
    }
 }
 
+void class_declaration(Map* local_typedb) {
+   Type *structuretype = new_type();
+   structuretype->structure = new_map();
+   structuretype->ty = TY_STRUCT;
+   structuretype->ptrof = NULL;
+   char *structurename = expect_ident();
+   structuretype->name = structurename;
+   expect_node('{');
+   MemberAccess memaccess;
+   memaccess = PRIVATE; // on Struct, it is public
+   while (!consume_node('}')) {
+      if (consume_node(TK_PUBLIC)) {
+         memaccess = PUBLIC;
+         expect_node(':');
+         continue;
+      }
+      if (consume_node(TK_PRIVATE)) {
+         memaccess = PRIVATE;
+         expect_node(':');
+         continue;
+      }
+      char *name = NULL;
+      Type *type = read_fundamental_type(local_typedb);
+      type = read_type(type, &name, local_typedb);
+
+      // TODO it should be integrated into new_fdef_node()'s "this"
+      if ((lang & 1) && strstr(name, "::") && type->ty == TY_FUNC &&
+            type->is_static == 0) {
+         type->context->is_previous_class = structurename;
+      }
+      expect_node(';');
+      type->memaccess = memaccess;
+      map_put(structuretype->structure, name, type);
+   }
+   expect_node(';');
+   // to set up local_typedb after instanciate 
+   structuretype->local_typedb = local_typedb;
+   map_put(typedb, structurename, structuretype);
+}
+
 void toplevel() {
    strcpy(arg_registers[0], "rdi");
    strcpy(arg_registers[1], "rsi");
@@ -3331,46 +3423,18 @@ void toplevel() {
          expect_node(';');
          continue;
       }
+      // template declartion
+      if ((lang & 1) && confirm_node(TK_TEMPLATE)) {
+         Map *local_typedb = new_map();
+         read_template_parameter_list(local_typedb);
+         if (consume_node(TK_CLASS)) {
+            class_declaration(local_typedb);
+         }
+      }
+
       // definition of class
       if ((lang & 1) && consume_node(TK_CLASS)) {
-         Type *structuretype = new_type();
-         structuretype->structure = new_map();
-         structuretype->ty = TY_STRUCT;
-         structuretype->ptrof = NULL;
-         //int offset = 0;
-         //int size = 0;
-         char *structurename = expect_ident();
-         structuretype->name = structurename;
-         expect_node('{');
-         MemberAccess memaccess;
-         memaccess = PRIVATE; // on Struct, it is public
-         while (!consume_node('}')) {
-            if (consume_node(TK_PUBLIC)) {
-               memaccess = PUBLIC;
-               expect_node(':');
-               continue;
-            }
-            if (consume_node(TK_PRIVATE)) {
-               memaccess = PRIVATE;
-               expect_node(':');
-               continue;
-            }
-            char *name = NULL;
-            Type *type = read_type_all(&name);
-            //size = type2size3(type);
-
-            // TODO it should be integrated into new_fdef_node()'s "this"
-            if ((lang & 1) && strstr(name, "::") && type->ty == TY_FUNC &&
-                type->is_static == 0) {
-               type->context->is_previous_class = structurename;
-            }
-            expect_node(';');
-            type->memaccess = memaccess;
-            map_put(structuretype->structure, name, type);
-         }
-         //structuretype->offset = offset;
-         expect_node(';');
-         map_put(typedb, structurename, structuretype);
+         class_declaration(NULL);
          continue;
       }
 
@@ -3447,33 +3511,42 @@ void toplevel() {
    vec_push(globalcode, (Token *)new_block_node(NULL));
 }
 
-Type *generate_class_template(Type *type, Type *new_type) {
+Type *generate_class_template(Type *type, Map *template_type_db) {
    type = duplicate_type(type);
+   Type *new_type;
    int j;
 
    if (type && type->ty == TY_TEMPLATE) {
+      new_type = find_typed_db(type->template_name, template_type_db);
+      if (!new_type) {
+         fprintf(stderr, "Error: Incorrect Class Template type: %s\n",
+                 type->template_name);
+         exit(1);
+      }
       type = copy_type(new_type, type);
    }
    if (type->ptrof) {
-      type = generate_class_template(type->ptrof, new_type);
+      type->ptrof = generate_class_template(type->ptrof, template_type_db);
    }
    if (type->ret) {
-      type = generate_class_template(type->ret, new_type);
+      type->ret = generate_class_template(type->ret, template_type_db);
    }
    if (type->argc > 0) {
       for (j = 0; j < type->argc; j++) {
          if (type->args[j]) {
-            type->args[j] = generate_class_template(type->args[j], new_type);
+            type->args[j] = generate_class_template(type->args[j], template_type_db);
          }
       }
    }
    if (type->structure) {
+      Map* new_structure = new_map();
       for (j = 0; j < type->structure->keys->len; j++) {
          if (type->structure->vals->data[j]) {
-            type->structure->vals->data[j] = (Token *)generate_class_template(
-                (Type *)type->structure->vals->data[j], new_type);
+            map_put(new_structure, (char*)type->structure->keys->data[j], (Token *)generate_class_template(
+                (Type *)type->structure->vals->data[j], template_type_db));
          }
       }
+      type->structure = new_structure;
    }
    return type;
 }
