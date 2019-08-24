@@ -1136,7 +1136,7 @@ Node *treat_va_end() {
 }
 
 Node *node_term() {
-   Node *node;
+   Node *node = NULL;
    // Primary Expression
    if (confirm_node(TK_FLOAT)) {
       char *_str = malloc(sizeof(char) * 256);
@@ -1179,6 +1179,10 @@ Node *node_term() {
                vec_push(strs, (Token *)tokens->data[pos]->input));
       node = new_string_node(_str);
       expect_node(TK_STRING);
+   }
+
+   if (!node) {
+      error("Error: No Primary Expression.");
    }
 
    Vector *template_types = NULL;
