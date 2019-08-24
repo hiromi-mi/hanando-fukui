@@ -1696,14 +1696,14 @@ void extend_al_ifneeded(Node *node, Register *reg) {
 void save_callee_reg() {
    int j;
    // because r12,...are callee-savevd
-   for (j = 0;j<4;j++) {
+   for (j = 0; j < 4; j++) {
       printf("push %s\n", callee_saved_registers[j]);
    }
 }
 void restore_callee_reg() {
    int j;
    // because r12,...are callee-savevd
-   for (j = 3;j>=0;j--) {
+   for (j = 3; j >= 0; j--) {
       printf("pop %s\n", callee_saved_registers[j]);
    }
 }
@@ -1725,7 +1725,7 @@ int restore_reg() {
    int j;
    int restored_cnt = 0;
    // 4 because only r10 and r11 are caller-saved
-   for (j = 4; j >=3; j--) {
+   for (j = 4; j >= 3; j--) {
       if (reg_table[j] <= 0)
          continue;
       printf("pop %s\n", registers64[j]);
@@ -2034,17 +2034,21 @@ Register *gen_register_rightval(Node *node, int unused_eval) {
          rhs_reg = gen_register_rightval(node->rhs, 0);
          if (node->lhs->type->ty == TY_FLOAT) {
             secure_mutable_with_type(lhs_reg, node->lhs->type);
-            printf("divss %s, %s\n", node2reg(node->lhs, lhs_reg), node2reg(node->rhs, rhs_reg));
+            printf("divss %s, %s\n", node2reg(node->lhs, lhs_reg),
+                   node2reg(node->rhs, rhs_reg));
          } else if (node->lhs->type->ty == TY_DOUBLE) {
             secure_mutable_with_type(lhs_reg, node->lhs->type);
-            printf("divsd %s, %s\n", node2reg(node->lhs, lhs_reg), node2reg(node->rhs, rhs_reg));
+            printf("divsd %s, %s\n", node2reg(node->lhs, lhs_reg),
+                   node2reg(node->rhs, rhs_reg));
          } else {
             // TODO should support char
-            printf("mov %s, %s\n", _rax(node->lhs), node2reg(node->lhs, lhs_reg));
+            printf("mov %s, %s\n", _rax(node->lhs),
+                   node2reg(node->lhs, lhs_reg));
             puts("cqo");
             printf("idiv %s\n", node2reg(node->rhs, rhs_reg));
             secure_mutable_with_type(lhs_reg, node->lhs->type);
-            printf("mov %s, %s\n", node2reg(node->lhs, lhs_reg), _rax(node->lhs));
+            printf("mov %s, %s\n", node2reg(node->lhs, lhs_reg),
+                   _rax(node->lhs));
          }
          release_reg(rhs_reg);
          if (unused_eval) {

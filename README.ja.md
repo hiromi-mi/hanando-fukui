@@ -9,7 +9,7 @@ $ make
 
 ## コンパイル
 ```
-$ ./hanando -f -r file.c > file.s
+$ ./hanando -f file.c > file.s
 $ gcc -g file.s -o file
 $ ./file
 ```
@@ -45,7 +45,7 @@ int main() {
 このコードは `cppsamples/test3.cpp` にある。
 
 ```
-$ ./hanando -cpp -r -f test3.cpp > test3.s
+$ ./hanando -cpp -f test3.cpp > test3.s
 $ gcc test3.s -o test3
 $ ./test3
 ```
