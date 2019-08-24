@@ -1868,15 +1868,41 @@ Register *gen_register_rightval(Node *node, int unused_eval) {
             }
             return lhs_reg;
          }
-         secure_mutable(lhs_reg);
+         secure_mutable_with_type(lhs_reg, node->lhs->type);
          if (node->type->ty != node->lhs->type->ty) {
-            switch (type2size(node->lhs->type)) {
-               case 1:
+            switch (node->lhs->type->ty) {
+               case TY_CHAR:
                   // TODO treat as unsigned char.
                   // for signed char, use movsx instead of.
                   printf("movzx %s, %s\n", node2reg(node, lhs_reg),
                          id2reg8(lhs_reg->id));
                   break;
+               case TY_FLOAT:
+                  temp_reg = retain_reg();
+                  if (node->type->ty == TY_INT) {
+                     // TODO It it not supported yet: to convert float -> char is not supported yet
+                     printf("cvttss2si %s, %s\n", node2reg(node->lhs, temp_reg), node2reg(node->lhs, lhs_reg));
+                  } else if (node->type->ty == TY_LONG) {
+                     printf("cvttss2siq %s, %s\n", node2reg(node->lhs, temp_reg), node2reg(node->lhs, lhs_reg));
+                  } else {
+                     fprintf(stderr, "Error: float -> unknown type convert.\n");
+                     exit(1);
+                  }
+                  release_reg(lhs_reg);
+                  return temp_reg;
+               case TY_DOUBLE:
+                  temp_reg = retain_reg();
+                  if (node->type->ty == TY_INT) {
+                     // TODO It it not supported yet: to convert float -> char is not supported yet
+                     printf("cvttsd2si %s, %s\n", node2reg(node->lhs, temp_reg), node2reg(node->lhs, lhs_reg));
+                  } else if (node->type->ty == TY_LONG) {
+                     printf("cvttsd2siq %s, %s\n", node2reg(node->lhs, temp_reg), node2reg(node->lhs, lhs_reg));
+                  } else {
+                     fprintf(stderr, "Error: float -> unknown type convert.\n");
+                     exit(1);
+                  }
+                  release_reg(lhs_reg);
+                  return temp_reg;
                default:
                   break;
             }
