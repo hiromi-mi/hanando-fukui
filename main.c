@@ -75,7 +75,7 @@ Type *duplicate_type(Type *old_type);
 Type *copy_type(Type *old_type, Type *type);
 Type *find_typed_db(char *input, Map *db);
 Type *find_typed_db_without_copy(char *input, Map *db);
-Type* class_declaration(Map* local_typedb);
+Type *class_declaration(Map *local_typedb);
 int cnt_size(Type *type);
 Type *get_type_local(Node *node);
 Node *new_addsub_node(NodeType ty, Node *lhs, Node *rhs);
@@ -1392,7 +1392,8 @@ int cnt_size(Type *type) {
       case TY_STRUCT:
          // TODO its dirty
          // As possible, propagate (previous) type->offset as you can
-         // TODO it causes bug when "Type" are duplicated typedb & struct_typedb buf different
+         // TODO it causes bug when "Type" are duplicated typedb & struct_typedb
+         // buf different
          type = find_typed_db(type->name, typedb);
          if (!type) {
             type = find_typed_db(type->name, struct_typedb);
@@ -3034,7 +3035,8 @@ Type *copy_type(Type *old_type, Type *type) {
    type->name = old_type->name;
    type->ret = old_type->ret;
    type->template_name = old_type->template_name;
-   type->local_typedb = old_type->local_typedb; // TODO is duplicate of local_typedb required?
+   type->local_typedb =
+       old_type->local_typedb; // TODO is duplicate of local_typedb required?
    return type;
 }
 
@@ -3069,15 +3071,17 @@ void generate_structure(Map *db) {
    // Should skip TEMPLATE_TYPE
    // How to detect template_based class? -> local_typedb
    for (int j = 0; j < db->keys->len; j++) {
-      Type *structuretype = (Type*)db->vals->data[j];
-      if (structuretype->ty != TY_STRUCT || structuretype->offset > 0 || (structuretype->local_typedb && structuretype->local_typedb->keys->len > 0)) {
+      Type *structuretype = (Type *)db->vals->data[j];
+      if (structuretype->ty != TY_STRUCT || structuretype->offset > 0 ||
+          (structuretype->local_typedb &&
+           structuretype->local_typedb->keys->len > 0)) {
          // structuretype->offset is required to treat FILE (already known)
          continue;
       }
       offset = 0;
 
       for (int k = 0; k < structuretype->structure->keys->len; k++) {
-         Type *type = (Type*)structuretype->structure->vals->data[k];
+         Type *type = (Type *)structuretype->structure->vals->data[k];
          size = type2size3(type);
          if (size > 0 && (offset % size != 0)) {
             offset += (size - offset % size);
@@ -3089,7 +3093,7 @@ void generate_structure(Map *db) {
    }
 }
 
-   // return last templated parameter list
+// return last templated parameter list
 Type *read_template_parameter_list(Map *local_typedb) {
    Type *type = NULL;
    char *template_typename = NULL;
@@ -3163,8 +3167,7 @@ Type *read_fundamental_type(Map *local_typedb) {
             int j;
             sprintf(buf, "%s", type->name);
             for (j = 0; j < type->local_typedb->keys->len; j++) {
-               template_type =
-                   (Type *)type->local_typedb->vals->data[j];
+               template_type = (Type *)type->local_typedb->vals->data[j];
                map_put(template_type_db, template_type->template_name,
                        template_types->data[j]);
                strncat(buf, "_Template_", 12);
@@ -3178,7 +3181,8 @@ Type *read_fundamental_type(Map *local_typedb) {
             type = template_type;
          } else {
             type = generate_class_template(type, template_type_db);
-            type->local_typedb = NULL; // for the sake of configuring generate_structure
+            type->local_typedb =
+                NULL; // for the sake of configuring generate_structure
             type->name = buf;
             map_put(typedb, buf, type);
          }
@@ -3355,7 +3359,7 @@ void new_fdef(char *name, Type *type, Map *local_typedb) {
    }
 }
 
-Type* class_declaration(Map* local_typedb) {
+Type *class_declaration(Map *local_typedb) {
    Type *structuretype = new_type();
    structuretype->structure = new_map();
    structuretype->ty = TY_STRUCT;
@@ -3382,7 +3386,7 @@ Type* class_declaration(Map* local_typedb) {
 
       // TODO it should be integrated into new_fdef_node()'s "this"
       if ((lang & 1) && strstr(name, "::") && type->ty == TY_FUNC &&
-            type->is_static == 0) {
+          type->is_static == 0) {
          type->context->is_previous_class = structurename;
       }
       expect_node(';');
@@ -3390,7 +3394,7 @@ Type* class_declaration(Map* local_typedb) {
       map_put(structuretype->structure, name, type);
    }
    expect_node(';');
-   // to set up local_typedb after instanciate 
+   // to set up local_typedb after instanciate
    structuretype->local_typedb = local_typedb;
    map_put(typedb, structurename, structuretype);
    return structuretype;
@@ -3457,7 +3461,7 @@ void toplevel() {
             expect_node(';');
             map_put(structuretype->structure, name, type);
          }
-         //structuretype->offset = offset;
+         // structuretype->offset = offset;
          char *name = expect_ident();
          structuretype->name = name;
          expect_node(';');
@@ -3533,16 +3537,19 @@ Type *generate_class_template(Type *type, Map *template_type_db) {
    if (type->argc > 0) {
       for (j = 0; j < type->argc; j++) {
          if (type->args[j]) {
-            type->args[j] = generate_class_template(type->args[j], template_type_db);
+            type->args[j] =
+                generate_class_template(type->args[j], template_type_db);
          }
       }
    }
    if (type->structure) {
-      Map* new_structure = new_map();
+      Map *new_structure = new_map();
       for (j = 0; j < type->structure->keys->len; j++) {
          if (type->structure->vals->data[j]) {
-            map_put(new_structure, (char*)type->structure->keys->data[j], (Token *)generate_class_template(
-                (Type *)type->structure->vals->data[j], template_type_db));
+            map_put(
+                new_structure, (char *)type->structure->keys->data[j],
+                (Token *)generate_class_template(
+                    (Type *)type->structure->vals->data[j], template_type_db));
          }
       }
       type->structure = new_structure;
