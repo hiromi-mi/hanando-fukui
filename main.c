@@ -2382,8 +2382,11 @@ Register *gen_register_rightval(Node *node, int unused_eval) {
          }
 
          save_reg();
-         // FIXME: alignment should be 64-bit
          printf("mov al, %d\n", func_call_float_cnt);
+
+         // FIXME: alignment should be 64-bit
+         printf("mov r15, rsp\n");
+         printf("and rsp, -16\n");
          if (node->gen_name) { // ND_GLOBAL_IDENT, called from local vars.
             printf("call %s\n",
                    node->gen_name); // rax should be aligned with the size
@@ -2398,6 +2401,7 @@ Register *gen_register_rightval(Node *node, int unused_eval) {
             printf("call %s\n", size2reg(8, temp_reg));
             release_reg(temp_reg);
          }
+         printf("mov rsp, r15\n");
          restore_reg();
 
          if (node->type->ty == TY_VOID || unused_eval == 1) {

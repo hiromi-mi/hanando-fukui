@@ -1,5 +1,5 @@
 CC = gcc
-CFLAGS = -Wall -Wextra -Wpedantic -g -std=c11
+CFLAGS = -Wall -Wextra -Wpedantic  -std=c11 -g
 LDFLAGS = -lm
 
 #srcs = $(wildcard *.c)
@@ -28,15 +28,9 @@ test:	test1 test2 test3 test4 \
    test10 test11 test19 test12 test13 test14\
    test15 test16 test17 test18 test20 test21\
    test22 test23 test24 test25 test26 test27\
-   test28 test30 test29 test31 test34 test35
+   test28 test30 test29 test31 test34 test35\
+   test36
 	+ make -C samples/
-
-testreg: test1 test2 test3 test4 \
-   test5 test6 test7 test8 test9 \
-   test10 test11 test12 test13 test14 test15\
-   test16 test17 test18 test19 test20\
-   test21 test22 test23 test24 test25 test26\
-   test27 test28 test29 test30 test31
 
 test1:
 	sh testfdef.sh 'int main() {return 1;}' 1 -r
@@ -282,6 +276,9 @@ test35:
 	sh testfdef.sh 'int main(){double a,b; a = 11;b=9; printf("It should be 2: %%f\n", (double)(a-b)); return 0;}' 0
 	sh testfdef.sh 'int main(){double a,b; a = 8;b=9; printf("It should be 72: %%f\n", (double)(a*b)); return 0;}' 0
 	sh testfdef.sh 'int main(){double a,b; a = 12;b=8; printf("It should be 1.5: %%f\n", (double)(a/b)); return 0;}' 0
+
+test36:
+	sh testfdef.sh 'int main(){int a; float b; b = 3.4; printf("It should be 3: %%d\n", (int)b); return 0;}' 0
 
 
 clean:
