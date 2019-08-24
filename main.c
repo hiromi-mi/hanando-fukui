@@ -1939,7 +1939,7 @@ Register *gen_register_rightval(Node *node, int unused_eval) {
          if (node->lhs->type->ty == TY_FLOAT) {
             printf("addss %s, %s\n", node2reg(node, lhs_reg),
                    node2reg(node, rhs_reg));
-         } else if (node->rhs->type->ty == TY_DOUBLE) {
+         } else if (node->lhs->type->ty == TY_DOUBLE) {
             printf("addsd %s, %s\n", node2reg(node, lhs_reg),
                    node2reg(node, rhs_reg));
          } else {
@@ -1961,7 +1961,7 @@ Register *gen_register_rightval(Node *node, int unused_eval) {
          if (node->lhs->type->ty == TY_FLOAT) {
             printf("subss %s, %s\n", node2reg(node, lhs_reg),
                    node2reg(node, rhs_reg));
-         } else if (node->rhs->type->ty == TY_DOUBLE) {
+         } else if (node->lhs->type->ty == TY_DOUBLE) {
             printf("subsd %s, %s\n", node2reg(node, lhs_reg),
                    node2reg(node, rhs_reg));
          } else {
@@ -1990,7 +1990,7 @@ Register *gen_register_rightval(Node *node, int unused_eval) {
          if (node->lhs->type->ty == TY_FLOAT) {
             printf("mulss %s, %s\n", node2reg(node, lhs_reg),
                    node2reg(node, rhs_reg));
-         } else if (node->rhs->type->ty == TY_DOUBLE) {
+         } else if (node->lhs->type->ty == TY_DOUBLE) {
             printf("mulsd %s, %s\n", node2reg(node, lhs_reg),
                    node2reg(node, rhs_reg));
          } else {
@@ -2008,12 +2008,20 @@ Register *gen_register_rightval(Node *node, int unused_eval) {
       case ND_DIV:
          lhs_reg = gen_register_rightval(node->lhs, 0);
          rhs_reg = gen_register_rightval(node->rhs, 0);
-         // TODO should support char
-         printf("mov %s, %s\n", _rax(node->lhs), node2reg(node->lhs, lhs_reg));
-         puts("cqo");
-         printf("idiv %s\n", node2reg(node->rhs, rhs_reg));
-         secure_mutable_with_type(lhs_reg, node->lhs->type);
-         printf("mov %s, %s\n", node2reg(node->lhs, lhs_reg), _rax(node->lhs));
+         if (node->lhs->type->ty == TY_FLOAT) {
+            secure_mutable_with_type(lhs_reg, node->lhs->type);
+            printf("divss %s, %s\n", node2reg(node->lhs, lhs_reg), node2reg(node->rhs, rhs_reg));
+         } else if (node->lhs->type->ty == TY_DOUBLE) {
+            secure_mutable_with_type(lhs_reg, node->lhs->type);
+            printf("divsd %s, %s\n", node2reg(node->lhs, lhs_reg), node2reg(node->rhs, rhs_reg));
+         } else {
+            // TODO should support char
+            printf("mov %s, %s\n", _rax(node->lhs), node2reg(node->lhs, lhs_reg));
+            puts("cqo");
+            printf("idiv %s\n", node2reg(node->rhs, rhs_reg));
+            secure_mutable_with_type(lhs_reg, node->lhs->type);
+            printf("mov %s, %s\n", node2reg(node->lhs, lhs_reg), _rax(node->lhs));
+         }
          release_reg(rhs_reg);
          if (unused_eval) {
             release_reg(lhs_reg);
