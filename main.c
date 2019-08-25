@@ -4238,6 +4238,19 @@ Node *optimizing(Node *node) {
             }
          }
          break;
+         */
+      case ND_MULTIPLY_IMMUTABLE_VALUE:
+         if (node->lhs->ty == ND_NUM) {
+            /*
+             mov r12d, 1
+             imul r12d, 1
+             */
+            // can be rewritten as
+            /* mov r12d, 1 */
+            node->lhs->num_val *= node->num_val;
+            node = node->lhs;
+            // because node and node->lhs shares same type, no need to worry about type
+         }
       default:
          break;
    }
