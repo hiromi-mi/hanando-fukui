@@ -1808,21 +1808,26 @@ Register *gen_register_rightval(Node *node, int unused_eval) {
          }
 
       case ND_DOT:
-         temp_reg = gen_register_leftval(node);
-         if (node->type->ty == TY_ARRAY) {
-            return temp_reg;
-         } else if (node->type->ty == TY_FLOAT || node->type->ty == TY_DOUBLE) {
-            lhs_reg = float_retain_reg();
-            printf("%s %s, [%s]\n", type2mov(node->type),
-                   node2reg(node, lhs_reg), id2reg64(temp_reg->id));
-            release_reg(temp_reg);
-            return lhs_reg;
-         } else {
-            printf("mov %s, [%s]\n", node2reg(node, temp_reg),
-                   id2reg64(temp_reg->id));
+         lhs_reg = gen_register_leftval(node->lhs);
+         switch(node->type->ty) {
+            case TY_ARRAY:
+               if (node->type->offset > 0) {
+                  printf("add %s, %d\n", size2reg(8, lhs_reg), node->type->offset);
+               }
+               break;
+            case TY_FLOAT:
+            case TY_DOUBLE:
+               temp_reg = float_retain_reg();
+               printf("%s %s, [%s+%d]\n", type2mov(node->type),
+                     node2reg(node, temp_reg), id2reg64(lhs_reg->id), node->type->offset);
+               release_reg(lhs_reg);
+               return temp_reg;
+            default:
+               printf("mov %s, [%s+%d]\n", node2reg(node, lhs_reg),
+                     id2reg64(lhs_reg->id), node->type->offset);
+               break;
          }
-         return temp_reg;
-
+         return lhs_reg;
       case ND_ASSIGN:
          // This behaivour can be revised. like [rbp-8+2]
          if (node->lhs->ty == ND_IDENT || node->lhs->ty == ND_GLOBAL_IDENT) {
