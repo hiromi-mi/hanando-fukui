@@ -52,6 +52,8 @@ Env *env;
 int if_cnt = 0;
 int for_while_cnt = 0;
 int omiited_argc = 0; // when used va_start & TK_OMIITED
+int neg_float_generate = 0;
+int neg_double_generate = 0;
 
 char arg_registers[6][4];
 
@@ -2276,7 +2278,24 @@ Register *gen_register_rightval(Node *node, int unused_eval) {
 
       case ND_NEG:
          lhs_reg = gen_register_rightval(node->lhs, 0);
-         printf("neg %s\n", node2reg(node, lhs_reg));
+         secure_mutable_with_type(lhs_reg, node->type);
+         switch (node->type->ty) {
+            case TY_FLOAT:
+               temp_reg = float_retain_reg();
+               printf("movq %s, qword ptr .LCDNEGFLOAT[rip]\n", node2reg(node, temp_reg));
+               printf("xorps %s, %s\n", node2reg(node, lhs_reg), node2reg(node, temp_reg));
+               release_reg(temp_reg);
+               break;
+            case TY_DOUBLE:
+               temp_reg = float_retain_reg();
+               printf("movq %s, qword ptr .LCDNEGDOUBLE[rip]\n", node2reg(node, temp_reg));
+               printf("xorpd %s, %s\n", node2reg(node, lhs_reg), node2reg(node, temp_reg));
+               release_reg(temp_reg);
+               break;
+            default:
+               printf("neg %s\n", node2reg(node, lhs_reg));
+               break;
+         }
          return lhs_reg;
 
       case ND_FPLUSPLUS:
@@ -3770,6 +3789,17 @@ void globalvar_gen() {
       printf(".long %ld\n", *repr & 4294967295);
       printf(".long %ld\n", *repr >> 32);
    }
+
+   // using in ND_NEG
+   if (neg_double_generate) {
+      printf(".LCDNEGDOUBLE:\n");
+      printf(".long 0\n");
+      printf(".long -2147483648\n");
+   }
+   if (neg_float_generate) {
+      printf(".LCDNEGFLOAT:\n");
+      printf(".long 2147483648\n");
+   }
 }
 
 void preprocess(Vector *pre_tokens) {
@@ -4120,6 +4150,13 @@ Node *analyzing(Node *node) {
             exit(1);
          }
          break;
+      case ND_NEG:
+         if (node->type->ty == TY_DOUBLE) {
+            neg_double_generate = 1;
+         }
+         if (node->type->ty == TY_FLOAT) {
+            neg_float_generate = 1;
+         }
       default:
          break;
    }

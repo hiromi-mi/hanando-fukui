@@ -20,5 +20,10 @@ int main() {
    printf("%d ", a <=b);
    printf("%d ", a >b);
    printf("%d\n", a >=b);
+   double c = -3.6;
+   printf("ND_NEG TEST\n%f\n", -c);
+   printf("TEST\n%f\n", c);
+   float d = -5.6;
+   printf("ND_NEG TEST\n%f\n", (double)(-d));
    return 0;
 }
