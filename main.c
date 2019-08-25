@@ -1315,7 +1315,11 @@ char *_rdx(Node *node) {
 }
 
 int cmp_regs(Node *node, Register *lhs_reg, Register *rhs_reg) {
-   if (type2size(node->lhs->type) < type2size(node->rhs->type)) {
+   if (node->lhs->type->ty == TY_FLOAT) {
+      return printf("comiss %s, %s\n", node2reg(node->lhs, lhs_reg), node2reg(node->rhs, rhs_reg));
+   } else if (node->lhs->type->ty == TY_DOUBLE) {
+      return printf("comisd %s, %s\n", node2reg(node->lhs, lhs_reg), node2reg(node->rhs, rhs_reg));
+   } else if (type2size(node->lhs->type) < type2size(node->rhs->type)) {
       // rdi, rax
       return printf("cmp %s, %s\n", node2reg(node->rhs, lhs_reg),
                     node2reg(node->rhs, rhs_reg));
@@ -2166,9 +2170,13 @@ Register *gen_register_rightval(Node *node, int unused_eval) {
       case ND_GREATER:
          lhs_reg = gen_register_rightval(node->lhs, 0);
          rhs_reg = gen_register_rightval(node->rhs, 0);
-         secure_mutable(rhs_reg);
+         secure_mutable_with_type(lhs_reg, node->lhs->type);
          cmp_regs(node, lhs_reg, rhs_reg);
-         puts("setg al");
+         if (node->lhs->type->ty == TY_FLOAT || node->lhs->type->ty == TY_DOUBLE) {
+            puts("seta al");
+         } else {
+            puts("setg al");
+         }
          release_reg(lhs_reg);
          release_reg(rhs_reg);
 
@@ -2180,10 +2188,18 @@ Register *gen_register_rightval(Node *node, int unused_eval) {
          lhs_reg = gen_register_rightval(node->lhs, 0);
          rhs_reg = gen_register_rightval(node->rhs, 0);
 
-         secure_mutable(rhs_reg);
-         cmp_regs(node, lhs_reg, rhs_reg);
-         // TODO: is "andb 1 %al" required?
-         puts("setl al");
+         // TODO lhs_reg should be xmm, but rhs should be xmm or memory
+         if (node->lhs->type->ty == TY_FLOAT || node->lhs->type->ty == TY_DOUBLE) {
+            secure_mutable_with_type(rhs_reg, node->rhs->type);
+            // lhs_reg and rhs_reg are reversed because of comisd
+            cmp_regs(node, rhs_reg, lhs_reg);
+            puts("seta al");
+         } else {
+            secure_mutable(rhs_reg);
+            cmp_regs(node, lhs_reg, rhs_reg);
+            puts("setl al");
+         }
+
          release_reg(lhs_reg);
          release_reg(rhs_reg);
 
@@ -2194,8 +2210,13 @@ Register *gen_register_rightval(Node *node, int unused_eval) {
       case ND_ISMOREEQ:
          lhs_reg = gen_register_rightval(node->lhs, 0);
          rhs_reg = gen_register_rightval(node->rhs, 0);
+         secure_mutable_with_type(lhs_reg, node->lhs->type);
          cmp_regs(node, lhs_reg, rhs_reg);
-         puts("setge al");
+         if (node->lhs->type->ty == TY_FLOAT || node->lhs->type->ty == TY_DOUBLE) {
+            puts("setnb al");
+         } else {
+            puts("setge al");
+         }
          puts("and al, 1");
          release_reg(lhs_reg);
          release_reg(rhs_reg);
@@ -2207,8 +2228,17 @@ Register *gen_register_rightval(Node *node, int unused_eval) {
       case ND_ISLESSEQ:
          lhs_reg = gen_register_rightval(node->lhs, 0);
          rhs_reg = gen_register_rightval(node->rhs, 0);
-         cmp_regs(node, lhs_reg, rhs_reg);
-         puts("setle al");
+         // TODO lhs_reg should be xmm, but rhs should be xmm or memory
+         if (node->lhs->type->ty == TY_FLOAT || node->lhs->type->ty == TY_DOUBLE) {
+            // lhs_reg and rhs_reg are reversed because of comisd
+            secure_mutable_with_type(rhs_reg, node->rhs->type);
+            cmp_regs(node, rhs_reg, lhs_reg);
+            puts("setnb al");
+         } else {
+            secure_mutable_with_type(lhs_reg, node->lhs->type);
+            cmp_regs(node, lhs_reg, rhs_reg);
+            puts("setle al");
+         }
          puts("and al, 1");
          release_reg(lhs_reg);
          release_reg(rhs_reg);
@@ -2707,14 +2737,30 @@ Node *assign() {
    return node;
 }
 
-char *read_function_name() {
+char *read_function_name(Map *local_typedb) {
    char *buf = malloc(sizeof(char) * 1024);
+   Vector *template_types = NULL;
    buf[0] = '\n';
+   strncpy(buf, expect_ident(), 256);
    while (1) {
       if (consume_token(TK_COLONCOLON)) {
          strncat(buf, "::", 3);
+         strncat(buf, expect_ident(), 256);
+      } else if (confirm_token('<')) {
+         template_types = read_template_argument_list(local_typedb);
+         {
+            int j;
+            for (j = 0; j < template_types->len; j++) {
+               strncat(buf, "_Template_", 12);
+               strncat(buf, type2name((Type *)template_types->data[j]), 128);
+            }
+         }
+         // treat as class template
+      } else {
+         return buf;
       }
    }
+   return buf;
 }
 
 Type *read_type(Type *type, char **input, Map *local_typedb) {

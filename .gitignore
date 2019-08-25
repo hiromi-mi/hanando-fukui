@@ -99,5 +99,8 @@ cppsamples/test4
 samples/32
 samples/34
 samples/34.s
+samples/35_hanando
+samples/35_gcc
 
 cppsamples/test5
+
