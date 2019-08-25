@@ -1589,6 +1589,9 @@ Register *retain_reg() {
 }
 
 void release_reg(Register *reg) {
+   if (!reg) {
+      return;
+   }
    if (reg->kind == R_REGISTER) {
       reg_table[reg->id] = 0;
    } else if (reg->kind == R_XMM) {
@@ -1871,11 +1874,19 @@ Register *gen_register_rightval(Node *node, int unused_eval) {
             mov qword ptr [r12+152], r13
             */
             lhs_reg = gen_register_leftval(node->lhs->lhs);
-            rhs_reg = gen_register_rightval(node->rhs, 0);
-            secure_mutable_with_type(rhs_reg, node->rhs->type);
-            printf("%s %s [%s+%d], %s\n", type2mov(node->type),
-                   node2specifier(node), id2reg64(lhs_reg->id),
-                   node->lhs->type->offset, node2reg(node->lhs, rhs_reg));
+            if (node->rhs->ty == ND_NUM) {
+               rhs_reg = NULL;
+               // can be written as immutable value
+               printf("%s %s [%s+%d], %ld\n", type2mov(node->type),
+                     node2specifier(node), id2reg64(lhs_reg->id),
+                     node->lhs->type->offset, node->rhs->num_val);
+            } else {
+               rhs_reg = gen_register_rightval(node->rhs, 0);
+               secure_mutable_with_type(rhs_reg, node->rhs->type);
+               printf("%s %s [%s+%d], %s\n", type2mov(node->type),
+                     node2specifier(node), id2reg64(lhs_reg->id),
+                     node->lhs->type->offset, node2reg(node->lhs, rhs_reg));
+            }
             release_reg(lhs_reg);
             if (unused_eval) {
                release_reg(rhs_reg);
