@@ -20,8 +20,8 @@ selfselftest: self
 	$(CC) -g main2.s -o main2
 	./main2 -f main.c > main3.s
 	$(CC) -g main3.s -o main3
-	diff -c main2.s main3.s
-	diff -c main.s main2.s
+	diff -u main2.s main3.s
+	diff -u main.s main2.s
 
 test:	test1 test2 test3 test4 \
    test5 test6 test7 test8 test9 \

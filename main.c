@@ -106,6 +106,7 @@ FILE *fopen(char *name, char *type);
 void *malloc(int size);
 void *realloc(void *ptr, int size);
 float strtof(char *nptr, char **endptr);
+double strtod(char *nptr, char **endptr);
 #endif
 
 char *type2name(Type *type) {
