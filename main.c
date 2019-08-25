@@ -1636,26 +1636,6 @@ void secure_mutable_with_type(Register *reg, Type *type) {
    }
 }
 
-void secure_mutable(Register *reg) {
-   // to enable to change
-   if (reg->kind != R_REGISTER && reg->kind != R_XMM) {
-      Register *new_reg = retain_reg();
-      if (reg->size <= 0) {
-         printf("mov %s, %s\n", size2reg(8, new_reg), size2reg(8, reg));
-      } else if (reg->size == 1) {
-         printf("movzx %s, %s\n", size2reg(8, new_reg),
-                size2reg(reg->size, reg));
-      } else {
-         printf("mov %s, %s\n", size2reg(reg->size, new_reg),
-                size2reg(reg->size, reg));
-      }
-      reg->id = new_reg->id;
-      reg->kind = new_reg->kind;
-      reg->name = new_reg->name;
-      reg->size = new_reg->size;
-   }
-}
-
 Register *gen_register_leftval(Node *node) {
    Register *temp_reg;
    Register *lhs_reg;
@@ -2047,7 +2027,7 @@ Register *gen_register_rightval(Node *node, int unused_eval) {
       case ND_MULTIPLY_IMMUTABLE_VALUE:
          // after optimizing, this will be deleted.
          lhs_reg = gen_register_rightval(node->lhs, 0);
-         secure_mutable(lhs_reg);
+         secure_mutable_with_type(lhs_reg, node->lhs->type);
          printf("imul %s, %ld\n", node2reg(node, lhs_reg), node->num_val);
          return lhs_reg;
 
@@ -2109,7 +2089,7 @@ Register *gen_register_rightval(Node *node, int unused_eval) {
          printf("mov %s, %s\n", _rax(node->lhs), node2reg(node->lhs, lhs_reg));
          puts("cqo");
          printf("idiv %s\n", node2reg(node->rhs, rhs_reg));
-         secure_mutable(lhs_reg);
+         secure_mutable_with_type(lhs_reg, node->lhs->type);
          printf("mov %s, %s\n", node2reg(node, lhs_reg), _rdx(node->lhs));
          release_reg(rhs_reg);
          if (unused_eval) {
@@ -2122,7 +2102,7 @@ Register *gen_register_rightval(Node *node, int unused_eval) {
       case ND_XOR:
          lhs_reg = gen_register_rightval(node->lhs, 0);
          rhs_reg = gen_register_rightval(node->rhs, 0);
-         secure_mutable(lhs_reg);
+         secure_mutable_with_type(lhs_reg, node->lhs->type);
          printf("xor %s, %s\n", node2reg(node, lhs_reg),
                 node2reg(node, rhs_reg));
          release_reg(rhs_reg);
@@ -2131,7 +2111,7 @@ Register *gen_register_rightval(Node *node, int unused_eval) {
       case ND_AND:
          lhs_reg = gen_register_rightval(node->lhs, 0);
          rhs_reg = gen_register_rightval(node->rhs, 0);
-         secure_mutable(lhs_reg);
+         secure_mutable_with_type(lhs_reg, node->lhs->type);
          printf("and %s, %s\n", node2reg(node, lhs_reg),
                 node2reg(node, rhs_reg));
          release_reg(rhs_reg);
@@ -2141,7 +2121,7 @@ Register *gen_register_rightval(Node *node, int unused_eval) {
       case ND_OR:
          lhs_reg = gen_register_rightval(node->lhs, 0);
          rhs_reg = gen_register_rightval(node->rhs, 0);
-         secure_mutable(lhs_reg);
+         secure_mutable_with_type(lhs_reg, node->lhs->type);
          printf("or %s, %s\n", node2reg(node, lhs_reg),
                 node2reg(node, rhs_reg));
          release_reg(rhs_reg);
@@ -2155,7 +2135,7 @@ Register *gen_register_rightval(Node *node, int unused_eval) {
          // mov rdi[8] -> rax
          printf("mov cl, %s\n", id2reg8(rhs_reg->id));
          release_reg(rhs_reg);
-         secure_mutable(lhs_reg);
+         secure_mutable_with_type(lhs_reg, node->lhs->type);
          printf("sar %s, cl\n", node2reg(node->lhs, lhs_reg));
          return lhs_reg;
 
@@ -2168,7 +2148,7 @@ Register *gen_register_rightval(Node *node, int unused_eval) {
          // TODO Support minus
          printf("mov cl, %s\n", id2reg8(rhs_reg->id));
          release_reg(rhs_reg);
-         secure_mutable(lhs_reg);
+         secure_mutable_with_type(lhs_reg, node->lhs->type);
          printf("sal %s, cl\n", node2reg(node->lhs, lhs_reg));
          return lhs_reg;
 
@@ -2227,7 +2207,7 @@ Register *gen_register_rightval(Node *node, int unused_eval) {
             cmp_regs(node, rhs_reg, lhs_reg);
             puts("seta al");
          } else {
-            secure_mutable(rhs_reg);
+            secure_mutable_with_type(rhs_reg, node->rhs->type);
             cmp_regs(node, lhs_reg, rhs_reg);
             puts("setl al");
          }
@@ -2331,14 +2311,14 @@ Register *gen_register_rightval(Node *node, int unused_eval) {
       case ND_FPLUSPLUS:
          lhs_reg = gen_register_leftval(node->lhs);
          if (unused_eval) {
-            secure_mutable(lhs_reg);
+            secure_mutable_with_type(lhs_reg, node->lhs->type);
             printf("add %s [%s], %ld\n", node2specifier(node),
                    id2reg64(lhs_reg->id), node->num_val);
             release_reg(lhs_reg);
             return NO_REGISTER;
          } else {
             temp_reg = retain_reg();
-            secure_mutable(lhs_reg);
+            secure_mutable_with_type(lhs_reg, node->lhs->type);
 
             if (type2size(node->type) == 1) {
                printf("movzx %s, [%s]\n", size2reg(4, temp_reg),
@@ -2355,15 +2335,14 @@ Register *gen_register_rightval(Node *node, int unused_eval) {
 
       case ND_FSUBSUB:
          lhs_reg = gen_register_leftval(node->lhs);
+         secure_mutable_with_type(lhs_reg, node->lhs->type);
          if (unused_eval) {
-            secure_mutable(lhs_reg);
             printf("sub %s [%s], %ld\n", node2specifier(node),
                    id2reg64(lhs_reg->id), node->num_val);
             release_reg(lhs_reg);
             return NO_REGISTER;
          } else {
             temp_reg = retain_reg();
-            secure_mutable(lhs_reg);
 
             printf("mov %s, [%s]\n", node2reg(node, temp_reg),
                    id2reg64(lhs_reg->id));
@@ -2384,9 +2363,8 @@ Register *gen_register_rightval(Node *node, int unused_eval) {
 
       case ND_DEREF:
          lhs_reg = gen_register_rightval(node->lhs, 0);
-
          // this is because we cannot [[lhs_reg]] (float deref)
-         secure_mutable(lhs_reg);
+         secure_mutable_with_type(lhs_reg, node->lhs->type);
          if (type2size(node->type) == 1) {
             // when reading char, we should read just 1 byte
             printf("movzx %s, byte ptr [%s]\n", size2reg(4, lhs_reg),
@@ -2489,7 +2467,7 @@ Register *gen_register_rightval(Node *node, int unused_eval) {
                func_call_float_cnt++;
             } else {
                // TODO Dirty: Should implement 642node
-               secure_mutable(temp_reg);
+               secure_mutable_with_type(temp_reg, node->type);
                printf("push %s\n", id2reg64(temp_reg->id));
             }
             release_reg(temp_reg);
@@ -2515,7 +2493,7 @@ Register *gen_register_rightval(Node *node, int unused_eval) {
             printf("call %s\n", mangle_func_name(buf));
          } else {
             temp_reg = gen_register_rightval(node->lhs, 0);
-            secure_mutable(temp_reg);
+            secure_mutable_with_type(temp_reg, node->lhs->type);
             printf("call %s\n", size2reg(8, temp_reg));
             release_reg(temp_reg);
          }
