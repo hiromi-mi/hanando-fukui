@@ -942,16 +942,16 @@ Node *node_compare() {
    while (1) {
       if (consume_token('<')) {
          node = new_node_with_cast('<', node, node_shift());
-         node->type = find_typed_db("char", typedb);
+         node->type = find_typed_db("int", typedb);
       } else if (consume_token('>')) {
          node = new_node_with_cast('>', node, node_shift());
-         node->type = find_typed_db("char", typedb);
+         node->type = find_typed_db("int", typedb);
       } else if (consume_token(TK_ISLESSEQ)) {
          node = new_node_with_cast(ND_ISLESSEQ, node, node_shift());
-         node->type = find_typed_db("char", typedb);
+         node->type = find_typed_db("int", typedb);
       } else if (consume_token(TK_ISMOREEQ)) {
          node = new_node_with_cast(ND_ISMOREEQ, node, node_shift());
-         node->type = find_typed_db("char", typedb);
+         node->type = find_typed_db("int", typedb);
       } else {
          return node;
       }
@@ -963,10 +963,10 @@ Node *node_iseq() {
    while (1) {
       if (consume_token(TK_ISEQ)) {
          node = new_node_with_cast(ND_ISEQ, node, node_compare());
-         node->type = find_typed_db("char", typedb);
+         node->type = find_typed_db("int", typedb);
       } else if (consume_token(TK_ISNOTEQ)) {
          node = new_node_with_cast(ND_ISNOTEQ, node, node_compare());
-         node->type = find_typed_db("char", typedb);
+         node->type = find_typed_db("int", typedb);
       } else {
          return node;
       }
