@@ -1055,15 +1055,19 @@ Node *node_increment() {
    } else if (consume_token('*')) {
       node = new_deref_node(node_increment());
    } else if (consume_token(TK_SIZEOF)) {
-      if (consume_token('(') && confirm_type()) {
+      if (consume_token('(')) {
+         // should be type
          node = new_node(ND_SIZEOF, NULL, NULL);
          node->sizeof_type = read_type_all(NULL);
          node->type = find_typed_db("long", typedb);
          expect_node(')');
-         return node;
+      } else {
+         // evaluate the result of ND_SIZEOF
+         node = new_node(ND_SIZEOF, NULL, NULL);
+         node->conds[0] = node_mathexpr();
+         node->type = find_typed_db("long", typedb);
       }
-      node = node_mathexpr();
-      return new_long_num_node(type2size(node->type));
+      return node;
    } else {
       return node_term();
    }
@@ -3978,12 +3982,6 @@ Node *analyzing(Node *node) {
          node->lvar_offset = node->type->offset;
       }
    }
-   if (node->ty == ND_SIZEOF) {
-      // ND_SIZEOF should generate its type information.
-      // This is because: on parse, no (structured) type size are avaliable
-      node = new_num_node(cnt_size(node->sizeof_type));
-   }
-
    if (node->lhs) {
       node->lhs = analyzing(node->lhs);
    }
@@ -4009,6 +4007,16 @@ Node *analyzing(Node *node) {
    }
 
    switch (node->ty) {
+      case ND_SIZEOF:
+         if (node->conds[0]) {
+            // evaluate node->conds[0] and return its type
+            node = new_long_num_node(cnt_size(node->conds[0]->type));
+         } else {
+            // ND_SIZEOF should generate its type information.
+            // This is because: on parse, no (structured) type size are avaliable
+            node = new_long_num_node(cnt_size(node->sizeof_type));
+         }
+         break;
       case ND_ADD:
       case ND_SUB:
          if (node->lhs->type->ty == TY_PTR || node->lhs->type->ty == TY_ARRAY) {

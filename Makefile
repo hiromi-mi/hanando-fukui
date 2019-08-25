@@ -147,6 +147,9 @@ test14:
 test15:
 	sh testfdef.sh "int main(){char a;return a=1;}" 1
 	sh testfdef.sh "int main(){return sizeof 3;}" 4
+	sh testfdef.sh "int main(){int a; int b; return sizeof a<b;}" 4
+	sh testfdef.sh "int main(){float a; float b; return sizeof a==b;}" 4
+	sh testfdef.sh "int main(){double a; double b; return sizeof a>b;}" 4
 	sh testfdef.sh "int main(){return sizeof(int);}" 4
 	sh testfdef.sh "int main(){int a=1;return a;}" 1
 
