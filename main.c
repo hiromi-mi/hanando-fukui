@@ -63,7 +63,7 @@ Type *read_type_all(char **input);
 Type *read_type(Type *type, char **input, Map *local_typedb);
 Type *read_fundamental_type(Map *local_typedb);
 int confirm_type();
-int confirm_node(TokenConst ty);
+int confirm_token(TokenConst ty);
 int confirm_ident();
 int consume_ident();
 int split_type_caller();
@@ -391,7 +391,7 @@ Node *new_ident_node(char *name) {
       return node;
    }
    // If expect this is an (unknown) function
-   if (confirm_node('(')) {
+   if (confirm_token('(')) {
       node->ty = ND_SYMBOL;
       node->type = find_typed_db("int", typedb);
       return node;
@@ -541,14 +541,14 @@ Node *new_block_node(Env *prev_env) {
    return node;
 }
 
-int confirm_node(TokenConst ty) {
+int confirm_token(TokenConst ty) {
    if (tokens->data[pos]->ty != ty) {
       return 0;
    }
    return 1;
 }
 
-int consume_node(TokenConst ty) {
+int consume_token(TokenConst ty) {
    if (tokens->data[pos]->ty != ty) {
       return 0;
    }
@@ -883,7 +883,7 @@ Node *node_mathexpr_without_comma() { return node_lor(); }
 Node *node_mathexpr() {
    Node *node = node_lor();
    while (1) {
-      if (consume_node(',')) {
+      if (consume_token(',')) {
          node = new_node(',', node, node_lor());
          node->type = node->rhs->type;
       } else {
@@ -895,7 +895,7 @@ Node *node_mathexpr() {
 Node *node_land() {
    Node *node = node_or();
    while (1) {
-      if (consume_node(TK_AND)) {
+      if (consume_token(TK_AND)) {
          node = new_node(ND_LAND, node, node_or());
       } else {
          return node;
@@ -906,7 +906,7 @@ Node *node_land() {
 Node *node_lor() {
    Node *node = node_land();
    while (1) {
-      if (consume_node(TK_OR)) {
+      if (consume_token(TK_OR)) {
          node = new_node(ND_LOR, node, node_land());
       } else {
          return node;
@@ -918,9 +918,9 @@ Node *node_shift() {
    Node *node = node_add();
    // TODO: Shift should be only char.
    while (1) {
-      if (consume_node(TK_LSHIFT)) {
+      if (consume_token(TK_LSHIFT)) {
          node = new_node(ND_LSHIFT, node, node_add());
-      } else if (consume_node(TK_RSHIFT)) {
+      } else if (consume_token(TK_RSHIFT)) {
          node = new_node(ND_RSHIFT, node, node_add());
       } else {
          return node;
@@ -930,7 +930,7 @@ Node *node_shift() {
 Node *node_or() {
    Node *node = node_xor();
    while (1) {
-      if (consume_node('|')) {
+      if (consume_token('|')) {
          node = new_node('|', node, node_xor());
       } else {
          return node;
@@ -940,16 +940,16 @@ Node *node_or() {
 Node *node_compare() {
    Node *node = node_shift();
    while (1) {
-      if (consume_node('<')) {
+      if (consume_token('<')) {
          node = new_node_with_cast('<', node, node_shift());
          node->type = find_typed_db("char", typedb);
-      } else if (consume_node('>')) {
+      } else if (consume_token('>')) {
          node = new_node_with_cast('>', node, node_shift());
          node->type = find_typed_db("char", typedb);
-      } else if (consume_node(TK_ISLESSEQ)) {
+      } else if (consume_token(TK_ISLESSEQ)) {
          node = new_node_with_cast(ND_ISLESSEQ, node, node_shift());
          node->type = find_typed_db("char", typedb);
-      } else if (consume_node(TK_ISMOREEQ)) {
+      } else if (consume_token(TK_ISMOREEQ)) {
          node = new_node_with_cast(ND_ISMOREEQ, node, node_shift());
          node->type = find_typed_db("char", typedb);
       } else {
@@ -961,10 +961,10 @@ Node *node_compare() {
 Node *node_iseq() {
    Node *node = node_compare();
    while (1) {
-      if (consume_node(TK_ISEQ)) {
+      if (consume_token(TK_ISEQ)) {
          node = new_node_with_cast(ND_ISEQ, node, node_compare());
          node->type = find_typed_db("char", typedb);
-      } else if (consume_node(TK_ISNOTEQ)) {
+      } else if (consume_token(TK_ISNOTEQ)) {
          node = new_node_with_cast(ND_ISNOTEQ, node, node_compare());
          node->type = find_typed_db("char", typedb);
       } else {
@@ -976,7 +976,7 @@ Node *node_iseq() {
 Node *node_and() {
    Node *node = node_iseq();
    while (1) {
-      if (consume_node('&')) {
+      if (consume_token('&')) {
          node = new_node('&', node, node_iseq());
       } else {
          return node;
@@ -986,7 +986,7 @@ Node *node_and() {
 Node *node_xor() {
    Node *node = node_and();
    while (1) {
-      if (consume_node('^')) {
+      if (consume_token('^')) {
          node = new_node('^', node, node_and());
       } else {
          return node;
@@ -996,9 +996,9 @@ Node *node_xor() {
 Node *node_add() {
    Node *node = node_mul();
    while (1) {
-      if (consume_node('+')) {
+      if (consume_token('+')) {
          node = new_addsub_node('+', node, node_mul());
-      } else if (consume_node('-')) {
+      } else if (consume_token('-')) {
          node = new_addsub_node('-', node, node_mul());
       } else {
          return node;
@@ -1009,7 +1009,7 @@ Node *node_add() {
 Node *node_cast() {
    // reading cast stmt. This does not support multiple cast.
    Node *node = NULL;
-   if (consume_node('(')) {
+   if (consume_token('(')) {
       if (confirm_type()) {
          Type *type = read_type_all(NULL);
          expect_node(')');
@@ -1017,7 +1017,7 @@ Node *node_cast() {
          node->type = type;
          return node;
       }
-      // because of consume_node'('
+      // because of consume_token'('
       // dirty
       pos--;
    }
@@ -1027,22 +1027,22 @@ Node *node_cast() {
 
 Node *node_increment() {
    Node *node;
-   if (consume_node('-')) {
+   if (consume_token('-')) {
       Node *node = new_node(ND_NEG, node_increment(), NULL);
       return node;
-   } else if (consume_node('!')) {
+   } else if (consume_token('!')) {
       Node *node = new_node('!', node_increment(), NULL);
       return node;
-   } else if (consume_node('+')) {
+   } else if (consume_token('+')) {
       Node *node = node_increment();
       return node;
-   } else if (consume_node(TK_PLUSPLUS)) {
+   } else if (consume_token(TK_PLUSPLUS)) {
       node = new_ident_node(expect_ident());
       node = new_assign_node(node, new_addsub_node('+', node, new_num_node(1)));
-   } else if (consume_node(TK_SUBSUB)) {
+   } else if (consume_token(TK_SUBSUB)) {
       node = new_ident_node(expect_ident());
       node = new_assign_node(node, new_addsub_node('-', node, new_num_node(1)));
-   } else if (consume_node('&')) {
+   } else if (consume_token('&')) {
       node = node_increment();
       if (node->ty == ND_DEREF) {
          node = node->lhs;
@@ -1052,10 +1052,10 @@ Node *node_increment() {
          node->type->ty = TY_PTR;
          node->type->ptrof = node->lhs->type;
       }
-   } else if (consume_node('*')) {
+   } else if (consume_token('*')) {
       node = new_deref_node(node_increment());
-   } else if (consume_node(TK_SIZEOF)) {
-      if (consume_node('(') && confirm_type()) {
+   } else if (consume_token(TK_SIZEOF)) {
+      if (consume_token('(') && confirm_type()) {
          node = new_node(ND_SIZEOF, NULL, NULL);
          node->sizeof_type = read_type_all(NULL);
          node->type = find_typed_db("long", typedb);
@@ -1073,11 +1073,11 @@ Node *node_increment() {
 Node *node_mul() {
    Node *node = node_cast();
    while (1) {
-      if (consume_node('*')) {
+      if (consume_token('*')) {
          node = new_node_with_cast('*', node, node_cast());
-      } else if (consume_node('/')) {
+      } else if (consume_token('/')) {
          node = new_node('/', node, node_cast());
-      } else if (consume_node('%')) {
+      } else if (consume_token('%')) {
          node = new_node('%', node, node_cast());
       } else {
          return node;
@@ -1143,7 +1143,7 @@ Vector *read_template_argument_list(Map *local_typedb) {
       template_type = read_type(template_type, NULL, local_typedb);
       // In this position, we don't know definition of template_type_db
       vec_push(template_types, (Token *)template_type);
-      if (!consume_node(',')) {
+      if (!consume_token(',')) {
          expect_node('>');
          break;
       }
@@ -1156,23 +1156,23 @@ Node *node_term() {
    Vector *template_types = NULL;
 
    // Primary Expression
-   if (confirm_node(TK_FLOAT)) {
+   if (confirm_token(TK_FLOAT)) {
       char *_str = malloc(sizeof(char) * 256);
       float *float_repr = malloc(sizeof(float));
       *float_repr = (float)tokens->data[pos]->float_val;
       snprintf(_str, 255, ".LCF%d", vec_push(floats, (Token *)float_repr));
       node = new_float_node(tokens->data[pos]->float_val, _str, "float");
       expect_node(TK_FLOAT);
-   } else if (confirm_node(TK_DOUBLE)) {
+   } else if (confirm_token(TK_DOUBLE)) {
       char *_str = malloc(sizeof(char) * 256);
       snprintf(_str, 255, ".LCD%d",
                vec_push(float_doubles, (Token *)&tokens->data[pos]->float_val));
       node = new_float_node(tokens->data[pos]->float_val, _str, "double");
       expect_node(TK_DOUBLE);
-   } else if (confirm_node(TK_NUM)) {
+   } else if (confirm_token(TK_NUM)) {
       node = new_num_node(tokens->data[pos]->num_val);
       expect_node(TK_NUM);
-   } else if (consume_node(TK_NULL)) {
+   } else if (consume_token(TK_NULL)) {
       node = new_num_node(0);
       node->type->ty = TY_PTR;
    } else if (confirm_ident()) {
@@ -1186,12 +1186,12 @@ Node *node_term() {
          }
       }
       node = new_ident_node(input);
-   } else if (consume_node('(')) {
+   } else if (consume_token('(')) {
       node = assign();
-      if (consume_node(')') == 0) {
+      if (consume_token(')') == 0) {
          error("Error: Incorrect Parensis.");
       }
-   } else if (confirm_node(TK_STRING)) {
+   } else if (confirm_token(TK_STRING)) {
       char *_str = malloc(sizeof(char) * 256);
       snprintf(_str, 255, ".LC%d",
                vec_push(strs, (Token *)tokens->data[pos]->input));
@@ -1207,7 +1207,7 @@ Node *node_term() {
       // Postfix Expression
 
       // Template
-      if ((lang & 1) && confirm_node('<')) {
+      if ((lang & 1) && confirm_token('<')) {
          if (node->ty != ND_SYMBOL) {
             continue;
          }
@@ -1217,7 +1217,7 @@ Node *node_term() {
             continue;
          }
          template_types = read_template_argument_list(NULL);
-      } else if (confirm_node('(')) {
+      } else if (confirm_token('(')) {
          // Function Call
          // char *fname = expect_ident();
          char *fname = "";
@@ -1236,30 +1236,30 @@ Node *node_term() {
          // skip func , (
          expect_node('(');
          while (1) {
-            if ((consume_node(',') == 0) && consume_node(')')) {
+            if ((consume_token(',') == 0) && consume_token(')')) {
                return node;
             }
             node->args[node->argc++] = node_mathexpr_without_comma();
          }
          // assert(node->argc <= 6);
-         // pos++ because of consume_node(')')
+         // pos++ because of consume_token(')')
          // return node;
-      } else if (consume_node(TK_PLUSPLUS)) {
+      } else if (consume_token(TK_PLUSPLUS)) {
          node = new_node(ND_FPLUSPLUS, node, NULL);
          node->num_val = 1;
          // if (node->lhs->type->ty == TY_PTR || node->lhs->type->ty ==
          // TY_ARRAY) { Moved to analyzing process.
-      } else if (consume_node(TK_SUBSUB)) {
+      } else if (consume_token(TK_SUBSUB)) {
          node = new_node(ND_FSUBSUB, node, NULL);
          node->num_val = 1;
          // if (node->lhs->type->ty == TY_PTR || node->lhs->type->ty ==
          // TY_ARRAY) { Moved to analyzing process.
-      } else if (consume_node('[')) {
+      } else if (consume_token('[')) {
          node = new_deref_node(new_addsub_node('+', node, node_mathexpr()));
          expect_node(']');
-      } else if (consume_node('.')) {
+      } else if (consume_token('.')) {
          node = new_dot_node(node);
-      } else if (consume_node(TK_ARROW)) {
+      } else if (consume_token(TK_ARROW)) {
          node = new_dot_node(new_deref_node(node));
       } else {
          return node;
@@ -2687,8 +2687,8 @@ void gen_register_top() {
 
 Node *assign() {
    Node *node = node_mathexpr();
-   if (consume_node('=')) {
-      if (confirm_node(TK_OPAS)) {
+   if (consume_token('=')) {
+      if (confirm_token(TK_OPAS)) {
          // FIXME: shift
          NodeType tp = tokens->data[pos]->input[0];
          expect_node(TK_OPAS);
@@ -2707,6 +2707,16 @@ Node *assign() {
    return node;
 }
 
+char *read_function_name() {
+   char *buf = malloc(sizeof(char) * 1024);
+   buf[0] = '\n';
+   while (1) {
+      if (consume_token(TK_COLONCOLON)) {
+         strncat(buf, "::", 3);
+      }
+   }
+}
+
 Type *read_type(Type *type, char **input, Map *local_typedb) {
    int ptr_cnt = 0;
    int i = 0;
@@ -2714,16 +2724,16 @@ Type *read_type(Type *type, char **input, Map *local_typedb) {
 
    // Variable Definition.
    // consume is pointer or not
-   while (consume_node('*')) {
+   while (consume_token('*')) {
       ptr_cnt++;
    }
    // There are input: there are ident names
    if (input) {
       // When there are its name or not
       *input = NULL;
-      if (confirm_node(TK_IDENT)) {
+      if (confirm_token(TK_IDENT)) {
          *input = tokens->data[pos]->input;
-      } else if (consume_node('(')) {
+      } else if (consume_token('(')) {
          // functional pointer. declarator
          concrete_type = read_type(NULL, input, local_typedb);
          Type *base_type = concrete_type;
@@ -2736,14 +2746,14 @@ Type *read_type(Type *type, char **input, Map *local_typedb) {
    } else {
       input = &tokens->data[pos]->input;
    }
-   consume_node(TK_IDENT);
+   consume_token(TK_IDENT);
 
    for (i = 0; i < ptr_cnt; i++) {
       type = type_pointer(type);
    }
    // array
    while (1) {
-      if (consume_node('[')) {
+      if (consume_token('[')) {
          Type *base_type = type;
          type = new_type();
          type->ty = TY_ARRAY;
@@ -2753,7 +2763,7 @@ Type *read_type(Type *type, char **input, Map *local_typedb) {
          expect_node(']');
          Type *cur_ptr = type;
          // support for multi-dimensional array
-         while (consume_node('[')) {
+         while (consume_token('[')) {
             // TODO: support NOT functioned type
             // ex. int a[4+7];
             cur_ptr->ptrof = new_type();
@@ -2764,7 +2774,7 @@ Type *read_type(Type *type, char **input, Map *local_typedb) {
             expect_node(']');
             cur_ptr = cur_ptr->ptrof;
          }
-      } else if (consume_node('(')) {
+      } else if (consume_token('(')) {
          // Function call.
          Type *concrete_type = new_type();
          concrete_type->ty = TY_FUNC;
@@ -2783,8 +2793,8 @@ Type *read_type(Type *type, char **input, Map *local_typedb) {
 
          // treat as function.
          for (concrete_type->argc = 0;
-              concrete_type->argc <= 6 && !consume_node(')');) {
-            if (consume_node(TK_OMIITED)) {
+              concrete_type->argc <= 6 && !consume_token(')');) {
+            if (consume_token(TK_OMIITED)) {
                type->is_omiited = 1;
                expect_node(')');
                break;
@@ -2796,7 +2806,7 @@ Type *read_type(Type *type, char **input, Map *local_typedb) {
                 concrete_type->args[concrete_type->argc], &buf, local_typedb);
             // Save its variable name, if any.
             concrete_type->args[concrete_type->argc++]->name = buf;
-            consume_node(',');
+            consume_token(',');
          }
       } else {
          break;
@@ -2822,33 +2832,33 @@ Node *stmt() {
          type = read_type(duplicate_type(fundamental_type), &input, NULL);
          node = new_ident_node_with_new_variable(input, type);
          // if there is int a =1;
-         if (consume_node('=')) {
-            if (consume_node('{')) {
+         if (consume_token('=')) {
+            if (consume_token('{')) {
             } else {
                node = new_node('=', node, node_mathexpr());
             }
          }
          input = NULL;
-      } while (consume_node(','));
-   } else if (consume_node(TK_RETURN)) {
-      if (confirm_node(';')) {
+      } while (consume_token(','));
+   } else if (consume_token(TK_RETURN)) {
+      if (confirm_token(';')) {
          // to support return; with void type
          node = new_node(ND_RETURN, NULL, NULL);
       } else {
          node = new_node(ND_RETURN, assign(), NULL);
       }
       // FIXME GOTO is not statement, expr.
-   } else if (consume_node(TK_GOTO)) {
+   } else if (consume_token(TK_GOTO)) {
       node = new_node(ND_GOTO, NULL, NULL);
       node->name = expect_ident();
-   } else if (consume_node(TK_BREAK)) {
+   } else if (consume_token(TK_BREAK)) {
       node = new_node(ND_BREAK, NULL, NULL);
-   } else if (consume_node(TK_CONTINUE)) {
+   } else if (consume_token(TK_CONTINUE)) {
       node = new_node(ND_CONTINUE, NULL, NULL);
    } else {
       node = assign();
    }
-   if (!consume_node(';')) {
+   if (!consume_token(';')) {
       error("Error: Not token ;");
    }
    node->pline = pline;
@@ -2863,18 +2873,18 @@ Node *node_if() {
    node->pline = tokens->data[pos - 1]->pline;
    // Suppress COndition
 
-   if (confirm_node(TK_BLOCKBEGIN)) {
+   if (confirm_token(TK_BLOCKBEGIN)) {
       node->lhs = new_block_node(env);
       program(node->lhs);
    } else {
       // without block
       node->lhs = stmt();
    }
-   if (consume_node(TK_ELSE)) {
-      if (confirm_node(TK_BLOCKBEGIN)) {
+   if (consume_token(TK_ELSE)) {
+      if (confirm_token(TK_BLOCKBEGIN)) {
          node->rhs = new_block_node(env);
          program(node->rhs);
-      } else if (consume_node(TK_IF)) {
+      } else if (consume_token(TK_IF)) {
          node->rhs = node_if();
       } else {
          node->rhs = stmt();
@@ -2888,21 +2898,21 @@ void program(Node *block_node) {
    Vector *args = block_node->code;
    Env *prev_env = env;
    env = block_node->env;
-   while (!consume_node('}')) {
-      if (confirm_node('{')) {
+   while (!consume_token('}')) {
+      if (confirm_token('{')) {
          Node *new_block = new_block_node(env);
          program(new_block);
          vec_push(args, (Token *)new_block);
          continue;
       }
 
-      if (consume_node(TK_IF)) {
+      if (consume_token(TK_IF)) {
          vec_push(args, (Token *)node_if());
          continue;
       }
-      if (consume_node(TK_WHILE)) {
+      if (consume_token(TK_WHILE)) {
          Node *while_node = new_node(ND_WHILE, node_mathexpr(), NULL);
-         if (confirm_node(TK_BLOCKBEGIN)) {
+         if (confirm_token(TK_BLOCKBEGIN)) {
             while_node->rhs = new_block_node(env);
             program(while_node->rhs);
          } else {
@@ -2911,7 +2921,7 @@ void program(Node *block_node) {
          vec_push(args, (Token *)while_node);
          continue;
       }
-      if (consume_node(TK_DO)) {
+      if (consume_token(TK_DO)) {
          Node *do_node = new_node(ND_DOWHILE, NULL, NULL);
          do_node->rhs = new_block_node(env);
          program(do_node->rhs);
@@ -2921,7 +2931,7 @@ void program(Node *block_node) {
          vec_push(args, (Token *)do_node);
          continue;
       }
-      if (consume_node(TK_FOR)) {
+      if (consume_token(TK_FOR)) {
          Node *for_node = new_node(ND_FOR, NULL, NULL);
          expect_node('(');
          // TODO: should be splited between definition and expression
@@ -2929,11 +2939,11 @@ void program(Node *block_node) {
          for_node->rhs = new_block_node(env);
          // expect_node(';');
          // TODO: to allow without lines
-         if (!consume_node(';')) {
+         if (!consume_token(';')) {
             for_node->conds[1] = assign();
             expect_node(';');
          }
-         if (!consume_node(')')) {
+         if (!consume_token(')')) {
             for_node->conds[2] = assign();
             expect_node(')');
          }
@@ -2942,18 +2952,18 @@ void program(Node *block_node) {
          continue;
       }
 
-      if (consume_node(TK_CASE)) {
+      if (consume_token(TK_CASE)) {
          vec_push(args, (Token *)new_node(ND_CASE, node_term(), NULL));
          expect_node(':');
          continue;
       }
-      if (consume_node(TK_DEFAULT)) {
+      if (consume_token(TK_DEFAULT)) {
          vec_push(args, (Token *)new_node(ND_DEFAULT, NULL, NULL));
          expect_node(':');
          continue;
       }
 
-      if (consume_node(TK_SWITCH)) {
+      if (consume_token(TK_SWITCH)) {
          expect_node('(');
          Node *switch_node = new_node(ND_SWITCH, node_mathexpr(), NULL);
          expect_node(')');
@@ -3106,7 +3116,7 @@ Type *read_template_parameter_list(Map *local_typedb) {
       type->ty = TY_TEMPLATE;
       type->template_name = template_typename;
       map_put(local_typedb, template_typename, type);
-      if (!consume_node(',')) {
+      if (!consume_token(',')) {
          break;
       }
    }
@@ -3127,7 +3137,7 @@ Type *read_fundamental_type(Map *local_typedb) {
       } else if (tokens->data[pos]->ty == TK_CONST) {
          is_const = 1;
          expect_node(TK_CONST);
-      } else if ((lang & 1) && confirm_node(TK_TEMPLATE)) {
+      } else if ((lang & 1) && confirm_token(TK_TEMPLATE)) {
          type = read_template_parameter_list(local_typedb);
          type->local_typedb = local_typedb;
          break;
@@ -3141,10 +3151,11 @@ Type *read_fundamental_type(Map *local_typedb) {
       expect_node(TK_ENUM);
       define_enum(0);
       type = find_typed_db("int", typedb);
-   } else if (consume_node(TK_STRUCT)) {
+   } else if (consume_token(TK_STRUCT)) {
       type = find_typed_db(expect_ident(), struct_typedb);
-   } else if (consume_node(TK_CLASS)) {
-      type = class_declaration(local_typedb);
+   } else if (consume_token(TK_CLASS)) {
+      class_declaration(local_typedb);
+      return NULL; // class definition
    } else {
       char *ident = expect_ident();
       // looking up template parameters
@@ -3156,7 +3167,7 @@ Type *read_fundamental_type(Map *local_typedb) {
       } else {
          type = find_typed_db(ident, typedb);
       }
-      if (confirm_node('<')) {
+      if (confirm_token('<')) {
          // by looking up template arguments
          Vector *template_types = read_template_argument_list(NULL);
          char *buf = malloc(sizeof(char) * 1024);
@@ -3262,10 +3273,10 @@ void define_enum(int assign_name) {
    enumtype->ty = TY_INT;
    enumtype->offset = 4;
    int cnt = 0;
-   while (!consume_node('}')) {
+   while (!consume_token('}')) {
       char *itemname = expect_ident();
       Node *itemnode = NULL;
-      if (consume_node('=')) {
+      if (consume_token('=')) {
          itemnode = new_num_node_from_token(tokens->data[pos]);
          cnt = tokens->data[pos]->num_val;
          expect_node(TK_NUM);
@@ -3274,7 +3285,7 @@ void define_enum(int assign_name) {
       }
       cnt++;
       map_put(consts, itemname, itemnode);
-      if (!consume_node(',')) {
+      if (!consume_token(',')) {
          expect_node('}');
          break;
       }
@@ -3345,7 +3356,7 @@ void new_fdef(char *name, Type *type, Map *local_typedb) {
    }
    env = prev_env;
    // to support prototype def.
-   if (confirm_node('{')) {
+   if (confirm_token('{')) {
       current_local_typedb = local_typedb;
       program(newfunc);
       current_local_typedb = NULL;
@@ -3369,13 +3380,13 @@ Type *class_declaration(Map *local_typedb) {
    expect_node('{');
    MemberAccess memaccess;
    memaccess = PRIVATE; // on Struct, it is public
-   while (!consume_node('}')) {
-      if (consume_node(TK_PUBLIC)) {
+   while (!consume_token('}')) {
+      if (consume_token(TK_PUBLIC)) {
          memaccess = PUBLIC;
          expect_node(':');
          continue;
       }
-      if (consume_node(TK_PRIVATE)) {
+      if (consume_token(TK_PRIVATE)) {
          memaccess = PRIVATE;
          expect_node(':');
          continue;
@@ -3408,10 +3419,10 @@ void toplevel() {
    strcpy(arg_registers[4], "r8");
    strcpy(arg_registers[5], "r9");
 
-   // consume_node('{')
+   // consume_token('{')
    // idents = new_map...
    // stmt....
-   // consume_node('}')
+   // consume_token('}')
    global_vars = new_map();
    funcdefs = new_map();
    funcdefs_generated_template = new_map();
@@ -3422,8 +3433,8 @@ void toplevel() {
    globalcode = new_vector();
    env = NULL;
 
-   while (!consume_node(TK_EOF)) {
-      if (consume_node(TK_EXTERN)) {
+   while (!consume_token(TK_EOF)) {
+      if (consume_token(TK_EXTERN)) {
          char *name = NULL;
          Type *type = read_type_all(&name);
          type->offset = -1; // TODO externed
@@ -3433,21 +3444,21 @@ void toplevel() {
       }
 
       // definition of class
-      if ((lang & 1) && consume_node(TK_CLASS)) {
+      if ((lang & 1) && consume_token(TK_CLASS)) {
          class_declaration(NULL);
          continue;
       }
 
-      if (consume_node(TK_TYPEDEF)) {
-         if (consume_node(TK_ENUM)) {
+      if (consume_token(TK_TYPEDEF)) {
+         if (consume_token(TK_ENUM)) {
             // not anonymous enum
             define_enum(1);
             expect_node(';');
             continue;
          }
          Type *structuretype = new_type();
-         if (consume_node(TK_STRUCT)) {
-            if (confirm_node(TK_IDENT)) {
+         if (consume_token(TK_STRUCT)) {
+            if (confirm_token(TK_IDENT)) {
                map_put(struct_typedb, expect_ident(), structuretype);
             }
          }
@@ -3455,7 +3466,7 @@ void toplevel() {
          structuretype->structure = new_map();
          structuretype->ty = TY_STRUCT;
          structuretype->ptrof = NULL;
-         while (!consume_node('}')) {
+         while (!consume_token('}')) {
             char *name = NULL;
             Type *type = read_type_all(&name);
             expect_node(';');
@@ -3469,7 +3480,7 @@ void toplevel() {
          continue;
       }
 
-      if (consume_node(TK_ENUM)) {
+      if (consume_token(TK_ENUM)) {
          consume_ident(); // for ease
          expect_node('{');
          char *name = expect_ident();
@@ -3482,8 +3493,8 @@ void toplevel() {
          char *name = NULL;
          Map *local_typedb = new_map();
          Type *type = read_fundamental_type(local_typedb);
-         if (type->ty == TY_STRUCT) {
-            continue; // TODO for class definition, no need to have name
+         if (!type) {
+            continue; // TODO for class definition
          }
          type = read_type(type, &name, local_typedb);
          if (type->ty == TY_FUNC) {
@@ -3494,7 +3505,7 @@ void toplevel() {
             type->offset = 0; // TODO externed
             map_put(global_vars, name, type);
             type->initval = 0;
-            if (consume_node('=')) {
+            if (consume_token('=')) {
                Node *initval = node_term();
                // TODO: only supported main valu.
                type->initval = initval->num_val;
@@ -3503,7 +3514,7 @@ void toplevel() {
          }
          continue;
       }
-      if (confirm_node('{')) {
+      if (confirm_token('{')) {
          Node *newblocknode = new_block_node(NULL);
          program(newblocknode);
          vec_push(globalcode, (Token *)newblocknode);
