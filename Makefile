@@ -103,12 +103,12 @@ test9:
 	sh testfdef.sh 'int main(){return 2<(-1);}' 0
 
 test10:
-	sh test.sh "{if(1){return 3;}}" 3
-	sh test.sh "{if(1){return 3;}else{return 4;}}" 3
-	sh test.sh "{if(0){return 3;}else{return 4;}}" 4
-	sh test.sh "int a;a=0;while(a<3){a+=1;} return a;" 3
-	sh test.sh "int a;a=0;do{a+=1;}while(a<3); return a;" 3
-	sh test.sh "int a=0;do{a+=1;}while(a<0); return a;" 1
+	sh testfdef.sh "int main(){if(1){return 3;} return 1;}" 3
+	sh testfdef.sh "int main(){if(1){return 3;}else{return 4;}}" 3
+	sh testfdef.sh "int main(){if(0){return 3;}else{return 4;}}" 4
+	sh testfdef.sh "int main(){int a;a=0;while(a<3){a+=1;} return a;}" 3
+	sh testfdef.sh "int main(){int a;a=0;do{a+=1;}while(a<3); return a;}" 3
+	sh testfdef.sh "int main(){int a=0;do{a+=1;}while(a<0); return a;}" 1
 
 test11:
 	sh testfdef.sh "int main(){return func()+2;} int func(){return 4;}" 6
@@ -228,9 +228,9 @@ test28:
 
 test29:
 	sh testfdef.sh "int func(char* a){ puts(a); return 1; }int main(){return func(\"aaa\");}" 1
-	sh testfdef.sh "int main(){char a[3]; a[0]='a'; a[1]='b';a[2]='\\\0';puts(a);return printf(\"%%c%%c\", *a, *(a+1));}" 2
-	sh test.sh "int a[3]; a[0]=8; a[1]=2;a[2]=4;puts(a);return printf(\"%d%d\", *a, *(a+1));" 2
-	sh test.sh "char a[12]; a[0]='a'; a[1]='c';a[2]='d';a[3]='g';a[4]='h';a[5]='f';a[6]='k';a[7]='p';a[8]='l';a[9]='\0';puts(a);return strcmp(a, \"acdghfkpl\");" 0
+	sh testfdef.sh "int main(){char a[3]; a[0]='a'; a[1]='b';a[2]='\\\0';puts(a);return printf(\"%%c%%c\n\", *a, *(a+1));}" 3
+	sh testfdef.sh "int main(){int a[3]; a[0]=8; a[1]=2;a[2]=4;puts(a);return printf(\"%%d%%d\n\", *a, *(a+1));}" 3
+	sh testfdef.sh "int main(){char a[12]; a[0]='a'; a[1]='c';a[2]='d';a[3]='g';a[4]='h';a[5]='f';a[6]='k';a[7]='p';a[8]='l';a[9]='\\\0';puts(a);return strcmp(a, \"acdghfkpl\");}" 0
 
 test30:
 	sh testfdef.sh "int main(){char a;a='h';return ('a'<=a&&a<='z');}" 1

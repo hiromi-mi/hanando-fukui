@@ -101,6 +101,8 @@ samples/34
 samples/34.s
 samples/35_hanando
 samples/35_gcc
+samples/36_hanando
+samples/36_gcc
 
 cppsamples/test5
 

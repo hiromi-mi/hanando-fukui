@@ -52,6 +52,9 @@ test41:
 
 test35:
 	./35.bash
+
+test36:
+	./36.bash
 clean:
 	$(RM) -f *.s
 

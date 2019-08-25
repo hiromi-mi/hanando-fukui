@@ -1320,9 +1320,11 @@ char *_rdx(Node *node) {
 
 int cmp_regs(Node *node, Register *lhs_reg, Register *rhs_reg) {
    if (node->lhs->type->ty == TY_FLOAT) {
-      return printf("comiss %s, %s\n", node2reg(node->lhs, lhs_reg), node2reg(node->rhs, rhs_reg));
+      return printf("comiss %s, %s\n", node2reg(node->lhs, lhs_reg),
+                    node2reg(node->rhs, rhs_reg));
    } else if (node->lhs->type->ty == TY_DOUBLE) {
-      return printf("comisd %s, %s\n", node2reg(node->lhs, lhs_reg), node2reg(node->rhs, rhs_reg));
+      return printf("comisd %s, %s\n", node2reg(node->lhs, lhs_reg),
+                    node2reg(node->rhs, rhs_reg));
    } else if (type2size(node->lhs->type) < type2size(node->rhs->type)) {
       // rdi, rax
       return printf("cmp %s, %s\n", node2reg(node->rhs, lhs_reg),
@@ -1330,15 +1332,6 @@ int cmp_regs(Node *node, Register *lhs_reg, Register *rhs_reg) {
    } else {
       return printf("cmp %s, %s\n", node2reg(node->lhs, lhs_reg),
                     node2reg(node->lhs, rhs_reg));
-   }
-}
-
-int cmp_rax_rdi(Node *node) {
-   if (type2size(node->lhs->type) < type2size(node->rhs->type)) {
-      // rdi, rax
-      return printf("cmp %s, %s\n", _rax(node->rhs), _rdi(node->rhs));
-   } else {
-      return printf("cmp %s, %s\n", _rax(node->lhs), _rdi(node->lhs));
    }
 }
 
@@ -2176,7 +2169,8 @@ Register *gen_register_rightval(Node *node, int unused_eval) {
          rhs_reg = gen_register_rightval(node->rhs, 0);
          secure_mutable_with_type(lhs_reg, node->lhs->type);
          cmp_regs(node, lhs_reg, rhs_reg);
-         if (node->lhs->type->ty == TY_FLOAT || node->lhs->type->ty == TY_DOUBLE) {
+         if (node->lhs->type->ty == TY_FLOAT ||
+             node->lhs->type->ty == TY_DOUBLE) {
             puts("seta al");
          } else {
             puts("setg al");
@@ -2193,7 +2187,8 @@ Register *gen_register_rightval(Node *node, int unused_eval) {
          rhs_reg = gen_register_rightval(node->rhs, 0);
 
          // TODO lhs_reg should be xmm, but rhs should be xmm or memory
-         if (node->lhs->type->ty == TY_FLOAT || node->lhs->type->ty == TY_DOUBLE) {
+         if (node->lhs->type->ty == TY_FLOAT ||
+             node->lhs->type->ty == TY_DOUBLE) {
             secure_mutable_with_type(rhs_reg, node->rhs->type);
             // lhs_reg and rhs_reg are reversed because of comisd
             cmp_regs(node, rhs_reg, lhs_reg);
@@ -2216,7 +2211,8 @@ Register *gen_register_rightval(Node *node, int unused_eval) {
          rhs_reg = gen_register_rightval(node->rhs, 0);
          secure_mutable_with_type(lhs_reg, node->lhs->type);
          cmp_regs(node, lhs_reg, rhs_reg);
-         if (node->lhs->type->ty == TY_FLOAT || node->lhs->type->ty == TY_DOUBLE) {
+         if (node->lhs->type->ty == TY_FLOAT ||
+             node->lhs->type->ty == TY_DOUBLE) {
             puts("setnb al");
          } else {
             puts("setge al");
@@ -2233,7 +2229,8 @@ Register *gen_register_rightval(Node *node, int unused_eval) {
          lhs_reg = gen_register_rightval(node->lhs, 0);
          rhs_reg = gen_register_rightval(node->rhs, 0);
          // TODO lhs_reg should be xmm, but rhs should be xmm or memory
-         if (node->lhs->type->ty == TY_FLOAT || node->lhs->type->ty == TY_DOUBLE) {
+         if (node->lhs->type->ty == TY_FLOAT ||
+             node->lhs->type->ty == TY_DOUBLE) {
             // lhs_reg and rhs_reg are reversed because of comisd
             secure_mutable_with_type(rhs_reg, node->rhs->type);
             cmp_regs(node, rhs_reg, lhs_reg);
@@ -3957,6 +3954,44 @@ Vector *read_tokenize(char *fname) {
    return tokenize(buf);
 }
 
+Node *implicit_althemic_type_conversion(Node *node) {
+   // See Section 6.3.1.8
+   if (node->lhs->type->ty == node->rhs->type->ty) {
+      return node;
+   }
+   if (node->lhs->type->ty == TY_DOUBLE) {
+      node->rhs = new_node(ND_CAST, node->rhs, NULL);
+      node->rhs->type = node->lhs->type;
+      return node;
+   }
+   if (node->rhs->type->ty == TY_DOUBLE) {
+      node->lhs = new_node(ND_CAST, node->lhs, NULL);
+      node->lhs->type = node->rhs->type;
+      return node;
+   }
+   if (node->lhs->type->ty == TY_FLOAT) {
+      node->rhs = new_node(ND_CAST, node->rhs, NULL);
+      node->rhs->type = node->lhs->type;
+      return node;
+   }
+   if (node->rhs->type->ty == TY_FLOAT) {
+      node->lhs = new_node(ND_CAST, node->lhs, NULL);
+      node->lhs->type = node->rhs->type;
+      return node;
+   }
+   if (type2size(node->lhs->type) < type2size(node->rhs->type)){
+      node->lhs = new_node(ND_CAST, node->lhs, NULL);
+      node->lhs->type = node->rhs->type;
+      return node;
+   }
+   if (type2size(node->lhs->type) > type2size(node->rhs->type)){
+      node->rhs = new_node(ND_CAST, node->rhs, NULL);
+      node->rhs->type = node->lhs->type;
+      return node;
+   }
+   return node;
+}
+
 Node *analyzing(Node *node) {
    int j;
    Env *prev_env = env;
@@ -4013,7 +4048,8 @@ Node *analyzing(Node *node) {
             node = new_long_num_node(cnt_size(node->conds[0]->type));
          } else {
             // ND_SIZEOF should generate its type information.
-            // This is because: on parse, no (structured) type size are avaliable
+            // This is because: on parse, no (structured) type size are
+            // avaliable
             node = new_long_num_node(cnt_size(node->sizeof_type));
          }
          break;
@@ -4027,15 +4063,9 @@ Node *analyzing(Node *node) {
             node->lhs = new_node(ND_MULTIPLY_IMMUTABLE_VALUE, node->lhs, NULL);
             node->lhs->num_val = cnt_size(node->rhs->type->ptrof);
          } else {
-            // Cast to node->type
-            if (node->type->ty != node->lhs->type->ty) {
-               node->lhs = new_node(ND_CAST, node->lhs, NULL);
-               node->lhs->type = node->rhs->type;
-            }
-            if (node->type->ty != node->rhs->type->ty) {
-               node->rhs = new_node(ND_CAST, node->rhs, NULL);
-               node->rhs->type = node->lhs->type;
-            }
+            node = implicit_althemic_type_conversion(node);
+            node->type = node->lhs->type;
+            break;
          }
          if (node->rhs->type->ty == TY_PTR || node->rhs->type->ty == TY_ARRAY) {
             node->type = node->rhs->type;
@@ -4046,22 +4076,18 @@ Node *analyzing(Node *node) {
             // TY_PTR no matter when node->lhs->node->lhs is INT or PTR
          }
          break;
-      case '<':
-      case '>':
+      case ND_MUL:
+         node = implicit_althemic_type_conversion(node);
+         node->type = node->lhs->type;
+         break;
       case ND_ISEQ:
       case ND_ISNOTEQ:
       case ND_ISLESSEQ:
       case ND_ISMOREEQ:
-      case ND_MUL: {
-         // TODO This has problem like: long + pointer -> pointer + pointer
-         if (type2size(node->lhs->type) < type2size(node->rhs->type)) {
-            node->lhs = new_node(ND_CAST, node->lhs, NULL);
-            node->lhs->type = node->rhs->type;
-         } else if (type2size(node->lhs->type) > type2size(node->rhs->type)) {
-            node->rhs = new_node(ND_CAST, node->rhs, NULL);
-            node->rhs->type = node->lhs->type;
-         }
-      } break;
+      case ND_LESS:
+      case ND_GREATER:
+         node = implicit_althemic_type_conversion(node);
+         break;
       case ND_FPLUSPLUS:
       case ND_FSUBSUB:
          // Moved to analyzing process.
