@@ -1861,11 +1861,30 @@ Register *gen_register_rightval(Node *node, int unused_eval) {
                release_reg(lhs_reg);
             }
             return lhs_reg;
+         } else if (node->lhs->ty == ND_DOT && node->lhs->type->offset > 0) {
+            /*
+            add r12, 152
+            mov qword ptr [r12], r13
+            */
+            // can be written as
+            /*
+            mov qword ptr [r12+152], r13
+            */
+            lhs_reg = gen_register_leftval(node->lhs->lhs);
+            rhs_reg = gen_register_rightval(node->rhs, 0);
+            secure_mutable_with_type(rhs_reg, node->rhs->type);
+            printf("%s %s [%s+%d], %s\n", type2mov(node->type),
+                   node2specifier(node), id2reg64(lhs_reg->id),
+                   node->lhs->type->offset, node2reg(node->lhs, rhs_reg));
+            release_reg(lhs_reg);
+            if (unused_eval) {
+               release_reg(rhs_reg);
+            }
+            return rhs_reg;
          } else {
             lhs_reg = gen_register_leftval(node->lhs);
             rhs_reg = gen_register_rightval(node->rhs, 0);
-            // TODO
-            secure_mutable(rhs_reg);
+            secure_mutable_with_type(rhs_reg, node->rhs->type);
             printf("%s %s [%s], %s\n", type2mov(node->type),
                    node2specifier(node), id2reg64(lhs_reg->id),
                    node2reg(node->lhs, rhs_reg));
@@ -4194,13 +4213,13 @@ Node *optimizing(Node *node) {
          }
          break;
 
+         /*
       case ND_FUNC:
          if (!node->funcdef) {
             break;
          }
 
          // inline expansion
-         /*
          if ((node->funcdef->code->len > 0) && (node->funcdef->code->len < 2) &&
          (node->funcdef->is_recursive == 0) && (node->type->ty == TY_VOID)) {
 
@@ -4218,7 +4237,6 @@ Node *optimizing(Node *node) {
                node = node_new;
             }
          }
-         */
          break;
       default:
          break;
