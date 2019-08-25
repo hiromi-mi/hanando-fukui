@@ -7,8 +7,9 @@ template <typename Elem> class Vector {
 };
 
 // does not work yet!
-/*template <typename Elem> long Array<Elem>::GetSize( )
-    { return size; }
+/*
+template <typename Elem> long Array<Elem>::GetSize( )
+    { return this->len; }
     */
 
 int intfunc() {
