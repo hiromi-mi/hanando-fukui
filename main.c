@@ -2486,19 +2486,23 @@ Register *gen_register_rightval(Node *node, int unused_eval) {
          return NO_REGISTER;
 
       case ND_EXPRESSION_BLOCK:
+         /*
          puts("mov rbp, rsp");
          printf("sub rsp, %d\n", *node->env->rsp_offset_max);
          puts("#test begin expansion");
          for (j = 0; j < node->argc; j++) {
             temp_reg = gen_register_rightval(node->args[j], 0);
             gen_register_rightval(node->args[j], 1);
-         }
          puts("#test end expansion of args");
+         }
+         */
          for (j = 0; j < node->code->len && node->code->data[j]; j++) {
             gen_register_rightval((Node *)node->code->data[j], 1);
          }
+         /*
          puts("mov rsp, rbp");
          puts("#test end expansion ");
+         */
          return NO_REGISTER;
 
       case ND_FUNC:
@@ -2954,6 +2958,26 @@ Node *stmt() {
          // if there is int a =1;
          if (consume_token('=')) {
             if (consume_token('{')) {
+               Node *block_node;
+               // initializer
+               block_node = new_node(ND_EXPRESSION_BLOCK, NULL, NULL);
+               block_node->type = NULL;
+               block_node->code = new_vector();
+               vec_push(block_node->code, (Token*)node);
+               // initializer (6.7.9)
+               // assignment-expression or {initializer_list or designation-list}
+               // compiled as x[3] = {1,2,3} as x[0] = 100, x[1] = 200, x[2] = 300,...
+               for (int j = 0;1;j++) {
+                  vec_push(block_node->code, (Token*)new_node(ND_ASSIGN, new_deref_node(new_node(ND_ADD, node, new_long_num_node(j))), node_lor()));
+                  if (consume_token('}')) {
+                     consume_token(',');
+                     break;
+                  } else {
+                     expect_token(',');
+                  }
+               }
+               node = block_node;
+
             } else {
                node = new_node('=', node, node_mathexpr());
             }
