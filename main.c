@@ -4225,6 +4225,31 @@ Node *optimizing(Node *node) {
    Node *node_new;
    int new_num_val;
    int j;
+
+   if (node->lhs) {
+      node->lhs = optimizing(node->lhs);
+   }
+   if (node->rhs) {
+      node->rhs = optimizing(node->rhs);
+   }
+   if (node->code) {
+      for (j = 0; j < node->code->len && node->code->data[j]; j++) {
+         node->code->data[j] = (Token *)optimizing((Node *)node->code->data[j]);
+      }
+   }
+   if (node->argc > 0) {
+      for (j = 0; j < node->argc; j++) {
+         if (node->args[j]) {
+            node->args[j] = optimizing(node->args[j]);
+         }
+      }
+   }
+
+   for (j = 0; j < 3; j++) {
+      if (node->conds[j]) {
+         node->conds[j] = optimizing(node->conds[j]);
+      }
+   }
    switch (node->ty) {
       case ND_ADD:
       case ND_SUB:
@@ -4291,31 +4316,6 @@ Node *optimizing(Node *node) {
          }
       default:
          break;
-   }
-
-   if (node->lhs) {
-      node->lhs = optimizing(node->lhs);
-   }
-   if (node->rhs) {
-      node->rhs = optimizing(node->rhs);
-   }
-   if (node->code) {
-      for (j = 0; j < node->code->len && node->code->data[j]; j++) {
-         node->code->data[j] = (Token *)optimizing((Node *)node->code->data[j]);
-      }
-   }
-   if (node->argc > 0) {
-      for (j = 0; j < node->argc; j++) {
-         if (node->args[j]) {
-            node->args[j] = optimizing(node->args[j]);
-         }
-      }
-   }
-
-   for (j = 0; j < 3; j++) {
-      if (node->conds[j]) {
-         node->conds[j] = optimizing(node->conds[j]);
-      }
    }
    return node;
 }
