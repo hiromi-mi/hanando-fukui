@@ -20,6 +20,7 @@ limitations under the License.
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <stdarg.h>
 
 #define SEEK_END 2
 #define SEEK_SET 0
@@ -103,6 +104,7 @@ Node *node_add();
 Node *node_cast();
 Node *node_increment();
 Node *assign();
+void error(const char *str, ...);
 
 // FOR SELFHOST
 #ifdef __HANANDO_FUKUI__
@@ -202,21 +204,23 @@ int vec_push(Vector *vec, Token *element) {
       vec->capacity *= 2;
       vec->data = realloc(vec->data, sizeof(Token *) * vec->capacity);
       if (!vec->data) {
-         fprintf(stderr, "Error: Realloc failed: %ld\n", vec->capacity);
-         exit(1);
+         error("Error: Realloc failed: %ld\n", vec->capacity);
       }
    }
    vec->data[vec->len] = element;
    return vec->len++;
 }
 
-void error(const char *str) {
-   if (tokens) {
+void error(const char *str, ...) {
+   va_list ap;
+   va_start(ap, str);
+   if (tokens && tokens->len > pos) {
       fprintf(stderr, "%s on line %d pos %d: %s\n", str,
               tokens->data[pos]->pline, pos, tokens->data[pos]->input);
    } else {
-      fprintf(stderr, "%s\n", str);
+      vfprintf(stderr, str, ap);
    }
+   va_end(ap);
    exit(1);
 }
 
@@ -1104,7 +1108,7 @@ Node *node_mul() {
 Node *new_dot_node(Node *node) {
    node = new_node('.', node, NULL);
    node->name = expect_ident();
-   if (node->type && node->type->ty != TY_TEMPLATE) {
+   if (node->type && node->type->ty != TY_TEMPLATE && node->type->structure) {
       node->type = (Type *)map_get(node->lhs->type->structure, node->name);
       if (!node->type) {
          error("Error: structure not found.");
@@ -1556,7 +1560,7 @@ char *size2reg(int size, Register *reg) {
    } else if (reg->kind == R_XMM) {
       return float_registers[reg->id];
    }
-   fprintf(stderr, "Error: Cannot Have Register\n");
+   error("Error: Cannot Have Register\n");
    exit(1);
 }
 char *node2reg(Node *node, Register *reg) {
@@ -4197,13 +4201,12 @@ Node *analyzing(Node *node) {
          break;
       case ND_DOT:
          // FIXME Just adding it on analyzing pharase will fail to selfhosting.
+         if (node->lhs->type->ty != TY_STRUCT) {
+            error("Error: dot operator to NOT struct\n");
+         }
          node->type = (Type *)map_get(node->lhs->type->structure, node->name);
          if (!node->type) {
             error("Error: structure not found.");
-         }
-         if (node->lhs->type->ty != TY_STRUCT) {
-            fprintf(stderr, "Error: dot operator to NOT struct\n");
-            exit(1);
          }
          break;
       case ND_NEG:
