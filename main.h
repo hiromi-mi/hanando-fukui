@@ -74,7 +74,7 @@ typedef enum {
    TK_TYPENAME,
    TK_TRY,
    TK_CATCH,
-   TK_THROW
+   TK_THROW,
 } TokenConst;
 
 typedef enum {

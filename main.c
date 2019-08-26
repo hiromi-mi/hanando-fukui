@@ -17,10 +17,10 @@ limitations under the License.
 
 #include "main.h"
 #include <ctype.h>
+#include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <stdarg.h>
 
 #define SEEK_END 2
 #define SEEK_SET 0
@@ -104,7 +104,7 @@ Node *node_add();
 Node *node_cast();
 Node *node_increment();
 Node *assign();
-void error(const char *str, ...);
+_Noreturn void error(const char *str, ...);
 
 // FOR SELFHOST
 #ifdef __HANANDO_FUKUI__
@@ -211,7 +211,7 @@ int vec_push(Vector *vec, Token *element) {
    return vec->len++;
 }
 
-void error(const char *str, ...) {
+_Noreturn void error(const char *str, ...) {
    va_list ap;
    va_start(ap, str);
    if (tokens && tokens->len > pos) {
@@ -474,7 +474,10 @@ Node *new_func_node(Node *ident, Vector *template_types) {
          }
          if (template_types && template_types->len > 0) {
             if (template_types->len != result->type->local_typedb->keys->len) {
-               error("Error: The number of template arguments does not match: Expected %d, Actual %d", result->type->local_typedb->keys->len, template_types->len);
+               error("Error: The number of template arguments does not match: "
+                     "Expected %d, Actual %d",
+                     result->type->local_typedb->keys->len,
+                     template_types->len);
             }
             // Make connection from template_types to local_typedb
 
@@ -569,7 +572,8 @@ int consume_token(TokenConst ty) {
 
 int expect_token(TokenConst ty) {
    if (tokens->data[pos]->ty != ty) {
-      error("Error: Expected TokenConst are different: Expected %d, Actual %d", ty, tokens->data[pos]->ty);
+      error("Error: Expected TokenConst are different: Expected %d, Actual %d",
+            ty, tokens->data[pos]->ty);
       return 0;
    }
    pos++;
@@ -676,7 +680,9 @@ Vector *tokenize(char *p) {
                   token->num_val = '\'';
                   break;
                default:
-                  error("Error: Error On this unsupported escape sequence: %d\n", *(p+2));
+                  error(
+                      "Error: Error On this unsupported escape sequence: %d\n",
+                      *(p + 2));
             }
             p++;
          }
@@ -861,6 +867,8 @@ Vector *tokenize(char *p) {
             token->ty = TK_ENUM;
          } else if (strcmp(token->input, "extern") == 0) {
             token->ty = TK_EXTERN;
+         } else if (strcmp(token->input, "_Noreturn") == 0) {
+            continue; // just skipping
          } else if (strcmp(token->input, "__LINE__") == 0) {
             token->ty = TK_NUM;
             token->num_val = pline;
@@ -892,7 +900,6 @@ Vector *tokenize(char *p) {
       }
 
       error("Cannot Tokenize: %s\n", p);
-      exit(1);
    }
 
    vec_push(pre_tokens, new_token(pline, TK_EOF, p));
@@ -1563,7 +1570,6 @@ char *size2reg(int size, Register *reg) {
       return float_registers[reg->id];
    }
    error("Error: Cannot Have Register\n");
-   exit(1);
 }
 char *node2reg(Node *node, Register *reg) {
    if (reg->kind == R_LVAR) {
@@ -1585,7 +1591,6 @@ Register *float_retain_reg() {
       return reg;
    }
    error("No more float registers are avaliable\n");
-   exit(1);
 }
 
 Register *retain_reg() {
@@ -1609,7 +1614,6 @@ Register *retain_reg() {
       return reg;
    }
    error("No more registers are avaliable\n");
-   exit(1);
 }
 
 void release_reg(Register *reg) {
@@ -1982,8 +1986,8 @@ Register *gen_register_rightval(Node *node, int unused_eval) {
                   printf("cvttss2siq %s, %s\n", node2reg(node->lhs, temp_reg),
                          node2reg(node->lhs, lhs_reg));
                } else {
-                  error("Error: float -> unknown type convert: %d\n", node->type->ty);
-                  exit(1);
+                  error("Error: float -> unknown type convert: %d\n",
+                        node->type->ty);
                }
                release_reg(lhs_reg);
                return temp_reg;
@@ -1998,8 +2002,8 @@ Register *gen_register_rightval(Node *node, int unused_eval) {
                   printf("cvttsd2siq %s, %s\n", node2reg(node->lhs, temp_reg),
                          node2reg(node->lhs, lhs_reg));
                } else {
-                  error("Error: double -> unknown type convert: %d\n", node->type->ty);
-                  exit(1);
+                  error("Error: double -> unknown type convert: %d\n",
+                        node->type->ty);
                }
                release_reg(lhs_reg);
                return temp_reg;
@@ -2582,7 +2586,7 @@ Register *gen_register_rightval(Node *node, int unused_eval) {
          // ...
          // rbp-56: r6
          printf("mov dword ptr [%s], %ld\n", id2reg64(lhs_reg->id),
-               // omitted_argc * 8
+                // omitted_argc * 8
                 node->num_val * 8);
          printf("mov dword ptr [%s+4], 304\n", id2reg64(lhs_reg->id));
          printf("lea rax, [rbp-%d]\n", node->rhs->lvar_offset);
@@ -2773,7 +2777,6 @@ Register *gen_register_rightval(Node *node, int unused_eval) {
 
       default:
          error("Error: Incorrect Registers %d.\n", node->ty);
-         exit(1);
    }
    return NO_REGISTER;
 }
@@ -3172,7 +3175,6 @@ Type *copy_type(Type *old_type, Type *type) {
 Type *find_typed_db_without_copy(char *input, Map *db) {
    if (!input) {
       error("Error: find_typed_db with null input\n");
-      exit(1);
    }
    for (int j = 0; j < db->keys->len; j++) {
       // for struct
@@ -3479,7 +3481,7 @@ void new_fdef(char *name, Type *type, Map *local_typedb) {
       current_local_typedb = local_typedb;
       program(newfunc);
       current_local_typedb = NULL;
-      newfunc->is_recursive = is_recursive(newfunc, name);
+      //newfunc->is_recursive = is_recursive(newfunc, name);
       if (local_typedb->keys->len <= 0) {
          // There are no typedb: template
          vec_push(globalcode, (Token *)newfunc);
@@ -3652,8 +3654,8 @@ Type *generate_class_template(Type *type, Map *template_type_db) {
    if (type && type->ty == TY_TEMPLATE) {
       new_type = find_typed_db(type->template_name, template_type_db);
       if (!new_type) {
-         error("Error: Incorrect Class Template type: %s\n", type->template_name);
-         exit(1);
+         error("Error: Incorrect Class Template type: %s\n",
+               type->template_name);
       }
       type = copy_type(new_type, type);
    }
@@ -3695,8 +3697,7 @@ Node *generate_template(Node *node, Map *template_type_db) {
       new_type = find_typed_db(node->type->template_name, template_type_db);
       if (!new_type) {
          error("Error: Incorrect Template type: %s\n",
-                 node->type->template_name);
-         exit(1);
+               node->type->template_name);
       }
       node->type = copy_type(new_type, new_type);
    }
@@ -3732,6 +3733,7 @@ Node *generate_template(Node *node, Map *template_type_db) {
    return node;
 }
 
+/*
 int is_recursive(Node *node, char *name) {
    int j;
    if (!node) {
@@ -3771,6 +3773,7 @@ int is_recursive(Node *node, char *name) {
    }
    return 0;
 }
+*/
 
 void test_map() {
    Vector *vec = new_vector();
@@ -4030,7 +4033,6 @@ Vector *read_tokenize(char *fname) {
    FILE *fp = fopen(fname, "r");
    if (!fp) {
       error("No file found: %s\n", fname);
-      exit(1);
    }
    fseek(fp, 0, SEEK_END);
    long length = ftell(fp);
@@ -4268,8 +4270,8 @@ Node *optimizing(Node *node) {
                   new_num_val = node->lhs->num_val * node->rhs->num_val;
                   break;
                default:
-                  error("Error: Unsupport type in optimization: %d\n", node->ty);
-                  exit(1);
+                  error("Error: Unsupport type in optimization: %d\n",
+                        node->ty);
             }
             node_new = new_num_node(new_num_val);
             node_new->type = node->lhs->type;
