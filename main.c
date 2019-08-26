@@ -2504,7 +2504,7 @@ Register *gen_register_rightval(Node *node, int unused_eval) {
          }
 
          save_reg();
-         printf("mov al, %d\n", func_call_float_cnt);
+         printf("mov eax, %d\n", func_call_float_cnt);
 
          if (reg_table[5] < 0) {
             reg_table[5] = 1;
@@ -3970,7 +3970,10 @@ void init_typedb() {
    typevoid->structure = new_map();
    map_put(typedb, "FILE", typevoid);
 
+   //Type *va_listarray = new_type();
    Type *va_listtype = new_type();
+   /*va_listarray->ty = TY_ARRAY;
+   va_listarray->array_size = 1;*/
    va_listtype->structure = new_map();
    va_listtype->ty = TY_STRUCT;
    va_listtype->name = "va_list";
@@ -3996,6 +3999,10 @@ void init_typedb() {
    type->offset = 16;
    map_put(va_listtype->structure, "reg_save_area", type);
    va_listtype->offset = 4 + 4 + 8 + 8;
+   /*
+   va_listarray->ptrof = va_listtype;
+   map_put(typedb, "va_list", va_listarray);
+   */
    map_put(typedb, "va_list", va_listtype);
 
    Type *typedou = new_type();
