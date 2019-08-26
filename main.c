@@ -1407,6 +1407,14 @@ int cnt_size(Type *type) {
          // As possible, propagate (previous) type->offset as you can
          // TODO it causes bug when "Type" are duplicated typedb & struct_typedb
          // buf different
+         // TODO it causes a bug when nested struct like:
+         // struct {
+         // struct {
+         // }
+         // } because offset are ALSO used as other ones
+         if (type->offset > 0) {
+            return type->offset;
+         }
          type = find_typed_db(type->name, typedb);
          if (!type) {
             type = find_typed_db(type->name, struct_typedb);
@@ -3970,13 +3978,13 @@ void init_typedb() {
    typevoid->structure = new_map();
    map_put(typedb, "FILE", typevoid);
 
-   //Type *va_listarray = new_type();
+   Type *va_listarray = new_type();
    Type *va_listtype = new_type();
-   /*va_listarray->ty = TY_ARRAY;
-   va_listarray->array_size = 1;*/
+   va_listarray->name = "va_list";
+   va_listarray->ty = TY_ARRAY;
+   va_listarray->array_size = 1;
    va_listtype->structure = new_map();
    va_listtype->ty = TY_STRUCT;
-   va_listtype->name = "va_list";
    va_listtype->ptrof = NULL;
 
    Type *type;
@@ -3999,11 +4007,8 @@ void init_typedb() {
    type->offset = 16;
    map_put(va_listtype->structure, "reg_save_area", type);
    va_listtype->offset = 4 + 4 + 8 + 8;
-   /*
    va_listarray->ptrof = va_listtype;
    map_put(typedb, "va_list", va_listarray);
-   */
-   map_put(typedb, "va_list", va_listtype);
 
    Type *typedou = new_type();
    typedou->ty = TY_FLOAT;
