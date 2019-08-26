@@ -24,6 +24,8 @@ limitations under the License.
 #define SEEK_END 2
 #define SEEK_SET 0
 
+#define SPACE_R12R13R14R15 32
+
 #define NO_REGISTER NULL
 
 char *strdup(const char *s);
@@ -508,13 +510,13 @@ Env *new_env(Env *prev_env) {
    Env *_env = malloc(sizeof(Env));
    _env->env = prev_env;
    _env->idents = new_map();
-   _env->rsp_offset = 0;
+   _env->rsp_offset = SPACE_R12R13R14R15; // to save r12, r13, r14, r15
    if (prev_env) {
       _env->rsp_offset = prev_env->rsp_offset;
       _env->rsp_offset_max = prev_env->rsp_offset_max;
    } else {
       _env->rsp_offset_max = malloc(sizeof(int));
-      *_env->rsp_offset_max = 0;
+      *_env->rsp_offset_max = SPACE_R12R13R14R15; // to save r12, r13, r14, r15
    }
    return _env;
 }
@@ -1411,7 +1413,7 @@ int cnt_size(Type *type) {
    }
 }
 
-int reg_table[5];
+int reg_table[6];
 int float_reg_table[8];
 char *registers8[5];
 char *registers16[5];
@@ -1420,17 +1422,12 @@ char *registers64[5];
 char *float_registers[8];
 char *float_arg_registers[6];
 
-char *callee_saved_registers[4];
 
 // These registers will be used to map into registers
 void init_reg_registers() {
    // This code is valid (and safe) because RHS is const ptr. lreg[7] -> on top
    // of "r10b"
    // "r15" will be used as rsp alignment register.
-   callee_saved_registers[0] = "r12";
-   callee_saved_registers[1] = "r13";
-   callee_saved_registers[2] = "r14";
-   callee_saved_registers[3] = "r15";
    registers8[0] = "r12b";
    registers8[1] = "r13b";
    registers8[2] = "r14b";
@@ -1474,8 +1471,8 @@ char *id2reg32(int id) { return registers32[id]; }
 char *id2reg64(int id) { return registers64[id]; }
 
 void init_reg_table() {
-   for (int j = 0; j < 5; j++) {
-      reg_table[j] = 0;
+   for (int j = 0; j < 6; j++) { // j = 6 means r15
+      reg_table[j] = -1; // NEVER_USED REGISTERS
    }
 }
 
@@ -1575,6 +1572,14 @@ Register *retain_reg() {
    for (int j = 0; j < 5; j++) {
       if (reg_table[j] > 0)
          continue;
+      if (reg_table[j] < 0 && j < 3) {
+         // r10, r11 are caller-saved so no need to consider
+         // store callee saved registers. will be restored in restore_callee_reg()
+         // r12 will be stored in [rbp-0]
+         // r13 will be stored in [rbp-8]
+         // r14 will be stored in [rbp-16]
+         printf("mov qword ptr [rbp-%d], %s\n", j*8+8, registers64[j]);
+      }
       reg_table[j] = 1;
 
       Register *reg = malloc(sizeof(Register));
@@ -1593,7 +1598,7 @@ void release_reg(Register *reg) {
       return;
    }
    if (reg->kind == R_REGISTER) {
-      reg_table[reg->id] = 0;
+      reg_table[reg->id] = 0; // USED REGISTER
    } else if (reg->kind == R_XMM) {
       float_reg_table[reg->id] = 0;
    }
@@ -1601,11 +1606,12 @@ void release_reg(Register *reg) {
 }
 
 void release_all_reg() {
-   for (int j = 0; j < 5; j++) {
-      reg_table[j] = 0;
+   for (int j = 0; j < 6; j++) {
+      // j = 5 means r15
+      reg_table[j] = -1;
    }
    for (int j = 0; j < 8; j++) {
-      float_reg_table[j] = 0;
+      float_reg_table[j] = -1;
    }
 }
 
@@ -1690,18 +1696,20 @@ void extend_al_ifneeded(Node *node, Register *reg) {
    }
 }
 
-void save_callee_reg() {
-   int j;
-   // because r12,...are callee-savevd
-   for (j = 0; j < 4; j++) {
-      printf("push %s\n", callee_saved_registers[j]);
-   }
-}
 void restore_callee_reg() {
+   // stored in retain_reg() or
+   // puts("mov r15, [rbp-24]");in ND_FUNC
    int j;
    // because r12,...are callee-savevd
-   for (j = 3; j >= 0; j--) {
-      printf("pop %s\n", callee_saved_registers[j]);
+   for (j = 2; j >= 0; j--) {
+      // only registers already stored will be restoed
+      if (reg_table[j] >= 0) { // used (>= 1)
+         printf("mov %s, qword ptr [rbp-%d]\n", registers64[j], j*8+8);
+      }
+   }
+   if (reg_table[5] > 0) { // treat as r15
+      printf("mov rsp, r15\n");
+      puts("mov r15, qword ptr [rbp-32]");
    }
 }
 
@@ -2394,9 +2402,6 @@ Register *gen_register_rightval(Node *node, int unused_eval) {
          puts("mov rbp, rsp");
          printf("sub rsp, %d\n", *node->env->rsp_offset_max);
          int is_entrypoint = !(strncmp(node->gen_name, "main", 5));
-         if (!is_entrypoint) {
-            save_callee_reg();
-         }
          int fdef_int_arguments = 0;
          int fdef_float_arguments = 0;
          j = 0;
@@ -2493,8 +2498,12 @@ Register *gen_register_rightval(Node *node, int unused_eval) {
          printf("mov al, %d\n", func_call_float_cnt);
 
          // FIXME: alignment should be 64-bit
-         printf("mov r15, rsp\n");
-         printf("and rsp, -16\n");
+         if (reg_table[5] < 0) {
+            reg_table[5] = 1;
+            puts("mov qword ptr [rbp-32], r15"); // store r15 to [rbp-32]
+            puts("mov r15, rsp");
+            puts("and rsp, -16");
+         }
          if (node->gen_name) { // ND_GLOBAL_IDENT, called from local vars.
             printf("call %s\n",
                    node->gen_name); // rax should be aligned with the size
@@ -2509,7 +2518,6 @@ Register *gen_register_rightval(Node *node, int unused_eval) {
             printf("call %s\n", size2reg(8, temp_reg));
             release_reg(temp_reg);
          }
-         printf("mov rsp, r15\n");
          restore_reg();
 
          if (node->type->ty == TY_VOID || unused_eval == 1) {
@@ -2955,9 +2963,9 @@ Node *stmt() {
 Node *node_if() {
    Node *node = new_node(ND_IF, NULL, NULL);
    node->argc = 1;
+   node->pline = tokens->data[pos]->pline;
    node->args[0] = assign();
    node->args[1] = NULL;
-   node->pline = tokens->data[pos - 1]->pline;
    // Suppress COndition
 
    if (confirm_token(TK_BLOCKBEGIN)) {
