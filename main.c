@@ -2393,7 +2393,10 @@ Register *gen_register_rightval(Node *node, int unused_eval) {
          puts("push rbp");
          puts("mov rbp, rsp");
          printf("sub rsp, %d\n", *node->env->rsp_offset_max);
-         save_callee_reg();
+         int is_entrypoint = !(strncmp(node->gen_name, "main", 5));
+         if (!is_entrypoint) {
+            save_callee_reg();
+         }
          int fdef_int_arguments = 0;
          int fdef_float_arguments = 0;
          j = 0;
@@ -2428,8 +2431,12 @@ Register *gen_register_rightval(Node *node, int unused_eval) {
             // read inside functions.
             gen_register_rightval((Node *)node->code->data[j], 1);
          }
-         if (node->type->ret->ty == TY_VOID) {
-            restore_callee_reg();
+         if (node->type->ret->ty == TY_VOID || is_entrypoint) {
+            if (!is_entrypoint) {
+               restore_callee_reg();
+            } else {
+               puts("mov rax, 0"); // main() function will return 0
+            }
             puts("mov rsp, rbp");
             puts("pop rbp");
             puts("ret");
