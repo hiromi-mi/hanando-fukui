@@ -1070,19 +1070,16 @@ Node *node_increment() {
    } else if (consume_token('*')) {
       node = new_deref_node(node_increment());
    } else if (consume_token(TK_SIZEOF)) {
+      node = new_node(ND_SIZEOF, NULL, NULL);
+      node->type = find_typed_db("long", typedb);
       if (consume_token('(')) {
          // should be type
-         node = new_node(ND_SIZEOF, NULL, NULL);
          node->sizeof_type = read_type_all(NULL);
-         node->type = find_typed_db("long", typedb);
          expect_node(')');
       } else {
          // evaluate the result of ND_SIZEOF
-         node = new_node(ND_SIZEOF, NULL, NULL);
          node->conds[0] = node_mathexpr();
-         node->type = find_typed_db("long", typedb);
       }
-      return node;
    } else {
       return node_term();
    }
@@ -2571,6 +2568,7 @@ Register *gen_register_rightval(Node *node, int unused_eval) {
          // ...
          // rbp-56: r6
          printf("mov dword ptr [%s], %ld\n", id2reg64(lhs_reg->id),
+               // omitted_argc * 8
                 node->num_val * 8);
          printf("mov dword ptr [%s+4], 304\n", id2reg64(lhs_reg->id));
          printf("lea rax, [rbp-%d]\n", node->rhs->lvar_offset);
@@ -3455,7 +3453,7 @@ void new_fdef(char *name, Type *type, Map *local_typedb) {
       saved_var_type->array_size = 30; // for rsp
       newfunc->is_omiited =
           new_ident_node_with_new_variable("_saved_var", saved_var_type);
-      omiited_argc = newfunc->argc;
+      omiited_argc = type->argc;
    }
    newfunc->argc = type->argc;
    int i;
@@ -3975,6 +3973,7 @@ void init_typedb() {
    Type *va_listtype = new_type();
    va_listtype->structure = new_map();
    va_listtype->ty = TY_STRUCT;
+   va_listtype->name = "va_list";
    va_listtype->ptrof = NULL;
 
    Type *type;
@@ -4095,6 +4094,9 @@ Node *analyzing(Node *node) {
    }
    if (node->rhs) {
       node->rhs = analyzing(node->rhs);
+   }
+   if (node->is_omiited) {
+      node->is_omiited = analyzing(node->is_omiited);
    }
    for (j = 0; j < 3; j++) {
       if (node->conds[j]) {

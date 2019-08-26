@@ -29,7 +29,7 @@ test:	test1 test2 test3 test4 \
    test15 test16 test17 test18 test20 test21\
    test22 test23 test24 test25 test26 test27\
    test28 test30 test29 test31 test34 test35\
-   test36
+   test36 test32
 	+ make -C samples/
 
 test1:
@@ -253,8 +253,8 @@ test32:
 	# 11 12 13
 	sh testfdef.sh "int main(){ func(1, \"a\"); func(3, \"b\",\"c\",\"d\"); return 0; } int func(int cnt, ...){ va_list ap; va_start(ap, NULL);for (4;cnt >0;--cnt) { puts(va_arg(ap, char*)); } putchar('\n'); va_end(ap); return 0;}" 0
 	# test32: This should be seen as:
-	# 2
-	# 11 12 13
+	# a
+	# b c d
 
 test33:
 	sh testfdef.sh "int main(){ func(\"%%d %%s\n\", 3, \"test\"); return 0;} int func(char* str, ...) { va_list ap; va_start(ap, str); vprintf(str, ap); va_end(ap); return 0;}" 0
