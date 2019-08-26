@@ -72,6 +72,7 @@ test6:
 	sh testfdef.sh 'int main(){return 1|0;}' 1
 	sh testfdef.sh 'int main(){return 1&0;}' 0
 	sh testfdef.sh 'int main(){return 1<<1;}' 2
+	sh testfdef.sh 'int main(){return 1<<0;}' 1
 	sh testfdef.sh 'int main(){return 1>>1;}' 0
 
 test7:

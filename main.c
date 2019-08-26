@@ -1422,7 +1422,6 @@ char *registers64[5];
 char *float_registers[8];
 char *float_arg_registers[6];
 
-
 // These registers will be used to map into registers
 void init_reg_registers() {
    // This code is valid (and safe) because RHS is const ptr. lreg[7] -> on top
@@ -1472,7 +1471,7 @@ char *id2reg64(int id) { return registers64[id]; }
 
 void init_reg_table() {
    for (int j = 0; j < 6; j++) { // j = 6 means r15
-      reg_table[j] = -1; // NEVER_USED REGISTERS
+      reg_table[j] = -1;         // NEVER_USED REGISTERS
    }
 }
 
@@ -1574,11 +1573,10 @@ Register *retain_reg() {
          continue;
       if (reg_table[j] < 0 && j < 3) {
          // r10, r11 are caller-saved so no need to consider
-         // store callee saved registers. will be restored in restore_callee_reg()
-         // r12 will be stored in [rbp-0]
-         // r13 will be stored in [rbp-8]
-         // r14 will be stored in [rbp-16]
-         printf("mov qword ptr [rbp-%d], %s\n", j*8+8, registers64[j]);
+         // store callee saved registers. will be restored in
+         // restore_callee_reg() r12 will be stored in [rbp-0] r13 will be
+         // stored in [rbp-8] r14 will be stored in [rbp-16]
+         printf("mov qword ptr [rbp-%d], %s\n", j * 8 + 8, registers64[j]);
       }
       reg_table[j] = 1;
 
@@ -1704,7 +1702,7 @@ void restore_callee_reg() {
    for (j = 2; j >= 0; j--) {
       // only registers already stored will be restoed
       if (reg_table[j] >= 0) { // used (>= 1)
-         printf("mov %s, qword ptr [rbp-%d]\n", registers64[j], j*8+8);
+         printf("mov %s, qword ptr [rbp-%d]\n", registers64[j], j * 8 + 8);
       }
    }
    if (reg_table[5] > 0) { // treat as r15
@@ -1817,22 +1815,24 @@ Register *gen_register_rightval(Node *node, int unused_eval) {
 
       case ND_DOT:
          lhs_reg = gen_register_leftval(node->lhs);
-         switch(node->type->ty) {
+         switch (node->type->ty) {
             case TY_ARRAY:
                if (node->type->offset > 0) {
-                  printf("add %s, %d\n", size2reg(8, lhs_reg), node->type->offset);
+                  printf("add %s, %d\n", size2reg(8, lhs_reg),
+                         node->type->offset);
                }
                break;
             case TY_FLOAT:
             case TY_DOUBLE:
                temp_reg = float_retain_reg();
                printf("%s %s, [%s+%d]\n", type2mov(node->type),
-                     node2reg(node, temp_reg), id2reg64(lhs_reg->id), node->type->offset);
+                      node2reg(node, temp_reg), id2reg64(lhs_reg->id),
+                      node->type->offset);
                release_reg(lhs_reg);
                return temp_reg;
             default:
                printf("mov %s, [%s+%d]\n", node2reg(node, lhs_reg),
-                     id2reg64(lhs_reg->id), node->type->offset);
+                      id2reg64(lhs_reg->id), node->type->offset);
                break;
          }
          return lhs_reg;
@@ -1871,14 +1871,14 @@ Register *gen_register_rightval(Node *node, int unused_eval) {
                rhs_reg = NULL;
                // can be written as immutable value
                printf("%s %s [%s+%d], %ld\n", type2mov(node->type),
-                     node2specifier(node), id2reg64(lhs_reg->id),
-                     node->lhs->type->offset, node->rhs->num_val);
+                      node2specifier(node), id2reg64(lhs_reg->id),
+                      node->lhs->type->offset, node->rhs->num_val);
             } else {
                rhs_reg = gen_register_rightval(node->rhs, 0);
                secure_mutable_with_type(rhs_reg, node->rhs->type);
                printf("%s %s [%s+%d], %s\n", type2mov(node->type),
-                     node2specifier(node), id2reg64(lhs_reg->id),
-                     node->lhs->type->offset, node2reg(node->lhs, rhs_reg));
+                      node2specifier(node), id2reg64(lhs_reg->id),
+                      node->lhs->type->offset, node2reg(node->lhs, rhs_reg));
             }
             release_reg(lhs_reg);
             if (unused_eval) {
@@ -2146,7 +2146,8 @@ Register *gen_register_rightval(Node *node, int unused_eval) {
          rhs_reg = gen_register_rightval(node->rhs, 0);
          // FIXME: for signed int (Arthmetric)
          // mov rdi[8] -> rax
-         printf("mov cl, %s\n", id2reg8(rhs_reg->id));
+         puts("xor rcx, rcx");
+         printf("mov cl, %s\n", size2reg(1, rhs_reg));
          release_reg(rhs_reg);
          secure_mutable_with_type(lhs_reg, node->lhs->type);
          printf("sar %s, cl\n", node2reg(node->lhs, lhs_reg));
@@ -2158,8 +2159,8 @@ Register *gen_register_rightval(Node *node, int unused_eval) {
          rhs_reg = gen_register_rightval(node->rhs, 0);
          // FIXME: for signed int (Arthmetric)
          // mov rdi[8] -> rax
-         // TODO Support minus
-         printf("mov cl, %s\n", id2reg8(rhs_reg->id));
+         puts("xor rcx, rcx");
+         printf("mov cl, %s\n", size2reg(1, rhs_reg));
          release_reg(rhs_reg);
          secure_mutable_with_type(lhs_reg, node->lhs->type);
          printf("sal %s, cl\n", node2reg(node->lhs, lhs_reg));
@@ -2169,7 +2170,6 @@ Register *gen_register_rightval(Node *node, int unused_eval) {
          lhs_reg = gen_register_rightval(node->lhs, 0);
          rhs_reg = gen_register_rightval(node->rhs, 0);
          cmp_regs(node, lhs_reg, rhs_reg);
-         // TODO Support minus
          puts("sete al");
          release_reg(lhs_reg);
          release_reg(rhs_reg);
@@ -2212,10 +2212,10 @@ Register *gen_register_rightval(Node *node, int unused_eval) {
          lhs_reg = gen_register_rightval(node->lhs, 0);
          rhs_reg = gen_register_rightval(node->rhs, 0);
 
-         // TODO lhs_reg should be xmm, but rhs should be xmm or memory
          if (node->lhs->type->ty == TY_FLOAT ||
              node->lhs->type->ty == TY_DOUBLE) {
             secure_mutable_with_type(rhs_reg, node->rhs->type);
+            // lhs_reg should be xmm, but rhs should be xmm or memory
             // lhs_reg and rhs_reg are reversed because of comisd
             cmp_regs(node, rhs_reg, lhs_reg);
             puts("seta al");
@@ -2254,9 +2254,9 @@ Register *gen_register_rightval(Node *node, int unused_eval) {
       case ND_ISLESSEQ:
          lhs_reg = gen_register_rightval(node->lhs, 0);
          rhs_reg = gen_register_rightval(node->rhs, 0);
-         // TODO lhs_reg should be xmm, but rhs should be xmm or memory
          if (node->lhs->type->ty == TY_FLOAT ||
              node->lhs->type->ty == TY_DOUBLE) {
+            // lhs_reg should be xmm, but rhs should be xmm or memory
             // lhs_reg and rhs_reg are reversed because of comisd
             secure_mutable_with_type(rhs_reg, node->rhs->type);
             cmp_regs(node, rhs_reg, lhs_reg);
@@ -2305,14 +2305,18 @@ Register *gen_register_rightval(Node *node, int unused_eval) {
          switch (node->type->ty) {
             case TY_FLOAT:
                temp_reg = float_retain_reg();
-               printf("movq %s, qword ptr .LCDNEGFLOAT[rip]\n", node2reg(node, temp_reg));
-               printf("xorps %s, %s\n", node2reg(node, lhs_reg), node2reg(node, temp_reg));
+               printf("movq %s, qword ptr .LCDNEGFLOAT[rip]\n",
+                      node2reg(node, temp_reg));
+               printf("xorps %s, %s\n", node2reg(node, lhs_reg),
+                      node2reg(node, temp_reg));
                release_reg(temp_reg);
                break;
             case TY_DOUBLE:
                temp_reg = float_retain_reg();
-               printf("movq %s, qword ptr .LCDNEGDOUBLE[rip]\n", node2reg(node, temp_reg));
-               printf("xorpd %s, %s\n", node2reg(node, lhs_reg), node2reg(node, temp_reg));
+               printf("movq %s, qword ptr .LCDNEGDOUBLE[rip]\n",
+                      node2reg(node, temp_reg));
+               printf("xorpd %s, %s\n", node2reg(node, lhs_reg),
+                      node2reg(node, temp_reg));
                release_reg(temp_reg);
                break;
             default:
@@ -2416,7 +2420,6 @@ Register *gen_register_rightval(Node *node, int unused_eval) {
                fdef_float_arguments++;
             } else {
                temp_reg = gen_register_rightval(node->args[j], 0);
-               // TODO : not to use eax, so on
                printf("mov %s, %s\n", size2reg(8, temp_reg),
                       arg_registers[fdef_int_arguments]);
                fdef_int_arguments++;
@@ -2483,7 +2486,6 @@ Register *gen_register_rightval(Node *node, int unused_eval) {
                       node2reg(node->args[j], temp_reg));
                func_call_float_cnt++;
             } else {
-               // TODO Dirty: Should implement 642node
                secure_mutable_with_type(temp_reg, node->type);
                printf("push %s\n", id2reg64(temp_reg->id));
             }
@@ -2497,7 +2499,6 @@ Register *gen_register_rightval(Node *node, int unused_eval) {
          save_reg();
          printf("mov al, %d\n", func_call_float_cnt);
 
-         // FIXME: alignment should be 64-bit
          if (reg_table[5] < 0) {
             reg_table[5] = 1;
             puts("mov qword ptr [rbp-32], r15"); // store r15 to [rbp-32]
@@ -2695,7 +2696,6 @@ Register *gen_register_rightval(Node *node, int unused_eval) {
          env_for_while = cur_if_cnt;
          env_for_while_switch = cur_if_cnt;
 
-         // TODO dirty: compare node->ty twice
          switch (node->ty) {
             case ND_FOR:
                gen_register_rightval(node->conds[0], 1);
@@ -4038,12 +4038,12 @@ Node *implicit_althemic_type_conversion(Node *node) {
       node->lhs->type = node->rhs->type;
       return node;
    }
-   if (type2size(node->lhs->type) < type2size(node->rhs->type)){
+   if (type2size(node->lhs->type) < type2size(node->rhs->type)) {
       node->lhs = new_node(ND_CAST, node->lhs, NULL);
       node->lhs->type = node->rhs->type;
       return node;
    }
-   if (type2size(node->lhs->type) > type2size(node->rhs->type)){
+   if (type2size(node->lhs->type) > type2size(node->rhs->type)) {
       node->rhs = new_node(ND_CAST, node->rhs, NULL);
       node->rhs->type = node->lhs->type;
       return node;
@@ -4258,7 +4258,8 @@ Node *optimizing(Node *node) {
             /* mov r12d, 1 */
             node->lhs->num_val *= node->num_val;
             node = node->lhs;
-            // because node and node->lhs shares same type, no need to worry about type
+            // because node and node->lhs shares same type, no need to worry
+            // about type
          }
       default:
          break;
