@@ -71,7 +71,10 @@ typedef enum {
    TK_STATIC,
    TK_COLONCOLON,
    TK_TEMPLATE,
-   TK_TYPENAME
+   TK_TYPENAME,
+   TK_TRY,
+   TK_CATCH,
+   TK_THROW
 } TokenConst;
 
 typedef enum {

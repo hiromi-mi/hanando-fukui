@@ -833,8 +833,6 @@ Vector *tokenize(char *p) {
             token->ty = TK_GOTO;
          } else if (strcmp(token->input, "struct") == 0) {
             token->ty = TK_STRUCT;
-         } else if (strcmp(token->input, "class") == 0) {
-            token->ty = TK_CLASS;
          } else if (strcmp(token->input, "static") == 0) {
             token->ty = TK_STATIC;
          } else if (strcmp(token->input, "typedef") == 0) {
@@ -857,18 +855,30 @@ Vector *tokenize(char *p) {
             token->ty = TK_ENUM;
          } else if (strcmp(token->input, "extern") == 0) {
             token->ty = TK_EXTERN;
-         } else if (strcmp(token->input, "public") == 0) {
-            token->ty = TK_PUBLIC;
-         } else if (strcmp(token->input, "private") == 0) {
-            token->ty = TK_PRIVATE;
-         } else if (strcmp(token->input, "template") == 0) {
-            token->ty = TK_TEMPLATE;
-         } else if (strcmp(token->input, "typename") == 0) {
-            token->ty = TK_TYPENAME;
          } else if (strcmp(token->input, "__LINE__") == 0) {
             token->ty = TK_NUM;
             token->num_val = pline;
             token->type_size = 8;
+         }
+
+         if (lang & 1) {
+            if (strcmp(token->input, "class") == 0) {
+               token->ty = TK_CLASS;
+            } else if (strcmp(token->input, "public") == 0) {
+               token->ty = TK_PUBLIC;
+            } else if (strcmp(token->input, "private") == 0) {
+               token->ty = TK_PRIVATE;
+            } else if (strcmp(token->input, "template") == 0) {
+               token->ty = TK_TEMPLATE;
+            } else if (strcmp(token->input, "typename") == 0) {
+               token->ty = TK_TYPENAME;
+            } else if (strcmp(token->input, "try") == 0) {
+               token->ty = TK_TRY;
+            } else if (strcmp(token->input, "catch") == 0) {
+               token->ty = TK_CATCH;
+            } else if (strcmp(token->input, "throw") == 0) {
+               token->ty = TK_THROW;
+            }
          }
 
          vec_push(pre_tokens, token);
@@ -3065,6 +3075,10 @@ void program(Node *block_node) {
          switch_node->rhs = new_block_node(env);
          program(switch_node->rhs);
          vec_push(args, (Token *)switch_node);
+         continue;
+      }
+
+      if ((lang & 1) && consume_token(TK_TRY)) {
          continue;
       }
       vec_push(args, (Token *)stmt());
