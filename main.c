@@ -215,7 +215,9 @@ void error(const char *str, ...) {
    va_list ap;
    va_start(ap, str);
    if (tokens && tokens->len > pos) {
-      fprintf(stderr, "%s on line %d pos %d: %s\n", str,
+      char *buf = malloc(sizeof(char) * 256);
+      vsnprintf(buf, 255, str, ap);
+      fprintf(stderr, "%s on line %d pos %d: %s\n", buf,
               tokens->data[pos]->pline, pos, tokens->data[pos]->input);
    } else {
       vfprintf(stderr, str, ap);
@@ -472,7 +474,7 @@ Node *new_func_node(Node *ident, Vector *template_types) {
          }
          if (template_types && template_types->len > 0) {
             if (template_types->len != result->type->local_typedb->keys->len) {
-               error("Error: The number of template arguments does not match.");
+               error("Error: The number of template arguments does not match: Expected %d, Actual %d", result->type->local_typedb->keys->len, template_types->len);
             }
             // Make connection from template_types to local_typedb
 
@@ -565,9 +567,9 @@ int consume_token(TokenConst ty) {
    return 1;
 }
 
-int expect_node(TokenConst ty) {
+int expect_token(TokenConst ty) {
    if (tokens->data[pos]->ty != ty) {
-      error("Error: Expected TokenConst are different.");
+      error("Error: Expected TokenConst are different: Expected %d, Actual %d", ty, tokens->data[pos]->ty);
       return 0;
    }
    pos++;
@@ -674,7 +676,7 @@ Vector *tokenize(char *p) {
                   token->num_val = '\'';
                   break;
                default:
-                  error("Error: Error On this escape sequence.");
+                  error("Error: Error On this unsupported escape sequence: %d\n", *(p+2));
             }
             p++;
          }
@@ -889,7 +891,7 @@ Vector *tokenize(char *p) {
          continue;
       }
 
-      fprintf(stderr, "Cannot Tokenize: %s\n", p);
+      error("Cannot Tokenize: %s\n", p);
       exit(1);
    }
 
@@ -1031,7 +1033,7 @@ Node *node_cast() {
    if (consume_token('(')) {
       if (confirm_type()) {
          Type *type = read_type_all(NULL);
-         expect_node(')');
+         expect_token(')');
          node = new_node(ND_CAST, node_increment(), NULL);
          node->type = type;
          return node;
@@ -1079,7 +1081,7 @@ Node *node_increment() {
       if (consume_token('(')) {
          // should be type
          node->sizeof_type = read_type_all(NULL);
-         expect_node(')');
+         expect_token(')');
       } else {
          // evaluate the result of ND_SIZEOF
          node->conds[0] = node_mathexpr();
@@ -1111,7 +1113,7 @@ Node *new_dot_node(Node *node) {
    if (node->type && node->type->ty != TY_TEMPLATE && node->type->structure) {
       node->type = (Type *)map_get(node->lhs->type->structure, node->name);
       if (!node->type) {
-         error("Error: structure not found.");
+         error("Error: structure not found: %s", node->name);
       }
    }
    // Member Accesss Control p.231
@@ -1123,40 +1125,40 @@ Node *new_dot_node(Node *node) {
 
 Node *treat_va_start() {
    Node *node = new_node(ND_VASTART, NULL, NULL);
-   expect_node('(');
+   expect_token('(');
    node->lhs = node_term();
    node->rhs = new_ident_node("_saved_var");
-   expect_node(',');
+   expect_token(',');
    node_term();
    // darkness: used global variable.
    node->num_val = omiited_argc;
-   expect_node(')');
+   expect_token(')');
    return node;
 }
 
 Node *treat_va_arg() {
    Node *node = new_node(ND_VAARG, NULL, NULL);
-   expect_node('(');
+   expect_token('(');
    node->lhs = node_term();
-   expect_node(',');
+   expect_token(',');
    // do not need ident name
    node->type = read_type_all(NULL);
-   expect_node(')');
+   expect_token(')');
    return node;
 }
 
 Node *treat_va_end() {
    Node *node = new_node(ND_VAEND, NULL, NULL);
-   expect_node('(');
+   expect_token('(');
    node->lhs = node_term();
-   expect_node(')');
+   expect_token(')');
    return node;
 }
 
 Vector *read_template_argument_list(Map *local_typedb) {
    Vector *template_types = NULL;
    Type *template_type = NULL;
-   expect_node('<');
+   expect_token('<');
    template_types = new_vector();
    while (1) {
       template_type = read_fundamental_type(local_typedb);
@@ -1164,7 +1166,7 @@ Vector *read_template_argument_list(Map *local_typedb) {
       // In this position, we don't know definition of template_type_db
       vec_push(template_types, (Token *)template_type);
       if (!consume_token(',')) {
-         expect_node('>');
+         expect_token('>');
          break;
       }
    }
@@ -1182,16 +1184,16 @@ Node *node_term() {
       *float_repr = (float)tokens->data[pos]->float_val;
       snprintf(_str, 255, ".LCF%d", vec_push(floats, (Token *)float_repr));
       node = new_float_node(tokens->data[pos]->float_val, _str, "float");
-      expect_node(TK_FLOAT);
+      expect_token(TK_FLOAT);
    } else if (confirm_token(TK_DOUBLE)) {
       char *_str = malloc(sizeof(char) * 256);
       snprintf(_str, 255, ".LCD%d",
                vec_push(float_doubles, (Token *)&tokens->data[pos]->float_val));
       node = new_float_node(tokens->data[pos]->float_val, _str, "double");
-      expect_node(TK_DOUBLE);
+      expect_token(TK_DOUBLE);
    } else if (confirm_token(TK_NUM)) {
       node = new_num_node(tokens->data[pos]->num_val);
-      expect_node(TK_NUM);
+      expect_token(TK_NUM);
    } else if (consume_token(TK_NULL)) {
       node = new_num_node(0);
       node->type->ty = TY_PTR;
@@ -1216,7 +1218,7 @@ Node *node_term() {
       snprintf(_str, 255, ".LC%d",
                vec_push(strs, (Token *)tokens->data[pos]->input));
       node = new_string_node(_str);
-      expect_node(TK_STRING);
+      expect_token(TK_STRING);
    }
 
    if (!node) {
@@ -1254,7 +1256,7 @@ Node *node_term() {
 
          node = new_func_node(node, template_types);
          // skip func , (
-         expect_node('(');
+         expect_token('(');
          while (1) {
             if ((consume_token(',') == 0) && consume_token(')')) {
                return node;
@@ -1276,7 +1278,7 @@ Node *node_term() {
          // TY_ARRAY) { Moved to analyzing process.
       } else if (consume_token('[')) {
          node = new_deref_node(new_addsub_node('+', node, node_mathexpr()));
-         expect_node(']');
+         expect_token(']');
       } else if (consume_token('.')) {
          node = new_dot_node(node);
       } else if (consume_token(TK_ARROW)) {
@@ -1389,7 +1391,7 @@ int type2size(Type *type) {
       case TY_FUNC:
          return 8;
       default:
-         error("Error: NOT a type");
+         error("Error: NOT a type: %d", type->ty);
          return 0;
    }
 }
@@ -1427,7 +1429,7 @@ int cnt_size(Type *type) {
       case TY_TEMPLATE:
          return 8;
       default:
-         error("Error: on void type error.");
+         error("Error: NOT a type: %d", type->ty);
          return 0;
    }
 }
@@ -1582,7 +1584,7 @@ Register *float_retain_reg() {
       reg->kind = R_XMM;
       return reg;
    }
-   fprintf(stderr, "No more float registers are avaliable\n");
+   error("No more float registers are avaliable\n");
    exit(1);
 }
 
@@ -1606,7 +1608,7 @@ Register *retain_reg() {
       reg->size = -1;
       return reg;
    }
-   fprintf(stderr, "No more registers are avaliable\n");
+   error("No more registers are avaliable\n");
    exit(1);
 }
 
@@ -1980,7 +1982,7 @@ Register *gen_register_rightval(Node *node, int unused_eval) {
                   printf("cvttss2siq %s, %s\n", node2reg(node->lhs, temp_reg),
                          node2reg(node->lhs, lhs_reg));
                } else {
-                  fprintf(stderr, "Error: float -> unknown type convert.\n");
+                  error("Error: float -> unknown type convert: %d\n", node->type->ty);
                   exit(1);
                }
                release_reg(lhs_reg);
@@ -1996,7 +1998,7 @@ Register *gen_register_rightval(Node *node, int unused_eval) {
                   printf("cvttsd2siq %s, %s\n", node2reg(node->lhs, temp_reg),
                          node2reg(node->lhs, lhs_reg));
                } else {
-                  fprintf(stderr, "Error: float -> unknown type convert.\n");
+                  error("Error: double -> unknown type convert: %d\n", node->type->ty);
                   exit(1);
                }
                release_reg(lhs_reg);
@@ -2770,7 +2772,7 @@ Register *gen_register_rightval(Node *node, int unused_eval) {
          return NO_REGISTER;
 
       default:
-         fprintf(stderr, "Error: Incorrect Registers %d.\n", node->ty);
+         error("Error: Incorrect Registers %d.\n", node->ty);
          exit(1);
    }
    return NO_REGISTER;
@@ -2790,7 +2792,7 @@ Node *assign() {
       if (confirm_token(TK_OPAS)) {
          // FIXME: shift
          NodeType tp = tokens->data[pos]->input[0];
-         expect_node(TK_OPAS);
+         expect_token(TK_OPAS);
          if (tokens->data[pos]->input[0] == '<') {
             tp = ND_LSHIFT;
          }
@@ -2856,7 +2858,7 @@ Type *read_type(Type *type, char **input, Map *local_typedb) {
             base_type = base_type->ptrof;
          }
          type = concrete_type;
-         expect_node(')');
+         expect_token(')');
       }
    } else {
       input = &tokens->data[pos]->input;
@@ -2874,8 +2876,8 @@ Type *read_type(Type *type, char **input, Map *local_typedb) {
          type->ty = TY_ARRAY;
          type->array_size = (int)tokens->data[pos]->num_val;
          type->ptrof = base_type;
-         expect_node(TK_NUM);
-         expect_node(']');
+         expect_token(TK_NUM);
+         expect_token(']');
          Type *cur_ptr = type;
          // support for multi-dimensional array
          while (consume_token('[')) {
@@ -2885,8 +2887,8 @@ Type *read_type(Type *type, char **input, Map *local_typedb) {
             cur_ptr->ptrof->ty = TY_ARRAY;
             cur_ptr->ptrof->array_size = (int)tokens->data[pos]->num_val;
             cur_ptr->ptrof->ptrof = base_type;
-            expect_node(TK_NUM);
-            expect_node(']');
+            expect_token(TK_NUM);
+            expect_token(']');
             cur_ptr = cur_ptr->ptrof;
          }
       } else if (consume_token('(')) {
@@ -2911,7 +2913,7 @@ Type *read_type(Type *type, char **input, Map *local_typedb) {
               concrete_type->argc <= 6 && !consume_token(')');) {
             if (consume_token(TK_OMIITED)) {
                type->is_omiited = 1;
-               expect_node(')');
+               expect_token(')');
                break;
             }
             char *buf;
@@ -2973,9 +2975,7 @@ Node *stmt() {
    } else {
       node = assign();
    }
-   if (!consume_token(';')) {
-      error("Error: Not token ;");
-   }
+   expect_token(';');
    node->pline = pline;
    return node;
 }
@@ -3009,7 +3009,7 @@ Node *node_if() {
 }
 
 void program(Node *block_node) {
-   expect_node('{');
+   expect_token('{');
    Vector *args = block_node->code;
    Env *prev_env = env;
    env = block_node->env;
@@ -3040,27 +3040,27 @@ void program(Node *block_node) {
          Node *do_node = new_node(ND_DOWHILE, NULL, NULL);
          do_node->rhs = new_block_node(env);
          program(do_node->rhs);
-         expect_node(TK_WHILE);
+         expect_token(TK_WHILE);
          do_node->lhs = node_mathexpr();
-         expect_node(';');
+         expect_token(';');
          vec_push(args, (Token *)do_node);
          continue;
       }
       if (consume_token(TK_FOR)) {
          Node *for_node = new_node(ND_FOR, NULL, NULL);
-         expect_node('(');
+         expect_token('(');
          // TODO: should be splited between definition and expression
          for_node->conds[0] = stmt();
          for_node->rhs = new_block_node(env);
-         // expect_node(';');
+         // expect_token(';');
          // TODO: to allow without lines
          if (!consume_token(';')) {
             for_node->conds[1] = assign();
-            expect_node(';');
+            expect_token(';');
          }
          if (!consume_token(')')) {
             for_node->conds[2] = assign();
-            expect_node(')');
+            expect_token(')');
          }
          program(for_node->rhs);
          vec_push(args, (Token *)for_node);
@@ -3069,19 +3069,19 @@ void program(Node *block_node) {
 
       if (consume_token(TK_CASE)) {
          vec_push(args, (Token *)new_node(ND_CASE, node_term(), NULL));
-         expect_node(':');
+         expect_token(':');
          continue;
       }
       if (consume_token(TK_DEFAULT)) {
          vec_push(args, (Token *)new_node(ND_DEFAULT, NULL, NULL));
-         expect_node(':');
+         expect_token(':');
          continue;
       }
 
       if (consume_token(TK_SWITCH)) {
-         expect_node('(');
+         expect_token('(');
          Node *switch_node = new_node(ND_SWITCH, node_mathexpr(), NULL);
-         expect_node(')');
+         expect_token(')');
          switch_node->rhs = new_block_node(env);
          program(switch_node->rhs);
          vec_push(args, (Token *)switch_node);
@@ -3171,7 +3171,7 @@ Type *copy_type(Type *old_type, Type *type) {
 
 Type *find_typed_db_without_copy(char *input, Map *db) {
    if (!input) {
-      fprintf(stderr, "Error: find_typed_db with null input\n");
+      error("Error: find_typed_db with null input\n");
       exit(1);
    }
    for (int j = 0; j < db->keys->len; j++) {
@@ -3226,10 +3226,10 @@ void generate_structure(Map *db) {
 Type *read_template_parameter_list(Map *local_typedb) {
    Type *type = NULL;
    char *template_typename = NULL;
-   expect_node(TK_TEMPLATE);
-   expect_node('<');
+   expect_token(TK_TEMPLATE);
+   expect_token('<');
    while (1) {
-      expect_node(TK_TYPENAME);
+      expect_token(TK_TYPENAME);
       template_typename = expect_ident();
       type = new_type();
       type->ty = TY_TEMPLATE;
@@ -3239,7 +3239,7 @@ Type *read_template_parameter_list(Map *local_typedb) {
          break;
       }
    }
-   expect_node('>');
+   expect_token('>');
 
    return type;
 }
@@ -3252,10 +3252,10 @@ Type *read_fundamental_type(Map *local_typedb) {
    while (1) {
       if (tokens->data[pos]->ty == TK_STATIC) {
          is_static = 1;
-         expect_node(TK_STATIC);
+         expect_token(TK_STATIC);
       } else if (tokens->data[pos]->ty == TK_CONST) {
          is_const = 1;
-         expect_node(TK_CONST);
+         expect_token(TK_CONST);
       } else if ((lang & 1) && confirm_token(TK_TEMPLATE)) {
          type = read_template_parameter_list(local_typedb);
          type->local_typedb = local_typedb;
@@ -3267,7 +3267,7 @@ Type *read_fundamental_type(Map *local_typedb) {
 
    if (tokens->data[pos]->ty == TK_ENUM) {
       // treat as anonymous enum
-      expect_node(TK_ENUM);
+      expect_token(TK_ENUM);
       define_enum(0);
       type = find_typed_db("int", typedb);
    } else if (consume_token(TK_STRUCT)) {
@@ -3378,7 +3378,7 @@ int consume_ident() {
 
 char *expect_ident() {
    if (tokens->data[pos]->ty != TK_IDENT) {
-      error("Error: Expected Ident but...");
+      error("Error: Expected Ident but actual %d\n", tokens->data[pos]->ty);
       return NULL;
    }
    return tokens->data[pos++]->input;
@@ -3387,7 +3387,7 @@ char *expect_ident() {
 void define_enum(int assign_name) {
    // ENUM def.
    consume_ident(); // for ease
-   expect_node('{');
+   expect_token('{');
    Type *enumtype = new_type();
    enumtype->ty = TY_INT;
    enumtype->offset = 4;
@@ -3398,14 +3398,14 @@ void define_enum(int assign_name) {
       if (consume_token('=')) {
          itemnode = new_num_node_from_token(tokens->data[pos]);
          cnt = tokens->data[pos]->num_val;
-         expect_node(TK_NUM);
+         expect_token(TK_NUM);
       } else {
          itemnode = new_num_node(cnt);
       }
       cnt++;
       map_put(consts, itemname, itemnode);
       if (!consume_token(',')) {
-         expect_node('}');
+         expect_token('}');
          break;
       }
    }
@@ -3485,7 +3485,7 @@ void new_fdef(char *name, Type *type, Map *local_typedb) {
          vec_push(globalcode, (Token *)newfunc);
       }
    } else {
-      expect_node(';');
+      expect_token(';');
    }
 }
 
@@ -3496,18 +3496,18 @@ Type *class_declaration(Map *local_typedb) {
    structuretype->ptrof = NULL;
    char *structurename = expect_ident();
    structuretype->name = structurename;
-   expect_node('{');
+   expect_token('{');
    MemberAccess memaccess;
    memaccess = PRIVATE; // on Struct, it is public
    while (!consume_token('}')) {
       if (consume_token(TK_PUBLIC)) {
          memaccess = PUBLIC;
-         expect_node(':');
+         expect_token(':');
          continue;
       }
       if (consume_token(TK_PRIVATE)) {
          memaccess = PRIVATE;
-         expect_node(':');
+         expect_token(':');
          continue;
       }
       char *name = NULL;
@@ -3519,11 +3519,11 @@ Type *class_declaration(Map *local_typedb) {
           type->is_static == 0) {
          type->context->is_previous_class = structurename;
       }
-      expect_node(';');
+      expect_token(';');
       type->memaccess = memaccess;
       map_put(structuretype->structure, name, type);
    }
-   expect_node(';');
+   expect_token(';');
    // to set up local_typedb after instanciate
    structuretype->local_typedb = local_typedb;
    map_put(typedb, structurename, structuretype);
@@ -3558,7 +3558,7 @@ void toplevel() {
          Type *type = read_type_all(&name);
          type->offset = -1; // TODO externed
          map_put(global_vars, name, type);
-         expect_node(';');
+         expect_token(';');
          continue;
       }
 
@@ -3572,7 +3572,7 @@ void toplevel() {
          if (consume_token(TK_ENUM)) {
             // not anonymous enum
             define_enum(1);
-            expect_node(';');
+            expect_token(';');
             continue;
          }
          Type *structuretype = new_type();
@@ -3581,30 +3581,30 @@ void toplevel() {
                map_put(struct_typedb, expect_ident(), structuretype);
             }
          }
-         expect_node('{');
+         expect_token('{');
          structuretype->structure = new_map();
          structuretype->ty = TY_STRUCT;
          structuretype->ptrof = NULL;
          while (!consume_token('}')) {
             char *name = NULL;
             Type *type = read_type_all(&name);
-            expect_node(';');
+            expect_token(';');
             map_put(structuretype->structure, name, type);
          }
          // structuretype->offset = offset;
          char *name = expect_ident();
          structuretype->name = name;
-         expect_node(';');
+         expect_token(';');
          map_put(typedb, name, structuretype);
          continue;
       }
 
       if (consume_token(TK_ENUM)) {
          consume_ident(); // for ease
-         expect_node('{');
+         expect_token('{');
          char *name = expect_ident();
          Type *structuretype = new_type();
-         expect_node(';');
+         expect_token(';');
          map_put(typedb, name, structuretype);
       }
 
@@ -3629,7 +3629,7 @@ void toplevel() {
                // TODO: only supported main valu.
                type->initval = initval->num_val;
             }
-            expect_node(';');
+            expect_token(';');
          }
          continue;
       }
@@ -3652,8 +3652,7 @@ Type *generate_class_template(Type *type, Map *template_type_db) {
    if (type && type->ty == TY_TEMPLATE) {
       new_type = find_typed_db(type->template_name, template_type_db);
       if (!new_type) {
-         fprintf(stderr, "Error: Incorrect Class Template type: %s\n",
-                 type->template_name);
+         error("Error: Incorrect Class Template type: %s\n", type->template_name);
          exit(1);
       }
       type = copy_type(new_type, type);
@@ -3695,7 +3694,7 @@ Node *generate_template(Node *node, Map *template_type_db) {
    if (node->type && node->type->ty == TY_TEMPLATE) {
       new_type = find_typed_db(node->type->template_name, template_type_db);
       if (!new_type) {
-         fprintf(stderr, "Error: Incorrect Template type: %s\n",
+         error("Error: Incorrect Template type: %s\n",
                  node->type->template_name);
          exit(1);
       }
@@ -4030,7 +4029,7 @@ void init_typedb() {
 Vector *read_tokenize(char *fname) {
    FILE *fp = fopen(fname, "r");
    if (!fp) {
-      fprintf(stderr, "No file found: %s\n", fname);
+      error("No file found: %s\n", fname);
       exit(1);
    }
    fseek(fp, 0, SEEK_END);
@@ -4269,7 +4268,7 @@ Node *optimizing(Node *node) {
                   new_num_val = node->lhs->num_val * node->rhs->num_val;
                   break;
                default:
-                  fprintf(stderr, "Error: Uncalled\n");
+                  error("Error: Unsupport type in optimization: %d\n", node->ty);
                   exit(1);
             }
             node_new = new_num_node(new_num_val);
