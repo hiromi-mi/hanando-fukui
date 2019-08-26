@@ -36,6 +36,9 @@ test1:
 	sh testfdef.sh 'int main() {return 1;}' 1
 	sh testfdef.sh 'int main() {return 1+9;}' 10
 	sh testfdef.sh 'int main() {return 13-9;}' 4
+	sh testfdef.sh 'int main() {return 0x1F;}' 31
+	sh testfdef.sh 'int main() {return 0X04;}' 4
+	sh testfdef.sh 'int main() {return 0Xff;}' 255
 
 test2:
 	sh testfdef.sh 'int main() {return 1*9;}' 9

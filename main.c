@@ -800,6 +800,14 @@ Vector *tokenize(char *p) {
          }
          continue;
       }
+      if (*p == '0' && (*(p+1) == 'x' || *(p+1) == 'X')) {
+         Token *token = new_token(pline, TK_NUM, p);
+         token->num_val = strtol(p+2, &p, 16);
+         token->type_size = 4; // to treat as int
+         vec_push(pre_tokens, token);
+         continue;
+      }
+
       if (isdigit(*p)) {
          Token *token = new_token(pline, TK_NUM, p);
          token->num_val = strtol(p, &p, 10);
@@ -3872,8 +3880,7 @@ void globalvar_gen() {
    for (int j = 0; j < float_doubles->len; j++) {
       printf(".LCD%d:\n", j);
       long *repr = (long *)float_doubles->data[j];
-      // 4294967295 : 0xFFFFFFFF
-      printf(".long %ld\n", *repr & 4294967295);
+      printf(".long %ld\n", *repr & 0xFFFFFFFF);
       printf(".long %ld\n", *repr >> 32);
    }
 
