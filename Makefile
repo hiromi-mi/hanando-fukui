@@ -78,7 +78,8 @@ test6:
 test7:
 	sh testfdef.sh "int main(){ int a;a=1;a-=1;return a ;}" 0
 	sh testfdef.sh "int main(){ int a;a=1;a+=1;return a ;}" 2
-	#sh testfdef.sh "int main(){ int a;a=1;a<<=1;a ;}" 2
+	sh testfdef.sh "int main(){ int a;a=1;a<<=1;return a;}" 2
+	sh testfdef.sh "int main(){ int a;a=2;a>>=1;return a;}" 1
 	sh testfdef.sh "int main(){ int a;a=3;a*=2;return a ;}" 6
 	sh testfdef.sh "int main(){ int a;a=6;a/=2;return a ;}" 3
 	sh testfdef.sh "int main(){ int a;a=3;a%%=2;return a ;}" 1

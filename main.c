@@ -764,8 +764,14 @@ Vector *tokenize(char *p) {
       }
       if (*p == '<') {
          if (*(p + 1) == '<') {
-            vec_push(pre_tokens, new_token(pline, TK_LSHIFT, p));
-            p += 2;
+            if (*(p + 2) == '=') {
+               vec_push(pre_tokens, new_token(pline, '=', p + 2));
+               vec_push(pre_tokens, new_token(pline, TK_OPAS, p));
+               p += 3;
+            } else {
+               vec_push(pre_tokens, new_token(pline, TK_LSHIFT, p));
+               p += 2;
+            }
          } else if (*(p + 1) == '=') {
             vec_push(pre_tokens, new_token(pline, TK_ISLESSEQ, p));
             p += 2;
@@ -777,8 +783,14 @@ Vector *tokenize(char *p) {
       }
       if (*p == '>') {
          if (*(p + 1) == '>') {
-            vec_push(pre_tokens, new_token(pline, TK_RSHIFT, p));
-            p += 2;
+            if (*(p + 2) == '=') {
+               vec_push(pre_tokens, new_token(pline, '=', p + 2));
+               vec_push(pre_tokens, new_token(pline, TK_OPAS, p));
+               p += 3;
+            } else {
+               vec_push(pre_tokens, new_token(pline, TK_RSHIFT, p));
+               p += 2;
+            }
          } else if (*(p + 1) == '=') {
             vec_push(pre_tokens, new_token(pline, TK_ISMOREEQ, p));
             p += 2;
@@ -2595,13 +2607,6 @@ Register *gen_register_rightval(Node *node, int unused_eval) {
          printf("mov dword ptr [%s+4], 304\n", id2reg64(lhs_reg->id));
          printf("lea rax, [rbp-%d]\n", node->rhs->lvar_offset);
          printf("mov qword ptr [%s+16], rax\n", id2reg64(lhs_reg->id));
-         /*
-         // set reg_save_area
-         printf("mov [%s], rax\n", node2reg(node->lhs, lhs_reg));
-         printf("lea rax, [rbp]\n");
-         // set overflow_arg_area
-         printf("mov [%s+4], rax\n", node2reg(node->lhs, lhs_reg));
-         */
          return NO_REGISTER;
 
       case ND_VAEND:
@@ -2797,16 +2802,14 @@ Node *assign() {
    Node *node = node_mathexpr();
    if (consume_token('=')) {
       if (confirm_token(TK_OPAS)) {
-         // FIXME: shift
          NodeType tp = tokens->data[pos]->input[0];
          expect_token(TK_OPAS);
-         if (tokens->data[pos]->input[0] == '<') {
+         if (tp == '<') {
             tp = ND_LSHIFT;
          }
-         if (tokens->data[pos]->input[0] == '>') {
+         if (tp == '>') {
             tp = ND_RSHIFT;
          }
-         // TODO should be fixed
          node = new_assign_node(node, new_node_with_cast(tp, node, assign()));
       } else {
          node = new_assign_node(node, assign());
@@ -2963,12 +2966,18 @@ Node *stmt() {
                block_node = new_node(ND_EXPRESSION_BLOCK, NULL, NULL);
                block_node->type = NULL;
                block_node->code = new_vector();
-               vec_push(block_node->code, (Token*)node);
+               vec_push(block_node->code, (Token *)node);
                // initializer (6.7.9)
-               // assignment-expression or {initializer_list or designation-list}
-               // compiled as x[3] = {1,2,3} as x[0] = 100, x[1] = 200, x[2] = 300,...
-               for (int j = 0;1;j++) {
-                  vec_push(block_node->code, (Token*)new_node(ND_ASSIGN, new_deref_node(new_node(ND_ADD, node, new_long_num_node(j))), node_lor()));
+               // assignment-expression or {initializer_list or
+               // designation-list} compiled as x[3] = {1,2,3} as x[0] = 100,
+               // x[1] = 200, x[2] = 300,...
+               for (int j = 0; 1; j++) {
+                  vec_push(block_node->code,
+                           (Token *)new_node(
+                               ND_ASSIGN,
+                               new_deref_node(new_node(ND_ADD, node,
+                                                       new_long_num_node(j))),
+                               node_lor()));
                   if (consume_token('}')) {
                      consume_token(',');
                      break;
@@ -3505,7 +3514,7 @@ void new_fdef(char *name, Type *type, Map *local_typedb) {
       current_local_typedb = local_typedb;
       program(newfunc);
       current_local_typedb = NULL;
-      //newfunc->is_recursive = is_recursive(newfunc, name);
+      // newfunc->is_recursive = is_recursive(newfunc, name);
       if (local_typedb->keys->len <= 0) {
          // There are no typedb: template
          vec_push(globalcode, (Token *)newfunc);
