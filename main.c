@@ -3204,7 +3204,8 @@ Type *copy_type(Type *old_type, Type *type) {
    type->offset = old_type->offset;
    type->is_const = old_type->is_const;
    type->is_static = old_type->is_static;
-   type->is_new_variable = old_type->is_new_variable;
+   // type->is_new_variable will NOT be propagated. because it only should be used as one node
+ 
    type->name = old_type->name;
    type->ret = old_type->ret;
    type->template_name = old_type->template_name;
@@ -3734,6 +3735,18 @@ Node *generate_template(Node *node, Map *template_type_db) {
    int j;
    Node *code_node;
    Type *new_type;
+   Env *prev_env = env;
+   if (node->ty == ND_BLOCK || node->ty == ND_FDEF) {
+      if (node->env->env) {
+         fprintf(stderr, "# get from previous rsp are generated.\n");
+         node->env = new_env(node->env->env);
+      } else {
+         // when rsp are top, create new env
+         fprintf(stderr, "# new rsp are generated.\n");
+         node->env = new_env(NULL);
+      }
+      env = node->env;
+   }
    if (node->type && node->type->ty == TY_TEMPLATE) {
       new_type = find_typed_db(node->type->template_name, template_type_db);
       if (!new_type) {
@@ -3771,6 +3784,7 @@ Node *generate_template(Node *node, Map *template_type_db) {
          node->conds[j] = generate_template(node->conds[j], template_type_db);
       }
    }
+   env = prev_env;
    return node;
 }
 
