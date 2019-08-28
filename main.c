@@ -267,9 +267,6 @@ Node *new_node(NodeType ty, Node *lhs, Node *rhs) {
    node->funcdef = NULL;
    node->sizeof_type = NULL;
 
-   if (lhs) {
-      node->type = node->lhs->type;
-   }
    return node;
 }
 
@@ -335,12 +332,6 @@ Node *new_float_node(double num_val, char *_buf, char *typename_float) {
 Node *new_deref_node(Node *lhs) {
    Node *node = new_node(ND_DEREF, lhs, NULL);
    // moved to new_deref_node
-   if (node->type && node->type->ty != TY_TEMPLATE) {
-      node->type = node->lhs->type->ptrof;
-      if (!node->type) {
-         error("Error: Dereference on NOT pointered.");
-      }
-   }
    node->pline = -1; // TODO for more advenced textj
    return node;
 }
@@ -933,7 +924,6 @@ Node *node_mathexpr() {
    while (1) {
       if (consume_token(',')) {
          node = new_node(',', node, node_lor());
-         node->type = node->rhs->type;
       } else {
          return node;
       }
@@ -990,16 +980,12 @@ Node *node_compare() {
    while (1) {
       if (consume_token('<')) {
          node = new_node_with_cast('<', node, node_shift());
-         node->type = find_typed_db("int", typedb);
       } else if (consume_token('>')) {
          node = new_node_with_cast('>', node, node_shift());
-         node->type = find_typed_db("int", typedb);
       } else if (consume_token(TK_ISLESSEQ)) {
          node = new_node_with_cast(ND_ISLESSEQ, node, node_shift());
-         node->type = find_typed_db("int", typedb);
       } else if (consume_token(TK_ISMOREEQ)) {
          node = new_node_with_cast(ND_ISMOREEQ, node, node_shift());
-         node->type = find_typed_db("int", typedb);
       } else {
          return node;
       }
@@ -1011,10 +997,8 @@ Node *node_iseq() {
    while (1) {
       if (consume_token(TK_ISEQ)) {
          node = new_node_with_cast(ND_ISEQ, node, node_compare());
-         node->type = find_typed_db("int", typedb);
       } else if (consume_token(TK_ISNOTEQ)) {
          node = new_node_with_cast(ND_ISNOTEQ, node, node_compare());
-         node->type = find_typed_db("int", typedb);
       } else {
          return node;
       }
@@ -1096,9 +1080,6 @@ Node *node_increment() {
          node = node->lhs;
       } else {
          node = new_node(ND_ADDRESS, node, NULL);
-         node->type = new_type();
-         node->type->ty = TY_PTR;
-         node->type->ptrof = node->lhs->type;
       }
    } else if (consume_token('*')) {
       node = new_deref_node(node_increment());
@@ -1137,12 +1118,6 @@ Node *node_mul() {
 Node *new_dot_node(Node *node) {
    node = new_node('.', node, NULL);
    node->name = expect_ident();
-   if (node->type && node->type->ty != TY_TEMPLATE && node->type->structure) {
-      node->type = (Type *)map_get(node->lhs->type->structure, node->name);
-      if (!node->type) {
-         error("Error: structure not found: %s", node->name);
-      }
-   }
    // Member Accesss Control p.231
    if ((lang & 1) && (node->type->memaccess == PRIVATE)) {
       // FIXME : to implement PRIVATE & PUBLIC
@@ -3204,7 +3179,7 @@ Type *copy_type(Type *old_type, Type *type) {
    type->offset = old_type->offset;
    type->is_const = old_type->is_const;
    type->is_static = old_type->is_static;
-   // type->is_new_variable will NOT be propagated. because it only should be used as one node
+   type->is_new_variable = old_type->is_new_variable;
  
    type->name = old_type->name;
    type->ret = old_type->ret;
@@ -3699,7 +3674,7 @@ Type *generate_class_template(Type *type, Map *template_type_db) {
          error("Error: Incorrect Class Template type: %s\n",
                type->template_name);
       }
-      type = copy_type(new_type, type);
+      type = duplicate_type(new_type);
    }
    if (type->ptrof) {
       type->ptrof = generate_class_template(type->ptrof, template_type_db);
@@ -3731,6 +3706,7 @@ Type *generate_class_template(Type *type, Map *template_type_db) {
 }
 
 Node *generate_template(Node *node, Map *template_type_db) {
+   int is_new_variable = node->type->is_new_variable;
    node = duplicate_node(node);
    int j;
    Node *code_node;
@@ -4203,11 +4179,15 @@ Node *analyzing(Node *node) {
       case ND_SUB:
          if (node->lhs->type->ty == TY_PTR || node->lhs->type->ty == TY_ARRAY) {
             node->rhs = new_node(ND_MULTIPLY_IMMUTABLE_VALUE, node->rhs, NULL);
+            node->rhs->type = node->rhs->lhs->type;
             node->rhs->num_val = cnt_size(node->lhs->type->ptrof);
+            node->type = node->lhs->type;
          } else if (node->rhs->type->ty == TY_PTR ||
                     node->rhs->type->ty == TY_ARRAY) {
             node->lhs = new_node(ND_MULTIPLY_IMMUTABLE_VALUE, node->lhs, NULL);
+            node->lhs->type = node->rhs->lhs->type;
             node->lhs->num_val = cnt_size(node->rhs->type->ptrof);
+            node->type = node->rhs->type;
          } else {
             node = implicit_althemic_type_conversion(node);
             node->type = node->lhs->type;
@@ -4232,6 +4212,7 @@ Node *analyzing(Node *node) {
       case ND_ISMOREEQ:
       case ND_LESS:
       case ND_GREATER:
+         node->type = find_typed_db("int", typedb);
          node = implicit_althemic_type_conversion(node);
          break;
       case ND_FPLUSPLUS:
@@ -4240,6 +4221,12 @@ Node *analyzing(Node *node) {
          if (node->lhs->type->ty == TY_PTR || node->lhs->type->ty == TY_ARRAY) {
             node->num_val = type2size(node->lhs->type->ptrof);
          }
+         node->type = node->lhs->type;
+         break;
+      case ND_ADDRESS:
+         node->type = new_type();
+         node->type->ty = TY_PTR;
+         node->type->ptrof = node->lhs->type;
          break;
       case ND_DEREF:
          // FIXME Just adding it on analyzing pharase will fail to selfhosting.
@@ -4253,6 +4240,7 @@ Node *analyzing(Node *node) {
             node->rhs = new_node(ND_CAST, node->rhs, NULL);
             node->rhs->type = node->lhs->type;
          }
+         node->type = node->lhs->type;
          break;
       case ND_DOT:
          // FIXME Just adding it on analyzing pharase will fail to selfhosting.
@@ -4265,13 +4253,24 @@ Node *analyzing(Node *node) {
          }
          break;
       case ND_NEG:
+         node->type = node->lhs->type;
          if (node->type->ty == TY_DOUBLE) {
             neg_double_generate = 1;
          }
          if (node->type->ty == TY_FLOAT) {
             neg_float_generate = 1;
          }
+         break;
+      case ND_MULTIPLY_IMMUTABLE_VALUE:
+         node->type = node->lhs->type;
+         break;
+      case ND_COMMA:
+         node->type = node->rhs->type;
+         break;
       default:
+         if (node->type == NULL && node->lhs && node->lhs->type) {
+            node->type = node->lhs->type;
+         }
          break;
    }
 
