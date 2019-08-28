@@ -230,7 +230,6 @@ typedef struct Node {
    Env *env;
    Type *type;
    Type *sizeof_type;
-   int lvar_offset;
    struct Node *is_omiited;
    int is_static;
    int is_recursive;

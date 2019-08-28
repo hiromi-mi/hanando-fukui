@@ -255,7 +255,6 @@ Node *new_node(NodeType ty, Node *lhs, Node *rhs) {
    node->gen_name = NULL;
    node->env = NULL;
    node->type = NULL;
-   node->lvar_offset = 0;
    node->is_omiited = NULL;
    node->is_static = 0;
    node->is_recursive = 0;
@@ -388,6 +387,7 @@ Node *new_ident_node(char *name) {
    LocalVariable *var = get_type_local(node);
    if (var) {
       node->type = var->type;
+      node->local_variable = var;
       return node;
    }
 
@@ -1682,7 +1682,7 @@ Register *gen_register_leftval(Node *node) {
       case ND_IDENT:
          temp_reg = retain_reg();
          printf("lea %s, [rbp-%d]\n", id2reg64(temp_reg->id),
-                node->lvar_offset);
+                node->local_variable->lvar_offset);
          return temp_reg;
 
       case ND_DEREF:
@@ -1825,7 +1825,7 @@ Register *gen_register_rightval(Node *node, int unused_eval) {
             return gen_register_leftval(node);
          } else {
             temp_reg = malloc(sizeof(Register));
-            temp_reg->id = node->lvar_offset;
+            temp_reg->id = node->local_variable->lvar_offset;
             temp_reg->kind = R_LVAR;
             temp_reg->name = NULL;
             temp_reg->size = type2size(node->type);
@@ -2459,11 +2459,11 @@ Register *gen_register_rightval(Node *node, int unused_eval) {
          if (node->is_omiited) {
             for (j = 0; j < 6; j++) {
                printf("mov [rbp-%d], %s\n",
-                      node->is_omiited->lvar_offset - j * 8, arg_registers[j]);
+                      node->is_omiited->local_variable->lvar_offset - j * 8, arg_registers[j]);
             }
             for (j = 0; j < 8; j++) {
                printf("movaps [rbp-%d], xmm%d\n",
-                      node->is_omiited->lvar_offset - 8 * 6 - j * 16, j);
+                      node->is_omiited->local_variable->lvar_offset - 8 * 6 - j * 16, j);
             }
          }
          for (j = 0; j < node->code->len; j++) {
@@ -2599,7 +2599,7 @@ Register *gen_register_rightval(Node *node, int unused_eval) {
                 // omitted_argc * 8
                 node->num_val * 8);
          printf("mov dword ptr [%s+4], 304\n", id2reg64(lhs_reg->id));
-         printf("lea rax, [rbp-%d]\n", node->rhs->lvar_offset);
+         printf("lea rax, [rbp-%d]\n", node->rhs->local_variable->lvar_offset);
          printf("mov qword ptr [%s+16], rax\n", id2reg64(lhs_reg->id));
          return NO_REGISTER;
 
@@ -3162,7 +3162,6 @@ Node *copy_node(Node *old_node, Node *node) {
    node->gen_name = old_node->gen_name;
    node->env = old_node->env;
    node->type = duplicate_type(old_node->type);
-   node->lvar_offset = old_node->lvar_offset;
    node->is_omiited = old_node->is_omiited;
    node->is_static = old_node->is_static;
    node->is_recursive = old_node->is_static;
@@ -4151,32 +4150,26 @@ Node *analyzing(Node *node) {
    Env *prev_env = env;
    if (node->ty == ND_BLOCK || node->ty == ND_FDEF) {
       env = node->env;
+      LocalVariable *local_variable = NULL;
       // generate all size of nodes
+      // preview all variables and setup offsets.
       if (prev_env) {
+         // This is to update rsp_offset based on (it's based system).
+         // Previously, this is called by new_env() but no longer supported.
          env->rsp_offset += prev_env->rsp_offset;
       }
-   }
-   if (node->ty == ND_IDENT) {
-      if (node->is_new_variable != node->type->is_new_variable) {
-         fprintf(stderr, "Error: Unexpected %s Expected %d Actual %d\n", node->name, node->type->is_new_variable, node->is_new_variable);
-      }
-      if (node->type->is_new_variable > 0) {
-      //if (node->is_new_variable > 0) {
-         int size = cnt_size(node->type);
+      for (j = 0;j < env->idents->keys->len; j++) {
+         local_variable = (LocalVariable*)env->idents->vals->data[j];
+         int size = cnt_size(local_variable->type);
          // should aligned as x86_64
          if (size % 8 != 0) {
             size += (8 - size % 8);
          }
          update_rsp_offset(size);
-         node->lvar_offset = env->rsp_offset;
-         node->type->offset = env->rsp_offset;
-         node->type->is_new_variable = 0;
-         node->is_new_variable = 0;
-      } else {
-         // already known
-         node->lvar_offset = node->type->offset;
+         local_variable->lvar_offset = env->rsp_offset;
       }
    }
+
    if (node->lhs) {
       node->lhs = analyzing(node->lhs);
    }
