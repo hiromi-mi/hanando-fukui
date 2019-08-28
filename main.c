@@ -183,7 +183,8 @@ int map_put(Map *map, char *key, void *val) {
 }
 
 void *map_get(Map *map, char *key) {
-   for (int i = map->keys->len - 1; i >= 0; i--) {
+   int i;
+   for (i = map->keys->len - 1; i >= 0; i--) {
       if (strcmp((char *)map->keys->data[i], key) == 0) {
          return map->vals->data[i];
       }
@@ -266,6 +267,7 @@ Node *new_node(NodeType ty, Node *lhs, Node *rhs) {
    node->pline = -1; // TODO for more advenced text
    node->funcdef = NULL;
    node->sizeof_type = NULL;
+   node->is_new_variable = 0;
 
    return node;
 }
@@ -352,8 +354,9 @@ Node *new_ident_node_with_new_variable(char *name, Type *type) {
    node->name = name;
    node->type = type;
    node->pline = -1; // TODO for more advenced textj
-   node->type->is_new_variable = 1;
    map_put(env->idents, name, type);
+   node->type->is_new_variable = 1;
+   node->is_new_variable = 1;
    /*
    if ((lang & 1) && type->ty == TY_STRUCT) {
       // On Class, Default Constructor Should Be Called
@@ -1178,6 +1181,7 @@ Vector *read_template_argument_list(Map *local_typedb) {
 Node *node_term() {
    Node *node = NULL;
    Vector *template_types = NULL;
+   int j;
 
    // Primary Expression
    if (confirm_token(TK_FLOAT)) {
@@ -1202,7 +1206,7 @@ Node *node_term() {
    } else if (confirm_ident()) {
       // treat constant or variable
       char *input = expect_ident();
-      for (int j = 0; j < consts->keys->len; j++) {
+      for (j = 0; j < consts->keys->len; j++) {
          // support for constant
          if (strcmp((char *)consts->keys->data[j], input) == 0) {
             node = (Node *)consts->vals->data[j];
@@ -1493,7 +1497,8 @@ char *id2reg32(int id) { return registers32[id]; }
 char *id2reg64(int id) { return registers64[id]; }
 
 void init_reg_table() {
-   for (int j = 0; j < 6; j++) { // j = 6 means r15
+   int j;
+   for (j = 0; j < 6; j++) { // j = 6 means r15
       reg_table[j] = -1;         // NEVER_USED REGISTERS
    }
 }
@@ -1574,7 +1579,8 @@ char *node2reg(Node *node, Register *reg) {
 }
 
 Register *float_retain_reg() {
-   for (int j = 0; j < 8; j++) {
+   int j;
+   for (j = 0; j < 8; j++) {
       if (float_reg_table[j] > 0)
          continue;
       float_reg_table[j] = 1;
@@ -1589,7 +1595,8 @@ Register *float_retain_reg() {
 }
 
 Register *retain_reg() {
-   for (int j = 0; j < 5; j++) {
+   int j;
+   for (j = 0; j < 5; j++) {
       if (reg_table[j] > 0)
          continue;
       if (reg_table[j] < 0 && j < 3) {
@@ -1624,11 +1631,12 @@ void release_reg(Register *reg) {
 }
 
 void release_all_reg() {
-   for (int j = 0; j < 6; j++) {
+   int j;
+   for (j = 0; j < 6; j++) {
       // j = 5 means r15
       reg_table[j] = -1;
    }
-   for (int j = 0; j < 8; j++) {
+   for (j = 0; j < 8; j++) {
       float_reg_table[j] = -1;
    }
 }
@@ -2776,7 +2784,8 @@ Register *gen_register_rightval(Node *node, int unused_eval) {
 void gen_register_top() {
    init_reg_table();
    init_reg_registers();
-   for (int j = 0; j < globalcode->len; j++) {
+   int j;
+   for (j = 0; j < globalcode->len; j++) {
       gen_register_rightval((Node *)globalcode->data[j], 1);
    }
 }
@@ -2934,6 +2943,7 @@ Type *read_type_all(char **input) {
 Node *stmt() {
    Node *node = NULL;
    int pline = tokens->data[pos]->pline;
+   int j;
    if (confirm_type()) {
       char *input = NULL;
       Type *fundamental_type = read_fundamental_type(current_local_typedb);
@@ -2954,7 +2964,7 @@ Node *stmt() {
                // assignment-expression or {initializer_list or
                // designation-list} compiled as x[3] = {1,2,3} as x[0] = 100,
                // x[1] = 200, x[2] = 300,...
-               for (int j = 0; 1; j++) {
+               for (j = 0; 1; j++) {
                   vec_push(block_node->code,
                            (Token *)new_node(
                                ND_ASSIGN,
@@ -3069,8 +3079,10 @@ void program(Node *block_node) {
          Node *for_node = new_node(ND_FOR, NULL, NULL);
          expect_token('(');
          // TODO: should be splited between definition and expression
-         for_node->conds[0] = stmt();
          for_node->rhs = new_block_node(env);
+         for_node->conds[0] = stmt();
+         Env *for_previous_node = env;
+         env = for_node->rhs->env;
          // expect_token(';');
          // TODO: to allow without lines
          if (!consume_token(';')) {
@@ -3081,6 +3093,7 @@ void program(Node *block_node) {
             for_node->conds[2] = assign();
             expect_token(')');
          }
+         env = for_previous_node;
          program(for_node->rhs);
          vec_push(args, (Token *)for_node);
          continue;
@@ -3159,6 +3172,7 @@ Node *copy_node(Node *old_node, Node *node) {
    node->pline = -1; // TODO for more advenced text
    node->funcdef = old_node->funcdef;
    node->sizeof_type = old_node->sizeof_type;
+   node->is_new_variable = old_node->is_new_variable;
    return node;
 }
 
@@ -3190,10 +3204,11 @@ Type *copy_type(Type *old_type, Type *type) {
 }
 
 Type *find_typed_db_without_copy(char *input, Map *db) {
+   int j;
    if (!input) {
       error("Error: find_typed_db with null input\n");
    }
-   for (int j = 0; j < db->keys->len; j++) {
+   for (j = 0; j < db->keys->len; j++) {
       // for struct
       if (strcmp(input, (char *)db->keys->data[j]) == 0) {
          // copy type
@@ -3214,11 +3229,13 @@ void generate_structure(Map *db) {
    }
    int size = 0;
    int offset = 0;
+   int j;
+   int k;
 
    // This depend on data structure: should be sorted as the number
    // Should skip TEMPLATE_TYPE
    // How to detect template_based class? -> local_typedb
-   for (int j = 0; j < db->keys->len; j++) {
+   for (j = 0; j < db->keys->len; j++) {
       Type *structuretype = (Type *)db->vals->data[j];
       if (structuretype->ty != TY_STRUCT || structuretype->offset > 0 ||
           (structuretype->local_typedb &&
@@ -3228,7 +3245,7 @@ void generate_structure(Map *db) {
       }
       offset = 0;
 
-      for (int k = 0; k < structuretype->structure->keys->len; k++) {
+      for (k = 0; k < structuretype->structure->keys->len; k++) {
          Type *type = (Type *)structuretype->structure->vals->data[k];
          size = type2size3(type);
          if (size > 0 && (offset % size != 0)) {
@@ -3346,6 +3363,7 @@ Type *read_fundamental_type(Map *local_typedb) {
 
 int split_type_caller() {
    int tos = pos; // for skipping tk_static
+   int j;
    // static may be ident or func
    if (tokens->data[tos]->ty == TK_STATIC) {
       tos++;
@@ -3356,14 +3374,14 @@ int split_type_caller() {
    if (tokens->data[tos]->ty != TK_IDENT) {
       return 0;
    }
-   for (int j = 0; j < typedb->keys->len; j++) {
+   for (j = 0; j < typedb->keys->len; j++) {
       // for struct
       if (strcmp(tokens->data[tos]->input, (char *)typedb->keys->data[j]) ==
           0) {
          return typedb->vals->data[j]->ty;
       }
    }
-   for (int j = 0; current_local_typedb && j < current_local_typedb->keys->len;
+   for (j = 0; current_local_typedb && j < current_local_typedb->keys->len;
         j++) {
       // for template
       if (strcmp(tokens->data[tos]->input,
@@ -3706,7 +3724,10 @@ Type *generate_class_template(Type *type, Map *template_type_db) {
 }
 
 Node *generate_template(Node *node, Map *template_type_db) {
-   int is_new_variable = node->type->is_new_variable;
+   int is_new_variable = 0;
+   if (node->ty == ND_IDENT) {
+      is_new_variable = node->type->is_new_variable;
+   }
    node = duplicate_node(node);
    int j;
    Node *code_node;
@@ -3730,6 +3751,7 @@ Node *generate_template(Node *node, Map *template_type_db) {
                node->type->template_name);
       }
       node->type = copy_type(new_type, new_type);
+      node->type->is_new_variable = is_new_variable;
    }
    if (node->lhs) {
       node->lhs = generate_template(node->lhs, template_type_db);
@@ -3838,7 +3860,8 @@ void test_map() {
 
 void globalvar_gen() {
    puts(".data");
-   for (int j = 0; j < global_vars->keys->len; j++) {
+   int j;
+   for (j = 0; j < global_vars->keys->len; j++) {
       Type *valdataj = (Type *)global_vars->vals->data[j];
       char *keydataj = (char *)global_vars->keys->data[j];
       if (valdataj->offset < 0) {
@@ -3858,16 +3881,16 @@ void globalvar_gen() {
          puts(".text");
       }
    }
-   for (int j = 0; j < strs->len; j++) {
+   for (j = 0; j < strs->len; j++) {
       printf(".LC%d:\n", j);
       printf(".string \"%s\"\n", (char *)strs->data[j]);
    }
-   for (int j = 0; j < floats->len; j++) {
+   for (j = 0; j < floats->len; j++) {
       printf(".LCF%d:\n", j);
       int *int_repr = (int *)floats->data[j];
       printf(".long %d\n", *int_repr);
    }
-   for (int j = 0; j < float_doubles->len; j++) {
+   for (j = 0; j < float_doubles->len; j++) {
       printf(".LCD%d:\n", j);
       long *repr = (long *)float_doubles->data[j];
       printf(".long %ld\n", *repr & 0xFFFFFFFF);
@@ -3897,7 +3920,7 @@ void preprocess(Vector *pre_tokens) {
    map_put(defined, "__HANANDO_FUKUI__", hanando_fukui_compiled);
 
    int skipped = 0;
-   int j;
+   int j, k;
    for (j = 0; j < pre_tokens->len; j++) {
       if (pre_tokens->data[j]->ty == '#') {
          // preprocessor begin
@@ -3966,7 +3989,7 @@ void preprocess(Vector *pre_tokens) {
          continue;
 
       int called = 0;
-      for (int k = 0; k < defined->keys->len; k++) {
+      for (k = 0; k < defined->keys->len; k++) {
          char *chr = (char *)defined->keys->data[k];
          if (pre_tokens->data[j]->ty == TK_IDENT &&
              strcmp(pre_tokens->data[j]->input, chr) == 0) {
@@ -4121,7 +4144,11 @@ Node *analyzing(Node *node) {
       }
    }
    if (node->ty == ND_IDENT) {
+      if (node->is_new_variable != node->type->is_new_variable) {
+         fprintf(stderr, "Error: Unexpected %s Expected %d Actual %d\n", node->name, node->type->is_new_variable, node->is_new_variable);
+      }
       if (node->type->is_new_variable > 0) {
+      //if (node->is_new_variable > 0) {
          int size = cnt_size(node->type);
          // should aligned as x86_64
          if (size % 8 != 0) {
@@ -4131,6 +4158,7 @@ Node *analyzing(Node *node) {
          node->lvar_offset = env->rsp_offset;
          node->type->offset = env->rsp_offset;
          node->type->is_new_variable = 0;
+         node->is_new_variable = 0;
       } else {
          // already known
          node->lvar_offset = node->type->offset;

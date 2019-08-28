@@ -230,6 +230,7 @@ typedef struct Node {
    int is_recursive;
    int pline;
    struct Node *funcdef;
+   int is_new_variable;
 } Node;
 
 // Extended Register. with global variables, local variables, memory map,
