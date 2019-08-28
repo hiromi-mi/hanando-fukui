@@ -154,7 +154,6 @@ Type *new_type() {
    type->is_const = 0;
    type->is_static = 0;
    type->is_omiited = 0;
-   type->is_new_variable = 0;
    type->name = NULL;
    type->context = malloc(sizeof(Type));
    type->context->is_previous_class = NULL;
@@ -268,7 +267,6 @@ Node *new_node(NodeType ty, Node *lhs, Node *rhs) {
    node->funcdef = NULL;
    node->sizeof_type = NULL;
    node->local_variable = NULL;
-   node->is_new_variable = 0;
 
    return node;
 }
@@ -356,8 +354,6 @@ Node *new_ident_node_with_new_variable(char *name, Type *type) {
    node->type = type;
    node->pline = -1; // TODO for more advenced textj
    node->local_variable = new_local_variable(name, type);
-   node->type->is_new_variable = 1;
-   node->is_new_variable = 1;
    /*
    if ((lang & 1) && type->ty == TY_STRUCT) {
       // On Class, Default Constructor Should Be Called
@@ -3174,7 +3170,6 @@ Node *copy_node(Node *old_node, Node *node) {
    node->pline = -1; // TODO for more advenced text
    node->funcdef = old_node->funcdef;
    node->sizeof_type = old_node->sizeof_type;
-   node->is_new_variable = old_node->is_new_variable;
    node->local_variable = old_node->local_variable;
    return node;
 }
@@ -3196,7 +3191,6 @@ Type *copy_type(Type *old_type, Type *type) {
    type->offset = old_type->offset;
    type->is_const = old_type->is_const;
    type->is_static = old_type->is_static;
-   type->is_new_variable = old_type->is_new_variable;
  
    type->name = old_type->name;
    type->ret = old_type->ret;
@@ -3727,23 +3721,25 @@ Type *generate_class_template(Type *type, Map *template_type_db) {
 }
 
 Node *generate_template(Node *node, Map *template_type_db) {
-   int is_new_variable = 0;
-   if (node->ty == ND_IDENT) {
-      is_new_variable = node->type->is_new_variable;
-   }
    node = duplicate_node(node);
    int j;
    Node *code_node;
    Type *new_type;
    Env *prev_env = env;
+   Env *duplicated_env = NULL;
+   LocalVariable *lvar;
+   LocalVariable *duplicated_lvar;
    if (node->ty == ND_BLOCK || node->ty == ND_FDEF) {
+      duplicated_env = new_env(node->env->env);
       if (node->env->env) {
          fprintf(stderr, "# get from previous rsp are generated.\n");
-         node->env = new_env(node->env->env);
       } else {
          // when rsp are top, create new env
          fprintf(stderr, "# new rsp are generated.\n");
-         node->env = new_env(NULL);
+      }
+      for (j = 0; j < node->env->idents->keys->len; j++) {
+         lvar = (LocalVariable*)node->env->idents->vals->data[j];
+         duplicated_lvar = new_local_variable(lvar->name, lvar->type);
       }
       env = node->env;
    }
@@ -3754,7 +3750,6 @@ Node *generate_template(Node *node, Map *template_type_db) {
                node->type->template_name);
       }
       node->type = copy_type(new_type, new_type);
-      node->type->is_new_variable = is_new_variable;
    }
    if (node->lhs) {
       node->lhs = generate_template(node->lhs, template_type_db);
@@ -4202,6 +4197,7 @@ Node *analyzing(Node *node) {
          if (node->conds[0]) {
             // evaluate node->conds[0] and return its type
             node = new_long_num_node(cnt_size(node->conds[0]->type));
+
          } else {
             // ND_SIZEOF should generate its type information.
             // This is because: on parse, no (structured) type size are

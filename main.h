@@ -194,7 +194,6 @@ typedef struct Type {
    int is_const;
    int is_static;
    int is_omiited;
-   int is_new_variable;
    char *name; // for args
    char *template_name;
    MemberAccess memaccess;
@@ -235,7 +234,6 @@ typedef struct Node {
    int is_recursive;
    int pline;
    struct Node *funcdef;
-   int is_new_variable;
    LocalVariable* local_variable;
 } Node;
 
