@@ -82,7 +82,8 @@ Type *find_typed_db(char *input, Map *db);
 Type *find_typed_db_without_copy(char *input, Map *db);
 Type *class_declaration(Map *local_typedb);
 int cnt_size(Type *type);
-Type *get_type_local(Node *node);
+LocalVariable *get_type_local(Node *node);
+LocalVariable *new_local_variable(char *name, Type *type);
 Node *new_addsub_node(NodeType ty, Node *lhs, Node *rhs);
 Node *generate_template(Node *node, Map *template_type_db);
 Type *generate_class_template(Type *type, Map *template_type_db);
@@ -264,9 +265,10 @@ Node *new_node(NodeType ty, Node *lhs, Node *rhs) {
    node->args[3] = NULL;
    node->args[4] = NULL;
    node->args[5] = NULL;
-   node->pline = -1; // TODO for more advenced text
+   node->pline = -1; // more advenced text
    node->funcdef = NULL;
    node->sizeof_type = NULL;
+   node->local_variable = NULL;
    node->is_new_variable = 0;
 
    return node;
@@ -354,7 +356,7 @@ Node *new_ident_node_with_new_variable(char *name, Type *type) {
    node->name = name;
    node->type = type;
    node->pline = -1; // TODO for more advenced textj
-   map_put(env->idents, name, type);
+   node->local_variable = new_local_variable(name, type);
    node->type->is_new_variable = 1;
    node->is_new_variable = 1;
    /*
@@ -383,8 +385,9 @@ Node *new_ident_node(char *name) {
       node->type->ptrof->ty = TY_INT;
       return node;
    }
-   node->type = get_type_local(node);
-   if (node->type) {
+   LocalVariable *var = get_type_local(node);
+   if (var) {
+      node->type = var->type;
       return node;
    }
 
@@ -1295,18 +1298,18 @@ Node *node_term() {
    }
 }
 
-Type *get_type_local(Node *node) {
+LocalVariable *get_type_local(Node *node) {
    Env *local_env = env;
-   Type *type = NULL;
-   while (type == NULL && local_env != NULL) {
-      type = map_get(local_env->idents, node->name);
-      if (type) {
+   LocalVariable *local_variable = NULL;
+   while (local_variable == NULL && local_env != NULL) {
+      local_variable = map_get(local_env->idents, node->name);
+      if (local_variable) {
          node->env = local_env;
-         return type;
+         return local_variable;
       }
       local_env = local_env->env;
    }
-   return type;
+   return local_variable;
 }
 
 char *_rax(Node *node) {
@@ -3173,6 +3176,7 @@ Node *copy_node(Node *old_node, Node *node) {
    node->funcdef = old_node->funcdef;
    node->sizeof_type = old_node->sizeof_type;
    node->is_new_variable = old_node->is_new_variable;
+   node->local_variable = old_node->local_variable;
    return node;
 }
 
@@ -4134,11 +4138,20 @@ Node *implicit_althemic_type_conversion(Node *node) {
    return node;
 }
 
+LocalVariable *new_local_variable(char *name, Type *type) {
+   LocalVariable *lvar = malloc(sizeof(LocalVariable));
+   lvar->name = name;
+   lvar->type = type;
+   map_put(env->idents, name, lvar);
+   return lvar;
+}
+
 Node *analyzing(Node *node) {
    int j;
    Env *prev_env = env;
    if (node->ty == ND_BLOCK || node->ty == ND_FDEF) {
       env = node->env;
+      // generate all size of nodes
       if (prev_env) {
          env->rsp_offset += prev_env->rsp_offset;
       }

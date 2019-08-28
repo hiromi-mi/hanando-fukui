@@ -209,6 +209,12 @@ typedef struct Env {
    int rsp_offset;
 } Env;
 
+typedef struct LocalVariable {
+   int lvar_offset;
+   Type *type;
+   char *name;
+} LocalVariable;
+
 typedef struct Node {
    NodeType ty;
    struct Node *lhs;
@@ -231,6 +237,7 @@ typedef struct Node {
    int pline;
    struct Node *funcdef;
    int is_new_variable;
+   LocalVariable* local_variable;
 } Node;
 
 // Extended Register. with global variables, local variables, memory map,
