@@ -2918,7 +2918,7 @@ Type *read_type(Type *type, char **input, Map *local_typedb) {
          concrete_type->is_omiited = 0;
 
          // Propagate is_static func or not
-         type->is_static = concrete_type->is_static;
+         concrete_type->is_static = type->is_static;
 
          // follow concrete_type if real type !is not supported yet!
          // to set...
