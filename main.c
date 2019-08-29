@@ -501,9 +501,11 @@ Env *new_env(Env *prev_env, Type *ret) {
    _env->idents = new_map();
    _env->rsp_offset = SPACE_R12R13R14R15; // to save r12, r13, r14, r15
    _env->ret = ret;
+   _env->current_class = NULL;
    if (prev_env) {
       _env->rsp_offset = prev_env->rsp_offset;
       _env->rsp_offset_max = prev_env->rsp_offset_max;
+      _env->current_class = prev_env->current_class; // propagate current class info.
       if (!ret) {
          // env->ret will be propagated as ND_BLOCK.
          _env->ret = prev_env->ret;
@@ -1112,10 +1114,6 @@ Node *node_mul() {
 Node *new_dot_node(Node *node) {
    node = new_node('.', node, NULL);
    node->name = expect_ident();
-   // Member Accesss Control p.231
-   if ((lang & 1) && (node->type->memaccess == PRIVATE)) {
-      // FIXME : to implement PRIVATE & PUBLIC
-   }
    return node;
 }
 
@@ -3203,15 +3201,22 @@ Type *copy_type(Type *old_type, Type *type) {
    }
    type->ty = old_type->ty;
    type->structure = old_type->structure;
-   type->array_size = old_type->array_size;
    type->ptrof = old_type->ptrof;
+   type->ret = old_type->ret;
+   // SHOULD copy, but it's useful for debugging
+   // type->argc = old_type->argc;
+   // type->args[j] = old_type->args[j];
+   type->array_size = old_type->array_size;
+   // type->initval = old_type->initval;
    type->offset = old_type->offset;
    type->is_const = old_type->is_const;
    type->is_static = old_type->is_static;
+   // type->is_omiited = old_type->is_omiited;
 
    type->name = old_type->name;
-   type->ret = old_type->ret;
    type->template_name = old_type->template_name;
+   type->memaccess = old_type->memaccess;
+   // type->context = old_type->context;
    type->local_typedb =
        old_type->local_typedb; // TODO is duplicate of local_typedb required?
    return type;
@@ -3505,6 +3510,7 @@ void new_fdef(char *name, Type *type, Map *local_typedb) {
 
       type->context->is_previous_class = class_name;
       type->context->method_name = name;
+      newfunc->env->current_class = thistype;
    }
    // TODO env should be treated as cooler bc. of splitted namespaces
    Env *prev_env = env;
@@ -3639,6 +3645,7 @@ void toplevel() {
          while (!consume_token('}')) {
             char *name = NULL;
             Type *type = read_type_all(&name);
+            type->memaccess = PUBLIC;
             expect_token(';');
             map_put(structuretype->structure, name, type);
          }
@@ -4327,7 +4334,13 @@ Node *analyzing(Node *node) {
          }
          node->type = (Type *)map_get(node->lhs->type->structure, node->name);
          if (!node->type) {
-            error("Error: structure not found.");
+            error("Error: structure not found: %s\n", node->name);
+         }
+         // Member Accesss Control p.231
+         if ((lang & 1) && (node->type->memaccess == PRIVATE)) {
+            if (!env->current_class || !env->current_class->name || (strcmp(env->current_class->name, "this") && (strcmp(env->current_class->name, node->type->name))) ) {
+               error("Error: access to private item: %s\n", node->name);
+            }
          }
          break;
       case ND_NEG:

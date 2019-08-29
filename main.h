@@ -208,6 +208,7 @@ typedef struct Env {
    int *rsp_offset_max;
    int rsp_offset;
    Type *ret;
+   Type *current_class;
 } Env;
 
 typedef struct LocalVariable {
