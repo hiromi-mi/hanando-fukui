@@ -3745,7 +3745,6 @@ Node *generate_template(Node *node, Map *template_type_db) {
    Env *prev_env = env;
    Env *duplicated_env = NULL;
    LocalVariable *lvar;
-   LocalVariable *duplicated_lvar;
    if (node->ty == ND_BLOCK || node->ty == ND_FDEF) {
       duplicated_env = new_env(node->env->env, NULL);
       if (node->env->env) {
@@ -3754,11 +3753,11 @@ Node *generate_template(Node *node, Map *template_type_db) {
          // when rsp are top, create new env
          fprintf(stderr, "# new rsp are generated.\n");
       }
+      env = duplicated_env;
       for (j = 0; j < node->env->idents->keys->len; j++) {
          lvar = (LocalVariable *)node->env->idents->vals->data[j];
-         duplicated_lvar = new_local_variable(lvar->name, lvar->type);
+         new_local_variable(lvar->name, lvar->type);
       }
-      env = node->env;
    }
    if (node->ty == ND_FDEF) {
       // apply to node->type->ret if TY_TEMPLATE
@@ -4309,7 +4308,6 @@ Node *analyzing(Node *node) {
          node->type->ptrof = node->lhs->type;
          break;
       case ND_DEREF:
-         // FIXME Just adding it on analyzing pharase will fail to selfhosting.
          node->type = node->lhs->type->ptrof;
          if (!node->type) {
             error("Error: Dereference on NOT pointered.");
@@ -4323,7 +4321,6 @@ Node *analyzing(Node *node) {
          node->type = node->lhs->type;
          break;
       case ND_DOT:
-         // FIXME Just adding it on analyzing pharase will fail to selfhosting.
          if (node->lhs->type->ty != TY_STRUCT) {
             error("Error: dot operator to NOT struct\n");
          }
