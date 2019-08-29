@@ -17,6 +17,7 @@ int intfunc() {
    a.len = 0;
    a.capacity = 16;
    a.data = malloc(sizeof(int) * a.capacity);
+   return 0;
 }
 
 int charfunc() {
@@ -24,6 +25,7 @@ int charfunc() {
    a.len = 0;
    a.capacity = 16;
    a.data = malloc(sizeof(char) * a.capacity);
+   return 1;
 }
 
 int main() {
