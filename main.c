@@ -1599,11 +1599,6 @@ Register *retain_reg() {
       if (reg_table[j] > 0)
          continue;
       if (reg_table[j] < 0 && j < 3) {
-         // r10, r11 are caller-saved so no need to consider
-         // store callee saved registers. will be restored in
-         // restore_callee_reg() r12 will be stored in [rbp-0] r13 will be
-         // stored in [rbp-8] r14 will be stored in [rbp-16]
-         printf("mov qword ptr [rbp-%d], %s\n", j * 8 + 8, registers64[j]);
       }
       reg_table[j] = 1;
 
@@ -2462,6 +2457,14 @@ Register *gen_register_rightval(Node *node, int unused_eval) {
                       node->is_omiited->local_variable->lvar_offset - 8 * 6 - j * 16, j);
             }
          }
+         // r10, r11 are caller-saved so no need to consider
+         // store callee saved registers. will be restored in
+         // restore_callee_reg() r12 will be stored in [rbp-0] r13 will be
+         // stored in [rbp-8] r14 will be stored in [rbp-16]
+         for (j = 0; j < 3; j++) {
+            printf("mov qword ptr [rbp-%d], %s\n", j * 8 + 8, registers64[j]);
+         }
+         puts("mov qword ptr [rbp-32], r15"); // store r15 to [rbp-32]
          for (j = 0; j < node->code->len; j++) {
             // read inside functions.
             gen_register_rightval((Node *)node->code->data[j], 1);
@@ -2532,10 +2535,11 @@ Register *gen_register_rightval(Node *node, int unused_eval) {
 
          if (reg_table[5] < 0) {
             reg_table[5] = 1;
-            puts("mov qword ptr [rbp-32], r15"); // store r15 to [rbp-32]
-            puts("mov r15, rsp");
-            puts("and rsp, -16");
+            //puts("mov r15, rsp");
+            //puts("and rsp, -16");
          }
+         puts("mov r15, rsp");
+         puts("and rsp, -16");
          if (node->gen_name) { // ND_GLOBAL_IDENT, called from local vars.
             printf("call %s\n",
                    node->gen_name); // rax should be aligned with the size
@@ -2550,6 +2554,7 @@ Register *gen_register_rightval(Node *node, int unused_eval) {
             printf("call %s\n", size2reg(8, temp_reg));
             release_reg(temp_reg);
          }
+         puts("mov rsp, r15");
          restore_reg();
 
          if (node->type->ty == TY_VOID || unused_eval == 1) {
