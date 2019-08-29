@@ -84,7 +84,6 @@ Type *class_declaration(Map *local_typedb);
 int cnt_size(Type *type);
 LocalVariable *get_type_local(Node *node);
 LocalVariable *new_local_variable(char *name, Type *type);
-Node *new_addsub_node(NodeType ty, Node *lhs, Node *rhs);
 Node *generate_template(Node *node, Map *template_type_db);
 Type *generate_class_template(Type *type, Map *template_type_db);
 
@@ -328,17 +327,6 @@ Node *new_float_node(double num_val, char *_buf, char *typename_float) {
    node->name = _buf;
    node->type = find_typed_db(typename_float, typedb);
    return node;
-}
-
-Node *new_deref_node(Node *lhs) {
-   Node *node = new_node(ND_DEREF, lhs, NULL);
-   // moved to new_deref_node
-   node->pline = -1; // TODO for more advenced textj
-   return node;
-}
-
-Node *new_addsub_node(NodeType ty, Node *lhs, Node *rhs) {
-   return new_node(ty, lhs, rhs);
 }
 
 void update_rsp_offset(int size) {
@@ -793,9 +781,9 @@ Vector *tokenize(char *p) {
          }
          continue;
       }
-      if (*p == '0' && (*(p+1) == 'x' || *(p+1) == 'X')) {
+      if (*p == '0' && (*(p + 1) == 'x' || *(p + 1) == 'X')) {
          Token *token = new_token(pline, TK_NUM, p);
-         token->num_val = strtol(p+2, &p, 16);
+         token->num_val = strtol(p + 2, &p, 16);
          token->type_size = 4; // to treat as int
          vec_push(pre_tokens, token);
          continue;
@@ -1031,9 +1019,9 @@ Node *node_add() {
    Node *node = node_mul();
    while (1) {
       if (consume_token('+')) {
-         node = new_addsub_node('+', node, node_mul());
+         node = new_node('+', node, node_mul());
       } else if (consume_token('-')) {
-         node = new_addsub_node('-', node, node_mul());
+         node = new_node('-', node, node_mul());
       } else {
          return node;
       }
@@ -1072,10 +1060,10 @@ Node *node_increment() {
       return node;
    } else if (consume_token(TK_PLUSPLUS)) {
       node = new_ident_node(expect_ident());
-      node = new_assign_node(node, new_addsub_node('+', node, new_num_node(1)));
+      node = new_assign_node(node, new_node('+', node, new_num_node(1)));
    } else if (consume_token(TK_SUBSUB)) {
       node = new_ident_node(expect_ident());
-      node = new_assign_node(node, new_addsub_node('-', node, new_num_node(1)));
+      node = new_assign_node(node, new_node('-', node, new_num_node(1)));
    } else if (consume_token('&')) {
       node = node_increment();
       if (node->ty == ND_DEREF) {
@@ -1084,7 +1072,7 @@ Node *node_increment() {
          node = new_node(ND_ADDRESS, node, NULL);
       }
    } else if (consume_token('*')) {
-      node = new_deref_node(node_increment());
+      node = new_node(ND_DEREF, node_increment(), NULL);
    } else if (consume_token(TK_SIZEOF)) {
       node = new_node(ND_SIZEOF, NULL, NULL);
       node->type = find_typed_db("long", typedb);
@@ -1282,12 +1270,12 @@ Node *node_term() {
          // if (node->lhs->type->ty == TY_PTR || node->lhs->type->ty ==
          // TY_ARRAY) { Moved to analyzing process.
       } else if (consume_token('[')) {
-         node = new_deref_node(new_addsub_node('+', node, node_mathexpr()));
+         node = new_node(ND_DEREF, new_node('+', node, node_mathexpr()), NULL);
          expect_token(']');
       } else if (consume_token('.')) {
          node = new_dot_node(node);
       } else if (consume_token(TK_ARROW)) {
-         node = new_dot_node(new_deref_node(node));
+         node = new_dot_node(new_node(ND_DEREF, node, NULL));
       } else {
          return node;
       }
@@ -1498,7 +1486,7 @@ char *id2reg64(int id) { return registers64[id]; }
 void init_reg_table() {
    int j;
    for (j = 0; j < 6; j++) { // j = 6 means r15
-      reg_table[j] = -1;         // NEVER_USED REGISTERS
+      reg_table[j] = -1;     // NEVER_USED REGISTERS
    }
 }
 
@@ -2450,11 +2438,14 @@ Register *gen_register_rightval(Node *node, int unused_eval) {
          if (node->is_omiited) {
             for (j = 0; j < 6; j++) {
                printf("mov [rbp-%d], %s\n",
-                      node->is_omiited->local_variable->lvar_offset - j * 8, arg_registers[j]);
+                      node->is_omiited->local_variable->lvar_offset - j * 8,
+                      arg_registers[j]);
             }
             for (j = 0; j < 8; j++) {
                printf("movaps [rbp-%d], xmm%d\n",
-                      node->is_omiited->local_variable->lvar_offset - 8 * 6 - j * 16, j);
+                      node->is_omiited->local_variable->lvar_offset - 8 * 6 -
+                          j * 16,
+                      j);
             }
          }
          printf("jmp .LFD%s\n", node->gen_name);
@@ -2481,10 +2472,11 @@ Register *gen_register_rightval(Node *node, int unused_eval) {
          // stored in [rbp-8] r14 will be stored in [rbp-16]
          for (j = 0; j < 3; j++) {
             if (reg_table[j] >= 0) { // used (>= 1)
-               printf("mov qword ptr [rbp-%d], %s\n", j * 8 + 8, registers64[j]);
+               printf("mov qword ptr [rbp-%d], %s\n", j * 8 + 8,
+                      registers64[j]);
             }
          }
-         if (reg_table[5] > 0) { // treat as r15
+         if (reg_table[5] > 0) {                 // treat as r15
             puts("mov qword ptr [rbp-32], r15"); // store r15 to [rbp-32]
          }
          printf("jmp .LFB%s\n", node->gen_name);
@@ -2543,8 +2535,8 @@ Register *gen_register_rightval(Node *node, int unused_eval) {
 
          if (reg_table[5] < 0) {
             reg_table[5] = 1;
-            //puts("mov r15, rsp");
-            //puts("and rsp, -16");
+            // puts("mov r15, rsp");
+            // puts("and rsp, -16");
          }
          puts("mov r15, rsp");
          puts("and rsp, -16");
@@ -2977,12 +2969,14 @@ Node *stmt() {
                // designation-list} compiled as x[3] = {1,2,3} as x[0] = 100,
                // x[1] = 200, x[2] = 300,...
                for (j = 0; 1; j++) {
-                  vec_push(block_node->code,
-                           (Token *)new_node(
-                               ND_ASSIGN,
-                               new_deref_node(new_node(ND_ADD, node,
-                                                       new_long_num_node(j))),
-                               node_lor()));
+                  vec_push(
+                      block_node->code,
+                      (Token *)new_node(
+                          ND_ASSIGN,
+                          new_node(ND_DEREF,
+                                   new_node(ND_ADD, node, new_long_num_node(j)),
+                                   NULL),
+                          node_lor()));
                   if (consume_token('}')) {
                      consume_token(',');
                      break;
@@ -3204,7 +3198,7 @@ Type *copy_type(Type *old_type, Type *type) {
    type->offset = old_type->offset;
    type->is_const = old_type->is_const;
    type->is_static = old_type->is_static;
- 
+
    type->name = old_type->name;
    type->ret = old_type->ret;
    type->template_name = old_type->template_name;
@@ -3751,7 +3745,7 @@ Node *generate_template(Node *node, Map *template_type_db) {
          fprintf(stderr, "# new rsp are generated.\n");
       }
       for (j = 0; j < node->env->idents->keys->len; j++) {
-         lvar = (LocalVariable*)node->env->idents->vals->data[j];
+         lvar = (LocalVariable *)node->env->idents->vals->data[j];
          duplicated_lvar = new_local_variable(lvar->name, lvar->type);
       }
       env = node->env;
@@ -4166,8 +4160,8 @@ Node *analyzing(Node *node) {
          // Previously, this is called by new_env() but no longer supported.
          env->rsp_offset += prev_env->rsp_offset;
       }
-      for (j = 0;j < env->idents->keys->len; j++) {
-         local_variable = (LocalVariable*)env->idents->vals->data[j];
+      for (j = 0; j < env->idents->keys->len; j++) {
+         local_variable = (LocalVariable *)env->idents->vals->data[j];
          int size = cnt_size(local_variable->type);
          // should aligned as x86_64
          if (size % 8 != 0) {
