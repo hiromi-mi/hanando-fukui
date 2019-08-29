@@ -445,8 +445,6 @@ Node *new_func_node(Node *ident, Vector *template_types) {
       Node *result = map_get(funcdefs, node->name);
       if (result) {
          node->funcdef = result;
-         node->type = result->type->ret;
-
          // use the function definition.
          if (ident->ty == ND_DOT) {
             // TODO: Dirty: Add "this"
@@ -480,10 +478,11 @@ Node *new_func_node(Node *ident, Vector *template_types) {
                result->gen_name = buf;
                map_put(funcdefs_generated_template, result->gen_name, result);
                vec_push(globalcode, (Token *)result);
+               node->funcdef = result;
+            } else {
+               node->funcdef = map_get(funcdefs_generated_template, buf);
             }
          }
-      } else {
-         node->type = find_typed_db("int", typedb);
       }
    } else {
       // something too complex
@@ -2293,11 +2292,12 @@ Register *gen_register_rightval(Node *node, int unused_eval) {
          if (node->lhs) {
             lhs_reg = gen_register_rightval(node->lhs, 0);
             if (node->lhs->type->ty == TY_FLOAT ||
-               node->lhs->type->ty == TY_DOUBLE) {
-               printf("%s xmm0, %s\n", type2mov(node->lhs->type), node2reg(node->lhs, lhs_reg));
+                node->lhs->type->ty == TY_DOUBLE) {
+               printf("%s xmm0, %s\n", type2mov(node->lhs->type),
+                      node2reg(node->lhs, lhs_reg));
             } else {
                printf("mov %s, %s\n", _rax(node->lhs),
-                     node2reg(node->lhs, lhs_reg));
+                      node2reg(node->lhs, lhs_reg));
             }
             release_reg(lhs_reg);
          }
@@ -3760,6 +3760,20 @@ Node *generate_template(Node *node, Map *template_type_db) {
       }
       env = node->env;
    }
+   if (node->ty == ND_FDEF) {
+      // apply to node->type->ret if TY_TEMPLATE
+      if (node->type->ret->ty == TY_TEMPLATE) {
+         new_type =
+             find_typed_db(node->type->ret->template_name, template_type_db);
+         if (!new_type) {
+            error("Error: Incorrect Template type: %s\n",
+                  node->type->ret->template_name);
+         }
+         node->type->ret = copy_type(new_type, new_type);
+         // copy to env
+         env->ret = node->type->ret;
+      }
+   }
    if (node->type && node->type->ty == TY_TEMPLATE) {
       new_type = find_typed_db(node->type->template_name, template_type_db);
       if (!new_type) {
@@ -4332,6 +4346,14 @@ Node *analyzing(Node *node) {
          break;
       case ND_COMMA:
          node->type = node->rhs->type;
+         break;
+      case ND_FUNC:
+         if (node->funcdef) {
+            // there are new typedefs. {
+            node->type = node->funcdef->type->ret;
+         } else {
+            node->type = find_typed_db("int", typedb);
+         }
          break;
       default:
          if (node->type == NULL && node->lhs && node->lhs->type) {
