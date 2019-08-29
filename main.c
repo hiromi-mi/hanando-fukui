@@ -2457,14 +2457,8 @@ Register *gen_register_rightval(Node *node, int unused_eval) {
                       node->is_omiited->local_variable->lvar_offset - 8 * 6 - j * 16, j);
             }
          }
-         // r10, r11 are caller-saved so no need to consider
-         // store callee saved registers. will be restored in
-         // restore_callee_reg() r12 will be stored in [rbp-0] r13 will be
-         // stored in [rbp-8] r14 will be stored in [rbp-16]
-         for (j = 0; j < 3; j++) {
-            printf("mov qword ptr [rbp-%d], %s\n", j * 8 + 8, registers64[j]);
-         }
-         puts("mov qword ptr [rbp-32], r15"); // store r15 to [rbp-32]
+         printf("jmp .LFD%s\n", node->gen_name);
+         printf(".LFB%s:\n", node->gen_name);
          for (j = 0; j < node->code->len; j++) {
             // read inside functions.
             gen_register_rightval((Node *)node->code->data[j], 1);
@@ -2480,6 +2474,20 @@ Register *gen_register_rightval(Node *node, int unused_eval) {
             puts("ret");
          }
 
+         printf(".LFD%s:\n", node->gen_name);
+         // r10, r11 are caller-saved so no need to consider
+         // store callee saved registers. will be restored in
+         // restore_callee_reg() r12 will be stored in [rbp-0] r13 will be
+         // stored in [rbp-8] r14 will be stored in [rbp-16]
+         for (j = 0; j < 3; j++) {
+            if (reg_table[j] >= 0) { // used (>= 1)
+               printf("mov qword ptr [rbp-%d], %s\n", j * 8 + 8, registers64[j]);
+            }
+         }
+         if (reg_table[5] > 0) { // treat as r15
+            puts("mov qword ptr [rbp-32], r15"); // store r15 to [rbp-32]
+         }
+         printf("jmp .LFB%s\n", node->gen_name);
          // Release All Registers.
          release_all_reg();
          return NO_REGISTER;
