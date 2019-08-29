@@ -29,7 +29,7 @@ test:	test1 test2 test3 test4 \
    test15 test16 test17 test18 test20 test21\
    test22 test23 test24 test25 test26 test27\
    test28 test30 test29 test31 test34 test35\
-   test36 test32 test33
+   test36 test32 test33 test37
 	+ make -C samples/
 
 test1:
@@ -287,6 +287,10 @@ test35:
 
 test36:
 	sh testfdef.sh 'int main(){int a; float b; b = 3.4; printf("It should be 3: %%d\n", (int)b); return 0;}' 0
+
+test37:
+	sh testfdef.sh 'auto func(int a, double b) { return a+b; } int main() { double c = func(3, 4.5); printf("It should be 7.5: %%f\n", c); return 0;}'
+	sh testfdef.sh 'auto func(double a, double b) { return a+b; } int main() { double c = func(3.3, 4.5); printf("It should be 7.8: %%f\n", c); return 0;}'
 
 
 clean:

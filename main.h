@@ -182,6 +182,7 @@ typedef struct Type {
       TY_DOUBLE,
       TY_FUNC,
       TY_TEMPLATE,
+      TY_AUTO,
    } ty;
    Map *structure; // <name, Type*>
    struct Type *ptrof;
@@ -206,6 +207,7 @@ typedef struct Env {
    Map *idents;
    int *rsp_offset_max;
    int rsp_offset;
+   Type *ret;
 } Env;
 
 typedef struct LocalVariable {

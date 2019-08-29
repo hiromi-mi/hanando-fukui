@@ -496,14 +496,19 @@ Node *new_func_node(Node *ident, Vector *template_types) {
    return node;
 }
 
-Env *new_env(Env *prev_env) {
+Env *new_env(Env *prev_env, Type *ret) {
    Env *_env = malloc(sizeof(Env));
    _env->env = prev_env;
    _env->idents = new_map();
    _env->rsp_offset = SPACE_R12R13R14R15; // to save r12, r13, r14, r15
+   _env->ret = ret;
    if (prev_env) {
       _env->rsp_offset = prev_env->rsp_offset;
       _env->rsp_offset_max = prev_env->rsp_offset_max;
+      if (!ret) {
+         // env->ret will be propagated as ND_BLOCK.
+         _env->ret = prev_env->ret;
+      }
    } else {
       _env->rsp_offset_max = malloc(sizeof(int));
       *_env->rsp_offset_max = SPACE_R12R13R14R15; // to save r12, r13, r14, r15
@@ -516,7 +521,7 @@ Node *new_fdef_node(char *name, Type *type, int is_static) {
    node->type = type;
    node->name = name;
    node->argc = 0;
-   node->env = new_env(NULL);
+   node->env = new_env(NULL, type->ret);
    node->code = new_vector();
    node->is_omiited = NULL; // func(a, b, ...)
    node->is_static = is_static;
@@ -531,7 +536,7 @@ Node *new_block_node(Env *prev_env) {
    node->pline = -1; // TODO for more advenced textj
    node->argc = 0;
    node->type = NULL;
-   node->env = new_env(prev_env);
+   node->env = new_env(prev_env, NULL);
    node->code = new_vector();
    return node;
 }
@@ -2287,8 +2292,13 @@ Register *gen_register_rightval(Node *node, int unused_eval) {
       case ND_RETURN:
          if (node->lhs) {
             lhs_reg = gen_register_rightval(node->lhs, 0);
-            printf("mov %s, %s\n", _rax(node->lhs),
-                   node2reg(node->lhs, lhs_reg));
+            if (node->lhs->type->ty == TY_FLOAT ||
+               node->lhs->type->ty == TY_DOUBLE) {
+               printf("%s xmm0, %s\n", type2mov(node->lhs->type), node2reg(node->lhs, lhs_reg));
+            } else {
+               printf("mov %s, %s\n", _rax(node->lhs),
+                     node2reg(node->lhs, lhs_reg));
+            }
             release_reg(lhs_reg);
          }
          restore_callee_reg();
@@ -3737,7 +3747,7 @@ Node *generate_template(Node *node, Map *template_type_db) {
    LocalVariable *lvar;
    LocalVariable *duplicated_lvar;
    if (node->ty == ND_BLOCK || node->ty == ND_FDEF) {
-      duplicated_env = new_env(node->env->env);
+      duplicated_env = new_env(node->env->env, NULL);
       if (node->env->env) {
          fprintf(stderr, "# get from previous rsp are generated.\n");
       } else {
@@ -4015,6 +4025,12 @@ void init_typedb() {
    typedb = new_map();
    current_local_typedb = NULL; // Initiazlied on function.
 
+   Type *type_auto = new_type();
+   type_auto->ty = TY_AUTO;
+   type_auto->ptrof = NULL;
+   type_auto->name = "auto";
+   map_put(typedb, "auto", type_auto);
+
    Type *typeint = new_type();
    typeint->ty = TY_INT;
    typeint->ptrof = NULL;
@@ -4200,6 +4216,19 @@ Node *analyzing(Node *node) {
    }
 
    switch (node->ty) {
+      case ND_RETURN:
+         if (env->ret == NULL) {
+            error("try to Return to NULL: Unexpected behaviour\n");
+         }
+
+         // treat TY_AUTO
+         if (env->ret->ty == TY_AUTO) {
+            copy_type(node->lhs->type, env->ret);
+         }
+         if (node->lhs) {
+            node->type = node->lhs->type;
+         } // if return to VOID, there is no lhs
+         break;
       case ND_SIZEOF:
          if (node->conds[0]) {
             // evaluate node->conds[0] and return its type
