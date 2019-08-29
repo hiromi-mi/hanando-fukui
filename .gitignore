@@ -96,6 +96,8 @@ cppsamples/test1
 cppsamples/test2
 cppsamples/test3
 cppsamples/test4
+cppsamples/test5
+cppsamples/test6
 samples/32
 samples/34
 samples/34.s
@@ -110,3 +112,4 @@ cppsamples/test5
 hanandoO0
 hanandoO1
 hanandoO3
+tmp.c

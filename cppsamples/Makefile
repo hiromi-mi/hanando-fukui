@@ -1,4 +1,4 @@
-test:	1 2 3 4 5
+test:	1 2 3 4 5 6
 1:
 	../hanando -f -cpp test1.cpp > test1.s
 	gcc -g test1.s -o test1
@@ -19,3 +19,7 @@ test:	1 2 3 4 5
 	../hanando -f -cpp test5.cpp > test5.s
 	gcc -g test5.s -o test5
 	./test5
+6:
+	../hanando -f -cpp test6.cpp > test6.s
+	gcc -g test6.s -o test6
+	./test6
