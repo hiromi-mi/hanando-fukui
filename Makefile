@@ -230,6 +230,7 @@ test27:
 test28:
 	sh testfdef.sh "typedef enum {TY_INT, TY_CHAR} TypeConst; int main(){return TY_CHAR;}" 1
 	sh testfdef.sh "typedef enum {TY_INT, TY_CHAR} TypeConst; int main(){return TY_INT;}" 0
+	sh testfdef.sh "typedef int MetaInt[13]; int main(){MetaInt c; c[12] = 3;return c[12];}" 3
 
 test29:
 	sh testfdef.sh "int func(char* a){ puts(a); return 1; }int main(){return func(\"aaa\");}" 1

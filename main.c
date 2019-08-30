@@ -3682,28 +3682,35 @@ void toplevel() {
             expect_token(';');
             continue;
          }
-         Type *structuretype = new_type();
          if (consume_token(TK_STRUCT)) {
-            if (confirm_token(TK_IDENT)) {
-               map_put(struct_typedb, expect_ident(), structuretype);
+            Type *structuretype = new_type();
+               if (confirm_token(TK_IDENT)) {
+                  map_put(struct_typedb, expect_ident(), structuretype);
+               }
+            expect_token('{');
+            structuretype->structure = new_map();
+            structuretype->ty = TY_STRUCT;
+            structuretype->ptrof = NULL;
+            while (!consume_token('}')) {
+               char *name = NULL;
+               Type *type = read_type_all(&name);
+               type->memaccess = PUBLIC;
+               expect_token(';');
+               map_put(structuretype->structure, name, type);
             }
-         }
-         expect_token('{');
-         structuretype->structure = new_map();
-         structuretype->ty = TY_STRUCT;
-         structuretype->ptrof = NULL;
-         while (!consume_token('}')) {
-            char *name = NULL;
-            Type *type = read_type_all(&name);
-            type->memaccess = PUBLIC;
+            // structuretype->offset = offset;
+            char *name = expect_ident();
+            structuretype->name = name;
             expect_token(';');
-            map_put(structuretype->structure, name, type);
+            map_put(typedb, name, structuretype);
+            continue;
          }
-         // structuretype->offset = offset;
-         char *name = expect_ident();
-         structuretype->name = name;
+
+         char *input = NULL;
+         Type *type = read_fundamental_type(NULL);
+         type = read_type(type, &input, NULL);
+         map_put(typedb, input, type);
          expect_token(';');
-         map_put(typedb, name, structuretype);
          continue;
       }
 
@@ -3714,6 +3721,7 @@ void toplevel() {
          Type *structuretype = new_type();
          expect_token(';');
          map_put(typedb, name, structuretype);
+         continue;
       }
 
       if (confirm_type()) {
