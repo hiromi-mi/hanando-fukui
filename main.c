@@ -505,7 +505,8 @@ Env *new_env(Env *prev_env, Type *ret) {
    if (prev_env) {
       _env->rsp_offset = prev_env->rsp_offset;
       _env->rsp_offset_max = prev_env->rsp_offset_max;
-      _env->current_class = prev_env->current_class; // propagate current class info.
+      _env->current_class =
+          prev_env->current_class; // propagate current class info.
       if (!ret) {
          // env->ret will be propagated as ND_BLOCK.
          _env->ret = prev_env->ret;
@@ -3015,6 +3016,8 @@ Node *stmt() {
       node = new_node(ND_BREAK, NULL, NULL);
    } else if (consume_token(TK_CONTINUE)) {
       node = new_node(ND_CONTINUE, NULL, NULL);
+   } else if (consume_token(TK_THROW)) {
+      node = new_node(ND_THROW, NULL, NULL);
    } else {
       node = assign();
    }
@@ -3135,6 +3138,13 @@ void program(Node *block_node) {
       }
 
       if ((lang & 1) && consume_token(TK_TRY)) {
+         Node *node = new_node(ND_TRY, NULL, NULL);
+         node->lhs = new_block_node(env);
+         program(node->lhs);
+         expect_token(TK_CATCH);
+         node->rhs = new_block_node(env);
+         program(node->rhs);
+         vec_push(args, (Token *)node);
          continue;
       }
       vec_push(args, (Token *)stmt());
@@ -4088,6 +4098,19 @@ void init_typedb() {
    va_listtype->ty = TY_STRUCT;
    va_listtype->ptrof = NULL;
 
+   Type *jbuftype = new_type();
+   jbuftype->name = "jmp_buf";
+   jbuftype->ty = TY_ARRAY;
+   jbuftype->array_size = 1;
+   jbuftype->ptrof = new_type();
+   // structure: { unsigned long int __val[16]; } __sigset_t;
+   // typedef long int __jmp_buf[8];
+   // struct __jmp_buf_tag {
+   // __jmp_buf __jmpbuf;
+   // int __mask_was_saved;
+   //  __sigset_t __saved_mask;
+   //  };
+
    Type *type;
    type = find_typed_db("int", typedb);
    type->offset = 0;
@@ -4338,7 +4361,9 @@ Node *analyzing(Node *node) {
          }
          // Member Accesss Control p.231
          if ((lang & 1) && (node->type->memaccess == PRIVATE)) {
-            if (!env->current_class || !env->current_class->name || (strcmp(env->current_class->name, "this") && (strcmp(env->current_class->name, node->type->name))) ) {
+            if (!env->current_class || !env->current_class->name ||
+                (strcmp(env->current_class->name, "this") &&
+                 (strcmp(env->current_class->name, node->type->name)))) {
                error("Error: access to private item: %s\n", node->name);
             }
          }

@@ -135,6 +135,8 @@ typedef enum {
    ND_VAEND,
    ND_EXPRESSION_BLOCK,
    ND_SIZEOF,
+   ND_TRY,
+   ND_THROW,
 } NodeType;
 
 typedef struct {
