@@ -2556,14 +2556,15 @@ Register *gen_register_rightval(Node *node, int unused_eval) {
                int k = 0;
                switch(temp_reg->kind) {
                   case R_GVAR:
-                     func_call_should_sub_rsp += type2size(node->args[j]->type)/8;
-                     for (k = type2size(node->args[j]->type)/8;k>=0;k--) {
+                     func_call_should_sub_rsp += type2size(node->args[j]->type);
+                     for (k = type2size(node->args[j]->type)-8;k>=0;k-=8) {
                         printf("push qword ptr %s[rip+%d]\n", temp_reg->name, k);
                      }
                      break;
                   default:
                      error("Error: Not IMplemented On ND_FUNC w/ TY_STRUCT\n");
                }
+               // TODO This will create "mov eax, 1" even though no float arugments
                func_call_float_cnt++;
             } else {
                secure_mutable_with_type(temp_reg, node->type);
@@ -2581,8 +2582,6 @@ Register *gen_register_rightval(Node *node, int unused_eval) {
 
          if (reg_table[5] < 0) {
             reg_table[5] = 1;
-            // puts("mov r15, rsp");
-            // puts("and rsp, -16");
          }
          puts("mov r15, rsp");
          puts("and rsp, -16");
@@ -2601,6 +2600,9 @@ Register *gen_register_rightval(Node *node, int unused_eval) {
             release_reg(temp_reg);
          }
          puts("mov rsp, r15");
+         if (func_call_should_sub_rsp > 0) {
+            printf("sub rsp, -%d\n", func_call_should_sub_rsp);
+         }
          restore_reg();
 
          if (node->type->ty == TY_VOID || unused_eval == 1) {
