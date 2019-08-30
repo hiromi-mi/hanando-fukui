@@ -248,7 +248,7 @@ typedef struct Node {
 // Extended Register. with global variables, local variables, memory map,
 // registers, ...
 typedef struct Register {
-   enum { R_REGISTER, R_LVAR, R_GVAR, R_XMM } kind;
+   enum { R_REGISTER, R_LVAR, R_REVERSED_LVAR, R_GVAR, R_XMM } kind;
    int id; // offset or type
    int size;
    char *name; // for global variable

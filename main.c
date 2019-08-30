@@ -566,8 +566,9 @@ TokenConst expect_token_or_token(TokenConst ty1, TokenConst ty2) {
       pos++;
       return ty2;
    } else {
-      error("Error: Expected TokenConst are different: Expected %d/%d, Actual %d",
-            ty1, ty2, tokens->data[pos]->ty);
+      error(
+          "Error: Expected TokenConst are different: Expected %d/%d, Actual %d",
+          ty1, ty2, tokens->data[pos]->ty);
       return 0;
    }
 }
@@ -1560,7 +1561,7 @@ char *size2reg(int size, Register *reg) {
          return id2reg64(reg->id);
       }
       // with type specifier.
-   } else if (reg->kind == R_LVAR) {
+   } else if (reg->kind == R_LVAR || reg->kind == R_REVERSED_LVAR) {
       char *_str = malloc(sizeof(char) * 256);
       if (size == 1) {
          snprintf(_str, 255, "byte ptr [rbp-%d]", reg->id);
@@ -1578,7 +1579,7 @@ char *size2reg(int size, Register *reg) {
    error("Error: Cannot Have Register\n");
 }
 char *node2reg(Node *node, Register *reg) {
-   if (reg->kind == R_LVAR) {
+   if (reg->kind == R_LVAR || reg->kind == R_REVERSED_LVAR) {
       return size2reg(reg->size, reg);
    }
    return size2reg(type2size(node->type), reg);
@@ -1823,8 +1824,13 @@ Register *gen_register_rightval(Node *node, int unused_eval) {
             return gen_register_leftval(node);
          } else {
             temp_reg = malloc(sizeof(Register));
-            temp_reg->id = node->local_variable->lvar_offset;
-            temp_reg->kind = R_LVAR;
+            if (node->local_variable->lvar_offset < 0) {
+               temp_reg->id = -node->local_variable->lvar_offset;
+               temp_reg->kind = R_REVERSED_LVAR;
+            } else {
+               temp_reg->id = node->local_variable->lvar_offset;
+               temp_reg->kind = R_LVAR;
+            }
             temp_reg->name = NULL;
             temp_reg->size = type2size(node->type);
             return temp_reg;
@@ -3587,14 +3593,16 @@ Type *class_declaration(Map *local_typedb) {
       if (!base_type || base_type->ty != TY_STRUCT) {
          error("Error: Inherited Class Not Found %s\n", inherited_name);
       }
-      for (j=0;j<base_type->structure->keys->len;j++) {
+      for (j = 0; j < base_type->structure->keys->len; j++) {
          // copy into new class
-         Type *type = duplicate_type((Type*) base_type->structure->vals->data[j]);
+         Type *type =
+             duplicate_type((Type *)base_type->structure->vals->data[j]);
          if (type->memaccess == PRIVATE) {
             // inherited from private cannot seen anymore
             type->memaccess = HIDED;
          }
-         map_put(structuretype->structure, (char*)base_type->structure->keys->data[j], (Node*)type);
+         map_put(structuretype->structure,
+                 (char *)base_type->structure->keys->data[j], (Node *)type);
          // On Function, We should renewal its declartion
       }
    }
@@ -3684,9 +3692,9 @@ void toplevel() {
          }
          if (consume_token(TK_STRUCT)) {
             Type *structuretype = new_type();
-               if (confirm_token(TK_IDENT)) {
-                  map_put(struct_typedb, expect_ident(), structuretype);
-               }
+            if (confirm_token(TK_IDENT)) {
+               map_put(struct_typedb, expect_ident(), structuretype);
+            }
             expect_token('{');
             structuretype->structure = new_map();
             structuretype->ty = TY_STRUCT;
@@ -4398,7 +4406,8 @@ Node *analyzing(Node *node) {
          if ((lang & 1) && (node->type->memaccess == HIDED)) {
             error("Error: access to private item: %s\n", node->name);
          }
-         if ((lang & 1) && ((node->type->memaccess == PRIVATE) || (node->type->memaccess == PROTECTED))) {
+         if ((lang & 1) && ((node->type->memaccess == PRIVATE) ||
+                            (node->type->memaccess == PROTECTED))) {
             if (!env->current_class || !env->current_class->name ||
                 (strcmp(env->current_class->name, "this") &&
                  (strcmp(env->current_class->name, node->type->name)))) {
