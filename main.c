@@ -2561,6 +2561,12 @@ Register *gen_register_rightval(Node *node, int unused_eval) {
                         printf("push qword ptr %s[rip+%d]\n", temp_reg->name, k);
                      }
                      break;
+                  case R_LVAR:
+                     func_call_should_sub_rsp += type2size(node->args[j]->type);
+                     for (k = type2size(node->args[j]->type)-8;k>=0;k-=8) {
+                        printf("push qword ptr [rbp-%d]\n", temp_reg->id-k);
+                     }
+                     break;
                   default:
                      error("Error: Not IMplemented On ND_FUNC w/ TY_STRUCT\n");
                }

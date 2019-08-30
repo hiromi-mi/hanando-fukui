@@ -106,6 +106,8 @@ samples/35_gcc
 samples/36_hanando
 samples/36_gcc
 samples/37
+samples/39
+samples/39*.s
 
 cppsamples/test5
 cppsamples/test7
