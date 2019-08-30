@@ -4146,19 +4146,6 @@ void init_typedb() {
    va_listtype->ty = TY_STRUCT;
    va_listtype->ptrof = NULL;
 
-   Type *jbuftype = new_type();
-   jbuftype->name = "jmp_buf";
-   jbuftype->ty = TY_ARRAY;
-   jbuftype->array_size = 1;
-   jbuftype->ptrof = new_type();
-   // structure: { unsigned long int __val[16]; } __sigset_t;
-   // typedef long int __jmp_buf[8];
-   // struct __jmp_buf_tag {
-   // __jmp_buf __jmpbuf;
-   // int __mask_was_saved;
-   //  __sigset_t __saved_mask;
-   //  };
-
    Type *type;
    type = find_typed_db("int", typedb);
    type->offset = 0;
@@ -4486,6 +4473,7 @@ Node *optimizing(Node *node) {
       case ND_ADD:
       case ND_SUB:
       case ND_MUL:
+      case ND_DIV:
          if (node->lhs->ty == ND_NUM && node->rhs->ty == ND_NUM) {
             switch (node->ty) {
                case ND_ADD:
@@ -4496,6 +4484,9 @@ Node *optimizing(Node *node) {
                   break;
                case ND_MUL:
                   new_num_val = node->lhs->num_val * node->rhs->num_val;
+                  break;
+               case ND_DIV:
+                  new_num_val = node->lhs->num_val / node->rhs->num_val;
                   break;
                default:
                   error("Error: Unsupport type in optimization: %d\n",
