@@ -8,11 +8,17 @@ class Test {
    static int Vim(int c);
 };
 
+class Test2 : Test {
+};
+
 int main() {
    Test c;
    c.a = 9;
-   printf("%d\n", Test::func());
+   printf("%d (Should be 20)\n", Test::func());
    Test::Vim(42);
+   Test2 d;
+   d.a = 10;
+   printf("%d (It must be 10)\n", d.a);
    return 0;
 }
 
@@ -20,6 +26,6 @@ static int Test::func() {
    return 20;
 }
 static int Test::Vim(int c) {
-   printf("From Test::Vim %d\n", c);
+   printf("From Test::Vim %d (Should be 20)\n", c);
    return 1;
 }

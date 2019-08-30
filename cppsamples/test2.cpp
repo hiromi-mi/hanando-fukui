@@ -25,7 +25,7 @@ static int Test::Vim(int c) {
 int main() {
    Test c;
    // Should ERROR
-   c.a = 9;
+   //c.a = 9;
    c.SetA(9);
    //Test::Vim(32);
    c.Emacs();

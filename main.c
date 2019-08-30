@@ -3557,12 +3557,27 @@ void new_fdef(char *name, Type *type, Map *local_typedb) {
 }
 
 Type *class_declaration(Map *local_typedb) {
+   int j;
    Type *structuretype = new_type();
    structuretype->structure = new_map();
    structuretype->ty = TY_STRUCT;
    structuretype->ptrof = NULL;
    char *structurename = expect_ident();
    structuretype->name = structurename;
+   if (consume_token(':')) {
+      // inheritance
+      char *inherited_name = expect_ident();
+      Type *base_type = find_typed_db(inherited_name, typedb);
+      if (!base_type || base_type->ty != TY_STRUCT) {
+         error("Error: Inherited Class Not Found %s\n", inherited_name);
+      }
+      for (j=0;j<base_type->structure->keys->len;j++) {
+         // copy into new class
+         Type *type = duplicate_type((Type*) base_type->structure->vals->data[j]);
+         map_put(structuretype->structure, (char*)base_type->structure->keys->data[j], (Node*)type);
+         // On Function, We should renewal its declartion
+      }
+   }
    expect_token('{');
    MemberAccess memaccess;
    memaccess = PRIVATE; // on Struct, it is public
