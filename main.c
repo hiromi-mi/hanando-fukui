@@ -890,6 +890,8 @@ Vector *tokenize(char *p) {
                token->ty = TK_PUBLIC;
             } else if (strcmp(token->input, "private") == 0) {
                token->ty = TK_PRIVATE;
+            } else if (strcmp(token->input, "private") == 0) {
+               token->ty = TK_PROTECTED;
             } else if (strcmp(token->input, "template") == 0) {
                token->ty = TK_TEMPLATE;
             } else if (strcmp(token->input, "typename") == 0) {
@@ -3574,6 +3576,10 @@ Type *class_declaration(Map *local_typedb) {
       for (j=0;j<base_type->structure->keys->len;j++) {
          // copy into new class
          Type *type = duplicate_type((Type*) base_type->structure->vals->data[j]);
+         if (type->memaccess == PRIVATE) {
+            // inherited from private cannot seen anymore
+            type->memaccess = HIDED;
+         }
          map_put(structuretype->structure, (char*)base_type->structure->keys->data[j], (Node*)type);
          // On Function, We should renewal its declartion
       }
@@ -3584,6 +3590,11 @@ Type *class_declaration(Map *local_typedb) {
    while (!consume_token('}')) {
       if (consume_token(TK_PUBLIC)) {
          memaccess = PUBLIC;
+         expect_token(':');
+         continue;
+      }
+      if (consume_token(TK_PROTECTED)) {
+         memaccess = PROTECTED;
          expect_token(':');
          continue;
       }
@@ -4375,6 +4386,9 @@ Node *analyzing(Node *node) {
             error("Error: structure not found: %s\n", node->name);
          }
          // Member Accesss Control p.231
+         if ((lang & 1) && (node->type->memaccess == HIDED)) {
+            error("Error: access to private item: %s\n", node->name);
+         }
          if ((lang & 1) && (node->type->memaccess == PRIVATE)) {
             if (!env->current_class || !env->current_class->name ||
                 (strcmp(env->current_class->name, "this") &&

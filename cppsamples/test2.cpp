@@ -9,8 +9,17 @@ class Test {
    int Emacs();
 };
 
+class Test2 : Test {
+   int B();
+};
+
 void Test::SetA(int new_a) {
    this->a = new_a;
+}
+
+int Test2::B() {
+   //return this->a; // this should be error
+   return (int)this->b;
 }
 
 int Test::Emacs() {

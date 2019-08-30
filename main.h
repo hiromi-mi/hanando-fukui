@@ -69,6 +69,7 @@ typedef enum {
    TK_PUBLIC,
    TK_PRIVATE,
    TK_STATIC,
+   TK_PROTECTED,
    TK_COLONCOLON,
    TK_TEMPLATE,
    TK_TYPENAME,
@@ -158,6 +159,8 @@ typedef struct {
 typedef enum {
    PRIVATE,
    PUBLIC,
+   HIDED,
+   PROTECTED,
 } MemberAccess;
 
 typedef struct {
