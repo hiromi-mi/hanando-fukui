@@ -200,8 +200,8 @@ typedef struct Type {
    int is_const;
    int is_static;
    int is_omiited;
-   char *name; // for args
-   char *template_name;
+   char *var_name; // for args
+   char *type_name;
    MemberAccess memaccess;
    Context *context;
    Map *local_typedb;

@@ -131,8 +131,8 @@ char *type2name(Type *type) {
          sprintf(buf, "%s_ptr", type2name(type->ptrof));
          return buf;
       case TY_STRUCT:
-         if (type->name) {
-            sprintf(buf, "%s_struct", type->name);
+         if (type->type_name) {
+            sprintf(buf, "%s_struct", type->type_name);
          } else {
             sprintf(buf, "nonname_struct");
          }
@@ -153,12 +153,12 @@ Type *new_type() {
    type->is_const = 0;
    type->is_static = 0;
    type->is_omiited = 0;
-   type->name = NULL;
+   type->type_name = NULL;
    type->context = malloc(sizeof(Type));
    type->context->is_previous_class = NULL;
    type->context->method_name = NULL;
    type->local_typedb = NULL;
-   type->template_name = NULL;
+   type->type_name = NULL;
    return type;
 }
 
@@ -438,7 +438,7 @@ Node *new_func_node(Node *ident, Vector *template_types) {
       if (ident->ty == ND_SYMBOL) {
          name = ident->name;
       } else if (ident->ty == ND_DOT) {
-         sprintf(name, "%s::%s", ident->lhs->type->name, ident->name);
+         sprintf(name, "%s::%s", ident->lhs->type->type_name, ident->name);
       }
       node->name = name;
       node->gen_name = mangle_func_name(node->name);
@@ -465,7 +465,7 @@ Node *new_func_node(Node *ident, Vector *template_types) {
             for (j = 0; j < result->type->local_typedb->keys->len; j++) {
                template_type =
                    (Type *)result->type->local_typedb->vals->data[j];
-               map_put(template_type_db, template_type->template_name,
+               map_put(template_type_db, template_type->type_name,
                        template_types->data[j]);
                strncat(buf, "_template_", 12);
                strncat(buf, type2name((Type *)template_types->data[j]), 128);
@@ -1434,9 +1434,10 @@ int cnt_size(Type *type) {
          if (type->offset > 0) {
             return type->offset;
          }
-         type = find_typed_db(type->name, typedb);
+         char *name = type->type_name;
+         type = find_typed_db(name, typedb);
          if (!type) {
-            type = find_typed_db(type->name, struct_typedb);
+            type = find_typed_db(name, struct_typedb);
          }
          return type->offset;
       case TY_TEMPLATE:
@@ -1774,6 +1775,7 @@ Register *gen_register_rightval(Node *node, int unused_eval) {
    int j = 0;
    int cur_if_cnt;
    int func_call_float_cnt = 0;
+   int func_call_should_sub_rsp = 0;
 
    if (!node) {
       return NO_REGISTER;
@@ -2550,6 +2552,19 @@ Register *gen_register_rightval(Node *node, int unused_eval) {
                       float_arg_registers[func_call_float_cnt],
                       node2reg(node->args[j], temp_reg));
                func_call_float_cnt++;
+            } else if (node->args[j]->type->ty == TY_STRUCT) {
+               int k = 0;
+               switch(temp_reg->kind) {
+                  case R_GVAR:
+                     func_call_should_sub_rsp += type2size(node->args[j]->type)/8;
+                     for (k = type2size(node->args[j]->type)/8;k>=0;k--) {
+                        printf("push qword ptr %s[rip+%d]\n", temp_reg->name, k);
+                     }
+                     break;
+                  default:
+                     error("Error: Not IMplemented On ND_FUNC w/ TY_STRUCT\n");
+               }
+               func_call_float_cnt++;
             } else {
                secure_mutable_with_type(temp_reg, node->type);
                printf("push %s\n", id2reg64(temp_reg->id));
@@ -2959,7 +2974,7 @@ Type *read_type(Type *type, char **input, Map *local_typedb) {
             concrete_type->args[concrete_type->argc] = read_type(
                 concrete_type->args[concrete_type->argc], &buf, local_typedb);
             // Save its variable name, if any.
-            concrete_type->args[concrete_type->argc++]->name = buf;
+            concrete_type->args[concrete_type->argc++]->var_name = buf;
             consume_token(',');
          }
       } else {
@@ -3245,8 +3260,8 @@ Type *copy_type(Type *old_type, Type *type) {
    type->is_static = old_type->is_static;
    // type->is_omiited = old_type->is_omiited;
 
-   type->name = old_type->name;
-   type->template_name = old_type->template_name;
+   // type->var_name = old_type->var_name;
+   type->type_name = old_type->type_name;
    type->memaccess = old_type->memaccess;
    // type->context = old_type->context;
    type->local_typedb =
@@ -3320,7 +3335,7 @@ Type *read_template_parameter_list(Map *local_typedb) {
       template_typename = expect_ident();
       type = new_type();
       type->ty = TY_TEMPLATE;
-      type->template_name = template_typename;
+      type->type_name = template_typename;
       map_put(local_typedb, template_typename, type);
       if (!consume_token(',')) {
          break;
@@ -3382,10 +3397,10 @@ Type *read_fundamental_type(Map *local_typedb) {
 
          {
             int j;
-            sprintf(buf, "%s", type->name);
+            sprintf(buf, "%s", type->type_name);
             for (j = 0; j < type->local_typedb->keys->len; j++) {
                template_type = (Type *)type->local_typedb->vals->data[j];
-               map_put(template_type_db, template_type->template_name,
+               map_put(template_type_db, template_type->type_name,
                        template_types->data[j]);
                strncat(buf, "_Template_", 12);
                strncat(buf, type2name((Type *)template_types->data[j]), 128);
@@ -3400,7 +3415,7 @@ Type *read_fundamental_type(Map *local_typedb) {
             type = generate_class_template(type, template_type_db);
             type->local_typedb =
                 NULL; // for the sake of configuring generate_structure
-            type->name = buf;
+            type->type_name = buf;
             map_put(typedb, buf, type);
          }
       }
@@ -3531,7 +3546,7 @@ void new_fdef(char *name, Type *type, Map *local_typedb) {
       Type *thistype = new_type();
       thistype->ptrof = find_typed_db(class_name, typedb);
       thistype->ty = TY_PTR;
-      thistype->name = "this";
+      thistype->var_name = "this";
       type->args[5] = type->args[4];
       type->args[4] = type->args[3];
       type->args[3] = type->args[2];
@@ -3560,7 +3575,7 @@ void new_fdef(char *name, Type *type, Map *local_typedb) {
    int i;
    for (i = 0; i < newfunc->argc; i++) {
       newfunc->args[i] =
-          new_ident_node_with_new_variable(type->args[i]->name, type->args[i]);
+          new_ident_node_with_new_variable(type->args[i]->var_name, type->args[i]);
    }
    env = prev_env;
    // to support prototype def.
@@ -3585,7 +3600,7 @@ Type *class_declaration(Map *local_typedb) {
    structuretype->ty = TY_STRUCT;
    structuretype->ptrof = NULL;
    char *structurename = expect_ident();
-   structuretype->name = structurename;
+   structuretype->type_name = structurename;
    if (consume_token(':')) {
       // inheritance
       char *inherited_name = expect_ident();
@@ -3708,7 +3723,7 @@ void toplevel() {
             }
             // structuretype->offset = offset;
             char *name = expect_ident();
-            structuretype->name = name;
+            structuretype->type_name = name;
             expect_token(';');
             map_put(typedb, name, structuretype);
             continue;
@@ -3774,10 +3789,10 @@ Type *generate_class_template(Type *type, Map *template_type_db) {
    int j;
 
    if (type && type->ty == TY_TEMPLATE) {
-      new_type = find_typed_db(type->template_name, template_type_db);
+      new_type = find_typed_db(type->type_name, template_type_db);
       if (!new_type) {
          error("Error: Incorrect Class Template type: %s\n",
-               type->template_name);
+               type->type_name);
       }
       type = duplicate_type(new_type);
    }
@@ -3837,10 +3852,10 @@ Node *generate_template(Node *node, Map *template_type_db) {
       // apply to node->type->ret if TY_TEMPLATE
       if (node->type->ret->ty == TY_TEMPLATE) {
          new_type =
-             find_typed_db(node->type->ret->template_name, template_type_db);
+             find_typed_db(node->type->ret->type_name, template_type_db);
          if (!new_type) {
             error("Error: Incorrect Template type: %s\n",
-                  node->type->ret->template_name);
+                  node->type->ret->type_name);
          }
          node->type->ret = copy_type(new_type, new_type);
          // copy to env
@@ -3848,10 +3863,10 @@ Node *generate_template(Node *node, Map *template_type_db) {
       }
    }
    if (node->type && node->type->ty == TY_TEMPLATE) {
-      new_type = find_typed_db(node->type->template_name, template_type_db);
+      new_type = find_typed_db(node->type->type_name, template_type_db);
       if (!new_type) {
          error("Error: Incorrect Template type: %s\n",
-               node->type->template_name);
+               node->type->type_name);
       }
       node->type = copy_type(new_type, new_type);
    }
@@ -4115,7 +4130,7 @@ void init_typedb() {
    Type *type_auto = new_type();
    type_auto->ty = TY_AUTO;
    type_auto->ptrof = NULL;
-   type_auto->name = "auto";
+   type_auto->type_name = "auto";
    map_put(typedb, "auto", type_auto);
 
    Type *typeint = new_type();
@@ -4147,7 +4162,7 @@ void init_typedb() {
 
    Type *va_listarray = new_type();
    Type *va_listtype = new_type();
-   va_listarray->name = "va_list";
+   va_listarray->type_name = "va_list";
    va_listarray->ty = TY_ARRAY;
    va_listarray->array_size = 1;
    va_listtype->structure = new_map();
@@ -4408,9 +4423,10 @@ Node *analyzing(Node *node) {
          }
          if ((lang & 1) && ((node->type->memaccess == PRIVATE) ||
                             (node->type->memaccess == PROTECTED))) {
-            if (!env->current_class || !env->current_class->name ||
-                (strcmp(env->current_class->name, "this") &&
-                 (strcmp(env->current_class->name, node->type->name)))) {
+            if (!env->current_class || !env->current_class->var_name ||
+                (strcmp(env->current_class->var_name, "this"))) {
+               // TODO
+                 //(strcmp(env->current_class->type_name, node->type->type_name)))) {
                error("Error: access to private item: %s\n", node->name);
             }
          }
