@@ -558,6 +558,20 @@ int consume_token(TokenConst ty) {
    return 1;
 }
 
+TokenConst expect_token_or_token(TokenConst ty1, TokenConst ty2) {
+   if (tokens->data[pos]->ty == ty1) {
+      pos++;
+      return ty1;
+   } else if (tokens->data[pos]->ty == ty2) {
+      pos++;
+      return ty2;
+   } else {
+      error("Error: Expected TokenConst are different: Expected %d/%d, Actual %d",
+            ty1, ty2, tokens->data[pos]->ty);
+      return 0;
+   }
+}
+
 int expect_token(TokenConst ty) {
    if (tokens->data[pos]->ty != ty) {
       error("Error: Expected TokenConst are different: Expected %d, Actual %d",
@@ -3296,7 +3310,7 @@ Type *read_template_parameter_list(Map *local_typedb) {
    expect_token(TK_TEMPLATE);
    expect_token('<');
    while (1) {
-      expect_token(TK_TYPENAME);
+      expect_token_or_token(TK_TYPENAME, TY_CLASS);
       template_typename = expect_ident();
       type = new_type();
       type->ty = TY_TEMPLATE;
