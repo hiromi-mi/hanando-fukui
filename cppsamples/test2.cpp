@@ -2,6 +2,8 @@
 
 class Test {
    int a;
+   protected:
+   int f;
    public:
    char b;
    static int Vim(int c);
@@ -10,16 +12,17 @@ class Test {
 };
 
 class Test2 : Test {
-   int B();
+   int SetF(int f);
 };
 
 void Test::SetA(int new_a) {
    this->a = new_a;
 }
 
-int Test2::B() {
+int Test2::SetF(int f) {
    //return this->a; // this should be error
-   return (int)this->b;
+   this->f = f;
+   return this->f;
 }
 
 int Test::Emacs() {

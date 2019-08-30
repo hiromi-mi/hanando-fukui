@@ -890,7 +890,7 @@ Vector *tokenize(char *p) {
                token->ty = TK_PUBLIC;
             } else if (strcmp(token->input, "private") == 0) {
                token->ty = TK_PRIVATE;
-            } else if (strcmp(token->input, "private") == 0) {
+            } else if (strcmp(token->input, "protected") == 0) {
                token->ty = TK_PROTECTED;
             } else if (strcmp(token->input, "template") == 0) {
                token->ty = TK_TEMPLATE;
@@ -4389,7 +4389,7 @@ Node *analyzing(Node *node) {
          if ((lang & 1) && (node->type->memaccess == HIDED)) {
             error("Error: access to private item: %s\n", node->name);
          }
-         if ((lang & 1) && (node->type->memaccess == PRIVATE)) {
+         if ((lang & 1) && ((node->type->memaccess == PRIVATE) || (node->type->memaccess == PROTECTED))) {
             if (!env->current_class || !env->current_class->name ||
                 (strcmp(env->current_class->name, "this") &&
                  (strcmp(env->current_class->name, node->type->name)))) {
