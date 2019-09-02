@@ -14,14 +14,13 @@ void longjmp(jmp_buf env, int val);
 int setjmp(jmp_buf env);
 
 int func(__sigset_t buf) {
-   buf.__val[13] = 3;
+   printf("%d\n", buf.__val[13]);
    return 0;
 }
 
 int main() {
    __sigset_t t;
    t.__val[13] = 2;
-   printf("%d\n", t.__val[13]);
    func(t);
    printf("%d\n", t.__val[13]);
    return 0;

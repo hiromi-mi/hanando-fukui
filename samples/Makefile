@@ -53,6 +53,10 @@ test37:
 	$(CC) -r -f 37.c > 37.s
 	gcc -g 37.s -o 37
 	./37
+test39:
+	$(CC) -r -f 39.c > 39.s
+	gcc -g 39.s -o 39
+	./39
 
 test35:
 	./35.bash

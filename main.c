@@ -1681,8 +1681,13 @@ Register *gen_register_leftval(Node *node) {
    switch (node->ty) {
       case ND_IDENT:
          temp_reg = retain_reg();
-         printf("lea %s, [rbp-%d]\n", id2reg64(temp_reg->id),
-                node->local_variable->lvar_offset);
+         if (node->local_variable->lvar_offset >= 0) {
+            printf("lea %s, [rbp-%d]\n", id2reg64(temp_reg->id),
+                  node->local_variable->lvar_offset);
+         } else {
+            printf("lea %s, [rbp-%d]\n", id2reg64(temp_reg->id),
+                  -node->local_variable->lvar_offset);
+         }
          return temp_reg;
 
       case ND_DEREF:
@@ -3581,9 +3586,14 @@ void new_fdef(char *name, Type *type, Map *local_typedb) {
    }
    newfunc->argc = type->argc;
    int i;
+   int stack_arguments_ptr = 8;
    for (i = 0; i < newfunc->argc; i++) {
       newfunc->args[i] =
           new_ident_node_with_new_variable(type->args[i]->var_name, type->args[i]);
+      if (type->args[i]->ty == TY_STRUCT) {
+         // Use STACK Based pointer
+         newfunc->args[i]->local_variable->lvar_offset = -stack_arguments_ptr;
+      }
    }
    env = prev_env;
    // to support prototype def.
@@ -4269,6 +4279,7 @@ LocalVariable *new_local_variable(char *name, Type *type) {
    LocalVariable *lvar = malloc(sizeof(LocalVariable));
    lvar->name = name;
    lvar->type = type;
+   lvar->lvar_offset = 0;
    map_put(env->idents, name, lvar);
    return lvar;
 }
@@ -4288,6 +4299,10 @@ Node *analyzing(Node *node) {
       }
       for (j = 0; j < env->idents->keys->len; j++) {
          local_variable = (LocalVariable *)env->idents->vals->data[j];
+         if (local_variable->lvar_offset != 0) {
+            // For Example: STRUCT Passed Argumenets (use rsp+24 or so on)
+            continue;
+         }
          int size = cnt_size(local_variable->type);
          // should aligned as x86_64
          if (size % 8 != 0) {
@@ -4596,7 +4611,7 @@ void optimizing_process() {
 
 int main(int argc, char **argv) {
    if (argc < 2) {
-      error("Incorrect Arguments");
+      error("Incorrect Arguments\n");
    }
    test_map();
 
