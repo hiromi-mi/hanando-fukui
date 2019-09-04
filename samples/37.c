@@ -1,5 +1,7 @@
 #include <string.h>
 #include <stdlib.h>
+
+char *a = "Sendai";
 int main() {
    char* x[3] = {"Tokyo", "Yokohama", "Osaka"};
 
@@ -10,6 +12,9 @@ int main() {
       exit(1);
    }
    if (strcmp(x[2], "Osaka") != 0) {
+      exit(1);
+   }
+   if (strcmp(a, "Sendai") != 0) {
       exit(1);
    }
    return 0;

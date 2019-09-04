@@ -152,6 +152,7 @@ Type *new_type() {
    type->argc = 0;
    type->array_size = 0;
    type->initval = 0;
+   type->initstr = NULL;
    type->offset = 0;
    type->is_const = 0;
    type->is_static = 0;
@@ -492,7 +493,6 @@ Node *new_func_node(Node *ident, Vector *template_types) {
       // so add into function node & call
       node->name = NULL;
       node->gen_name = NULL;
-      // FIXME this should be type
       node->type = ident->type;
    }
    return node;
@@ -669,6 +669,9 @@ Vector *tokenize(char *p) {
             switch (*(p + 2)) {
                case 'n':
                   token->num_val = '\n';
+                  break;
+               case 'b':
+                  token->num_val = '\b';
                   break;
                case '0':
                   token->num_val = '\0';
@@ -1077,13 +1080,13 @@ Node *node_cast() {
 Node *node_increment() {
    Node *node;
    if (consume_token('-')) {
-      Node *node = new_node(ND_NEG, node_increment(), NULL);
+      node = new_node(ND_NEG, node_increment(), NULL);
       return node;
    } else if (consume_token('!')) {
-      Node *node = new_node('!', node_increment(), NULL);
+      node = new_node('!', node_increment(), NULL);
       return node;
    } else if (consume_token('+')) {
-      Node *node = node_increment();
+      node = node_increment();
       return node;
    } else if (consume_token(TK_PLUSPLUS)) {
       node = new_ident_node(expect_ident());
@@ -1686,10 +1689,10 @@ Register *gen_register_leftval(Node *node) {
          temp_reg = retain_reg();
          if (node->local_variable->lvar_offset >= 0) {
             printf("lea %s, [rbp-%d]\n", id2reg64(temp_reg->id),
-                  node->local_variable->lvar_offset);
+                   node->local_variable->lvar_offset);
          } else {
             printf("lea %s, [rbp-%d]\n", id2reg64(temp_reg->id),
-                  -node->local_variable->lvar_offset);
+                   -node->local_variable->lvar_offset);
          }
          return temp_reg;
 
@@ -2562,23 +2565,27 @@ Register *gen_register_rightval(Node *node, int unused_eval) {
                func_call_float_cnt++;
             } else if (node->args[j]->type->ty == TY_STRUCT) {
                int k = 0;
-               switch(temp_reg->kind) {
+               switch (temp_reg->kind) {
                   case R_GVAR:
                      func_call_should_sub_rsp += type2size(node->args[j]->type);
-                     for (k = type2size(node->args[j]->type)-8;k>=0;k-=8) {
-                        printf("push qword ptr %s[rip+%d]\n", temp_reg->name, k);
+                     for (k = type2size(node->args[j]->type) - 8; k >= 0;
+                          k -= 8) {
+                        printf("push qword ptr %s[rip+%d]\n", temp_reg->name,
+                               k);
                      }
                      break;
                   case R_LVAR:
                      func_call_should_sub_rsp += type2size(node->args[j]->type);
-                     for (k = type2size(node->args[j]->type)-8;k>=0;k-=8) {
-                        printf("push qword ptr [rbp-%d]\n", temp_reg->id-k);
+                     for (k = type2size(node->args[j]->type) - 8; k >= 0;
+                          k -= 8) {
+                        printf("push qword ptr [rbp-%d]\n", temp_reg->id - k);
                      }
                      break;
                   default:
                      error("Error: Not IMplemented On ND_FUNC w/ TY_STRUCT\n");
                }
-               // TODO This will create "mov eax, 1" even though no float arugments
+               // TODO This will create "mov eax, 1" even though no float
+               // arugments
                func_call_float_cnt++;
             } else {
                secure_mutable_with_type(temp_reg, node->type);
@@ -3591,8 +3598,8 @@ void new_fdef(char *name, Type *type, Map *local_typedb) {
    int i;
    int stack_arguments_ptr = 8;
    for (i = 0; i < newfunc->argc; i++) {
-      newfunc->args[i] =
-          new_ident_node_with_new_variable(type->args[i]->var_name, type->args[i]);
+      newfunc->args[i] = new_ident_node_with_new_variable(
+          type->args[i]->var_name, type->args[i]);
       if (type->args[i]->ty == TY_STRUCT) {
          // Use STACK Based pointer
          newfunc->args[i]->local_variable->lvar_offset = -stack_arguments_ptr;
@@ -3786,12 +3793,19 @@ void toplevel() {
             type->initval = 0;
             if (consume_token('=')) {
                Node *initval = assign();
-               // TODO: only supported main valu.
                initval = optimizing(analyzing(initval));
-               if (initval->ty != ND_NUM) {
-                  error("Error: invalid initializer on global variable\n");
+               switch (initval->ty) {
+                  case ND_NUM:
+                     type->initval = initval->num_val;
+                     break;
+                  case ND_STRING:
+                     // TODO: only supported pointer-based type.
+                     type->initstr = initval->name;
+                     break;
+                  default:
+                     error("Error: invalid initializer on global variable\n");
+                     break;
                }
-               type->initval = initval->num_val;
             }
             expect_token(';');
          }
@@ -3816,8 +3830,7 @@ Type *generate_class_template(Type *type, Map *template_type_db) {
    if (type && type->ty == TY_TEMPLATE) {
       new_type = find_typed_db(type->type_name, template_type_db);
       if (!new_type) {
-         error("Error: Incorrect Class Template type: %s\n",
-               type->type_name);
+         error("Error: Incorrect Class Template type: %s\n", type->type_name);
       }
       type = duplicate_type(new_type);
    }
@@ -3876,8 +3889,7 @@ Node *generate_template(Node *node, Map *template_type_db) {
    if (node->ty == ND_FDEF) {
       // apply to node->type->ret if TY_TEMPLATE
       if (node->type->ret->ty == TY_TEMPLATE) {
-         new_type =
-             find_typed_db(node->type->ret->type_name, template_type_db);
+         new_type = find_typed_db(node->type->ret->type_name, template_type_db);
          if (!new_type) {
             error("Error: Incorrect Template type: %s\n",
                   node->type->ret->type_name);
@@ -3890,8 +3902,7 @@ Node *generate_template(Node *node, Map *template_type_db) {
    if (node->type && node->type->ty == TY_TEMPLATE) {
       new_type = find_typed_db(node->type->type_name, template_type_db);
       if (!new_type) {
-         error("Error: Incorrect Template type: %s\n",
-               node->type->type_name);
+         error("Error: Incorrect Template type: %s\n", node->type->type_name);
       }
       node->type = copy_type(new_type, new_type);
    }
@@ -4010,7 +4021,14 @@ void globalvar_gen() {
          // There are no offset. externed.
          continue;
       }
-      if (valdataj->initval == 0) {
+      if (valdataj->initstr) {
+         printf(".type %s,@object\n", keydataj);
+         printf(".global %s\n", keydataj);
+         printf(".size %s, %d\n", keydataj, cnt_size(valdataj));
+         printf("%s:\n", keydataj);
+         printf(".quad %s\n", valdataj->initstr);
+         puts(".text");
+      } else if (valdataj->initval == 0) {
          printf(".type %s,@object\n", keydataj);
          printf(".global %s\n", keydataj);
          printf(".comm %s, %d\n", keydataj, cnt_size(valdataj));
@@ -4456,7 +4474,8 @@ Node *analyzing(Node *node) {
             if (!env->current_class || !env->current_class->var_name ||
                 (strcmp(env->current_class->var_name, "this"))) {
                // TODO
-                 //(strcmp(env->current_class->type_name, node->type->type_name)))) {
+               //(strcmp(env->current_class->type_name,
+               //node->type->type_name)))) {
                error("Error: access to private item: %s\n", node->name);
             }
          }

@@ -196,6 +196,7 @@ typedef struct Type {
    struct Type *args[6];
    int array_size;
    int initval;
+   char *initstr;
    int offset;
    int is_const;
    int is_static;
@@ -242,7 +243,7 @@ typedef struct Node {
    int is_recursive;
    int pline;
    struct Node *funcdef;
-   LocalVariable* local_variable;
+   LocalVariable *local_variable;
 } Node;
 
 // Extended Register. with global variables, local variables, memory map,
