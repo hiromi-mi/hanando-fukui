@@ -21,6 +21,7 @@ limitations under the License.
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <libgen.h>
 
 #define SEEK_END 2
 #define SEEK_SET 0
@@ -31,7 +32,6 @@ limitations under the License.
 
 char *strdup(const char *s);
 
-// float ceil(float x);
 // to use vector instead of something
 Vector *tokens;
 int pos = 0;
@@ -116,6 +116,8 @@ void *malloc(int size);
 void *realloc(void *ptr, int size);
 float strtof(char *nptr, char **endptr);
 double strtod(char *nptr, char **endptr);
+char *dirname(char *path);
+char *basename(char *path);
 #endif
 
 char *type2name(Type *type) {
@@ -4069,7 +4071,7 @@ void globalvar_gen() {
    }
 }
 
-void preprocess(Vector *pre_tokens) {
+void preprocess(Vector *pre_tokens, char* fname) {
    Map *defined = new_map();
    // when compiled with hanando
    Token *hanando_fukui_compiled = malloc(sizeof(Token));
@@ -4134,7 +4136,17 @@ void preprocess(Vector *pre_tokens) {
          }
          if (strcmp(pre_tokens->data[j]->input, "include") == 0) {
             if (pre_tokens->data[j + 2]->ty == TK_STRING) {
-               preprocess(read_tokenize(pre_tokens->data[j + 2]->input));
+               char *buf = NULL;
+               if (fname) {
+                  char* filename;
+                  filename = strdup(fname);
+                  char *basedirname = dirname(filename);
+                  buf = malloc(sizeof(char) * 256);
+                  snprintf(buf, 255, "%s/%s", basedirname, pre_tokens->data[j+2]->input);
+               } else {
+                  buf = pre_tokens->data[j+2]->input;
+               }
+               preprocess(read_tokenize(buf), buf);
             }
             while (pre_tokens->data[j]->ty != TK_NEWLINE &&
                    pre_tokens->data[j]->ty != TK_EOF) {
@@ -4657,9 +4669,9 @@ int main(int argc, char **argv) {
       }
    }
    if (is_from_file) {
-      preprocess(read_tokenize(argv[argc - 1]));
+      preprocess(read_tokenize(argv[argc - 1]), argv[argc-1]);
    } else {
-      preprocess(tokenize(argv[argc - 1]));
+      preprocess(tokenize(argv[argc - 1]), NULL);
    }
 
    init_typedb();
