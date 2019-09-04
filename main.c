@@ -3459,6 +3459,9 @@ int split_type_caller() {
    if (tokens->data[tos]->ty == TK_STATIC) {
       tos++;
    }
+   if (tokens->data[tos]->ty == TK_CONST) {
+      tos++;
+   }
    if (tokens->data[tos]->ty == TK_TEMPLATE) {
       return 3;
    }
@@ -4463,6 +4466,9 @@ Node *analyzing(Node *node) {
          }
          break;
       case ND_ASSIGN:
+         if (node->lhs->type->is_const) {
+            error("Error: Assign to constant value.\n");
+         }
          if (node->lhs->type->ty != node->rhs->type->ty) {
             node->rhs = new_node(ND_CAST, node->rhs, NULL);
             node->rhs->type = node->lhs->type;
