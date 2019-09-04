@@ -106,6 +106,9 @@ Node *node_increment();
 Node *assign();
 _Noreturn void error(const char *str, ...);
 
+Node *analyzing(Node *node);
+Node *optimizing(Node *node);
+
 // FOR SELFHOST
 #ifdef __HANANDO_FUKUI__
 FILE *fopen(char *name, char *type);
@@ -3782,8 +3785,12 @@ void toplevel() {
             map_put(global_vars, name, type);
             type->initval = 0;
             if (consume_token('=')) {
-               Node *initval = node_term();
+               Node *initval = assign();
                // TODO: only supported main valu.
+               initval = optimizing(analyzing(initval));
+               if (initval->ty != ND_NUM) {
+                  error("Error: invalid initializer on global variable\n");
+               }
                type->initval = initval->num_val;
             }
             expect_token(';');

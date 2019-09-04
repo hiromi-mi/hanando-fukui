@@ -157,6 +157,7 @@ test15:
 	sh testfdef.sh "int main(){double a; double b; return sizeof a>b;}" 4
 	sh testfdef.sh "int main(){return sizeof(int);}" 4
 	sh testfdef.sh "int main(){int a=1;return a;}" 1
+	sh testfdef.sh "int a=3*9+5;int main(){return a;}" 32
 
 test16:
 	sh testfdef.sh "int main(){int i;int j=0;for(i=1;i<5;++i) { j+=i;} return j;}" 10
