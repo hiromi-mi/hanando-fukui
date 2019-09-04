@@ -4562,10 +4562,18 @@ Node *optimizing(Node *node) {
       }
    }
    switch (node->ty) {
+      case ND_NEG:
+         if (node->lhs->ty == ND_NUM) {
+            node = node->lhs;
+            node->num_val = -node->num_val;
+         }
+         break;
+
       case ND_ADD:
       case ND_SUB:
       case ND_MUL:
       case ND_DIV:
+      case ND_MOD:
          if (node->lhs->ty == ND_NUM && node->rhs->ty == ND_NUM) {
             switch (node->ty) {
                case ND_ADD:
@@ -4579,6 +4587,9 @@ Node *optimizing(Node *node) {
                   break;
                case ND_DIV:
                   new_num_val = node->lhs->num_val / node->rhs->num_val;
+                  break;
+               case ND_MOD:
+                  new_num_val = node->lhs->num_val % node->rhs->num_val;
                   break;
                default:
                   error("Error: Unsupport type in optimization: %d\n",
