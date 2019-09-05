@@ -17,7 +17,9 @@ int main() {
    printf("%d (Should be 20)\n", Test::func());
    Test::Vim(42);
    Test2 d;
+   decltype(d) e;
    d.a = 10;
+   e.a = 30;
    printf("%d (It must be 10)\n", d.a);
    return 0;
 }

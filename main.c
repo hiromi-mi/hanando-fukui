@@ -925,6 +925,8 @@ Vector *tokenize(char *p) {
                token->ty = TK_CATCH;
             } else if (strcmp(token->input, "throw") == 0) {
                token->ty = TK_THROW;
+            } else if (strcmp(token->input, "decltype") == 0) {
+               token->ty = TK_DECLTYPE;
             }
          }
 
@@ -3402,6 +3404,15 @@ Type *read_fundamental_type(Map *local_typedb) {
    } else if (consume_token(TK_CLASS)) {
       class_declaration(local_typedb);
       return NULL; // class definition
+   } else if (consume_token(TK_DECLTYPE)) {
+      // find type and get the true value
+      // 7.1.6.2(4)
+      expect_token('(');
+      Node *node = assign();
+      expect_token(')');
+      node = optimizing(analyzing(node));
+      // support only when rvalue
+      return duplicate_type(node->type);
    } else {
       char *ident = expect_ident();
       // looking up template parameters
@@ -3463,6 +3474,9 @@ int split_type_caller() {
       tos++;
    }
    if (tokens->data[tos]->ty == TK_TEMPLATE) {
+      return 3;
+   }
+   if (tokens->data[tos]->ty == TK_DECLTYPE) {
       return 3;
    }
    if (tokens->data[tos]->ty != TK_IDENT) {
