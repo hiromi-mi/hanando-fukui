@@ -26,6 +26,6 @@ static int Test::func() {
    return 20;
 }
 static int Test::Vim(int c) {
-   printf("From Test::Vim %d (Should be 20)\n", c);
+   printf("From Test::Vim %d (Should be 42)\n", c);
    return 1;
 }
