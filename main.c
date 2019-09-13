@@ -3021,7 +3021,24 @@ Node *stmt() {
    Node *node = NULL;
    int pline = tokens->data[pos]->pline;
    int j;
-   if (confirm_type()) {
+   if (consume_token(TK_RETURN)) {
+      if (confirm_token(';')) {
+         // to support return; with void type
+         node = new_node(ND_RETURN, NULL, NULL);
+      } else {
+         node = new_node(ND_RETURN, assign(), NULL);
+      }
+      // FIXME GOTO is not statement, expr.
+   } else if (consume_token(TK_GOTO)) {
+      node = new_node(ND_GOTO, NULL, NULL);
+      node->name = expect_ident();
+   } else if (consume_token(TK_BREAK)) {
+      node = new_node(ND_BREAK, NULL, NULL);
+   } else if (consume_token(TK_CONTINUE)) {
+      node = new_node(ND_CONTINUE, NULL, NULL);
+   } else if (consume_token(TK_THROW)) {
+      node = new_node(ND_THROW, NULL, NULL);
+   } else if (confirm_type()) {
       char *input = NULL;
       Type *fundamental_type = read_fundamental_type(current_local_typedb);
       Type *type;
@@ -3065,23 +3082,6 @@ Node *stmt() {
          }
          input = NULL;
       } while (consume_token(','));
-   } else if (consume_token(TK_RETURN)) {
-      if (confirm_token(';')) {
-         // to support return; with void type
-         node = new_node(ND_RETURN, NULL, NULL);
-      } else {
-         node = new_node(ND_RETURN, assign(), NULL);
-      }
-      // FIXME GOTO is not statement, expr.
-   } else if (consume_token(TK_GOTO)) {
-      node = new_node(ND_GOTO, NULL, NULL);
-      node->name = expect_ident();
-   } else if (consume_token(TK_BREAK)) {
-      node = new_node(ND_BREAK, NULL, NULL);
-   } else if (consume_token(TK_CONTINUE)) {
-      node = new_node(ND_CONTINUE, NULL, NULL);
-   } else if (consume_token(TK_THROW)) {
-      node = new_node(ND_THROW, NULL, NULL);
    } else {
       node = assign();
    }
