@@ -17,11 +17,11 @@ limitations under the License.
 
 #include "main.h"
 #include <ctype.h>
+#include <libgen.h>
 #include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <libgen.h>
 
 #define SEEK_END 2
 #define SEEK_SET 0
@@ -3794,49 +3794,47 @@ void toplevel() {
          continue;
       }
 
-      if (confirm_type()) {
-         char *name = NULL;
-         Map *local_typedb = new_map();
-         Type *type = read_fundamental_type(local_typedb);
-         if (!type) {
-            continue; // TODO for class definition
-         }
-         type = read_type(type, &name, local_typedb);
-         if (type->ty == TY_FUNC) {
-            new_fdef(name, type, local_typedb);
-            continue;
-         } else {
-            // Global Variables.
-            type->offset = 0; // TODO externed
-            map_put(global_vars, name, type);
-            type->initval = 0;
-            if (consume_token('=')) {
-               Node *initval = assign();
-               initval = optimizing(analyzing(initval));
-               switch (initval->ty) {
-                  case ND_NUM:
-                     type->initval = initval->num_val;
-                     break;
-                  case ND_STRING:
-                     // TODO: only supported pointer-based type.
-                     type->initstr = initval->name;
-                     break;
-                  default:
-                     error("Error: invalid initializer on global variable\n");
-                     break;
-               }
-            }
-            expect_token(';');
-         }
-         continue;
-      }
       if (confirm_token('{')) {
          Node *newblocknode = new_block_node(NULL);
          program(newblocknode);
          vec_push(globalcode, (Token *)newblocknode);
          continue;
       }
-      vec_push(globalcode, (Token *)stmt());
+
+      char *name = NULL;
+      Map *local_typedb = new_map();
+      Type *type = read_fundamental_type(local_typedb);
+      if (!type) {
+         continue; // TODO for class definition
+      }
+      type = read_type(type, &name, local_typedb);
+      if (type->ty == TY_FUNC) {
+         new_fdef(name, type, local_typedb);
+         continue;
+      } else {
+         // Global Variables.
+         type->offset = 0; // TODO externed
+         map_put(global_vars, name, type);
+         type->initval = 0;
+         if (consume_token('=')) {
+            Node *initval = assign();
+            initval = optimizing(analyzing(initval));
+            switch (initval->ty) {
+               case ND_NUM:
+                  type->initval = initval->num_val;
+                  break;
+               case ND_STRING:
+                  // TODO: only supported pointer-based type.
+                  type->initstr = initval->name;
+                  break;
+               default:
+                  error("Error: invalid initializer on global variable\n");
+                  break;
+            }
+         }
+         expect_token(';');
+      }
+      continue;
    }
    vec_push(globalcode, (Token *)new_block_node(NULL));
 }
@@ -4088,7 +4086,7 @@ void globalvar_gen() {
    }
 }
 
-void preprocess(Vector *pre_tokens, char* fname) {
+void preprocess(Vector *pre_tokens, char *fname) {
    Map *defined = new_map();
    // when compiled with hanando
    Token *hanando_fukui_compiled = malloc(sizeof(Token));
@@ -4155,13 +4153,14 @@ void preprocess(Vector *pre_tokens, char* fname) {
             if (pre_tokens->data[j + 2]->ty == TK_STRING) {
                char *buf = NULL;
                if (fname) {
-                  char* filename;
+                  char *filename;
                   filename = strdup(fname);
                   char *basedirname = dirname(filename);
                   buf = malloc(sizeof(char) * 256);
-                  snprintf(buf, 255, "%s/%s", basedirname, pre_tokens->data[j+2]->input);
+                  snprintf(buf, 255, "%s/%s", basedirname,
+                           pre_tokens->data[j + 2]->input);
                } else {
-                  buf = pre_tokens->data[j+2]->input;
+                  buf = pre_tokens->data[j + 2]->input;
                }
                preprocess(read_tokenize(buf), buf);
             }
@@ -4507,7 +4506,7 @@ Node *analyzing(Node *node) {
                 (strcmp(env->current_class->var_name, "this"))) {
                // TODO
                //(strcmp(env->current_class->type_name,
-               //node->type->type_name)))) {
+               // node->type->type_name)))) {
                error("Error: access to private item: %s\n", node->name);
             }
          }
@@ -4700,7 +4699,7 @@ int main(int argc, char **argv) {
       }
    }
    if (is_from_file) {
-      preprocess(read_tokenize(argv[argc - 1]), argv[argc-1]);
+      preprocess(read_tokenize(argv[argc - 1]), argv[argc - 1]);
    } else {
       preprocess(tokenize(argv[argc - 1]), NULL);
    }
