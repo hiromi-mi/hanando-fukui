@@ -216,6 +216,7 @@ typedef struct Env {
    int rsp_offset;
    Type *ret;
    Type *current_class;
+   Type *current_func;
 } Env;
 
 typedef struct LocalVariable {

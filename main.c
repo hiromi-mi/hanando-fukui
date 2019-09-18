@@ -53,7 +53,6 @@ int env_for_while_switch = 0;
 Env *env;
 int if_cnt = 0;
 int for_while_cnt = 0;
-int omiited_argc = 0; // when used va_start & TK_OMIITED
 int neg_float_generate = 0;
 int neg_double_generate = 0;
 
@@ -506,11 +505,14 @@ Env *new_env(Env *prev_env, Type *ret) {
    _env->rsp_offset = SPACE_R12R13R14R15; // to save r12, r13, r14, r15
    _env->ret = ret;
    _env->current_class = NULL;
+   _env->current_func = NULL;
    if (prev_env) {
       _env->rsp_offset = prev_env->rsp_offset;
       _env->rsp_offset_max = prev_env->rsp_offset_max;
       _env->current_class =
           prev_env->current_class; // propagate current class info.
+      _env->current_func =
+          prev_env->current_func; // propagate current func info.
       if (!ret) {
          // env->ret will be propagated as ND_BLOCK.
          _env->ret = prev_env->ret;
@@ -1151,8 +1153,6 @@ Node *treat_va_start() {
    node->rhs = new_ident_node("_saved_var");
    expect_token(',');
    node_term();
-   // darkness: used global variable.
-   node->num_val = omiited_argc;
    expect_token(')');
    return node;
 }
@@ -3570,6 +3570,7 @@ void new_fdef(char *name, Type *type, Map *local_typedb) {
    newfunc = new_fdef_node(name, type, type->ret->is_static);
    newfunc->type->local_typedb = local_typedb;
    newfunc->pline = pline;
+   newfunc->env->current_func = newfunc->type;
    // Function definition because toplevel func call
 
    // On CPP: Read from Previous Definition on Struct
@@ -3610,7 +3611,6 @@ void new_fdef(char *name, Type *type, Map *local_typedb) {
       saved_var_type->array_size = 30; // for rsp
       newfunc->is_omiited =
           new_ident_node_with_new_variable("_saved_var", saved_var_type);
-      omiited_argc = type->argc;
    }
    newfunc->argc = type->argc;
    int i;
@@ -4531,6 +4531,10 @@ Node *analyzing(Node *node) {
          } else {
             node->type = find_typed_db("int", typedb);
          }
+         break;
+      case ND_VASTART:
+         node->num_val = env->current_func->argc;
+         node->type = node->lhs->type;
          break;
       default:
          if (node->type == NULL && node->lhs && node->lhs->type) {
