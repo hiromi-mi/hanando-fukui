@@ -45,7 +45,6 @@ Map *funcdefs;
 Map *consts;
 Map *typedb;
 Map *struct_typedb;
-Map *enum_typedb;
 Map *current_local_typedb;
 int is_recursive(Node *node, char *name);
 
@@ -4193,7 +4192,6 @@ void preprocess(Vector *pre_tokens, char *fname) {
 }
 
 void init_typedb() {
-   enum_typedb = new_map();
    struct_typedb = new_map();
    typedb = new_map();
    current_local_typedb = NULL; // Initiazlied on function.
