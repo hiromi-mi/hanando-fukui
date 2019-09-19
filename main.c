@@ -145,7 +145,7 @@ char *type2name(Type *type) {
    }
 }
 
-Type *new_type() {
+Type *new_type(void) {
    Type *type = malloc(sizeof(Type));
    type->ptrof = NULL;
    type->ret = NULL;
@@ -173,19 +173,19 @@ Type *type_pointer(Type *base_type) {
    return type;
 }
 
-Map *new_map() {
+Map *new_map(void) {
    Map *map = malloc(sizeof(Map));
    map->keys = new_vector();
    map->vals = new_vector();
    return map;
 }
 
-int map_put(Map *map, char *key, void *val) {
+int map_put(Map *map, const char *key, const void *val) {
    vec_push(map->keys, (void *)key);
    return vec_push(map->vals, (void *)val);
 }
 
-void *map_get(Map *map, char *key) {
+void *map_get(const Map *map, const char *key) {
    int i;
    for (i = map->keys->len - 1; i >= 0; i--) {
       if (strcmp((char *)map->keys->data[i], key) == 0) {
@@ -195,7 +195,7 @@ void *map_get(Map *map, char *key) {
    return NULL;
 }
 
-Vector *new_vector() {
+Vector *new_vector(void) {
    Vector *vec = malloc(sizeof(Vector));
    vec->capacity = 16;
    vec->data = malloc(sizeof(Token *) * vec->capacity);
@@ -942,9 +942,9 @@ Vector *tokenize(char *p) {
    return pre_tokens;
 }
 
-Node *node_mathexpr_without_comma() { return node_lor(); }
+Node *node_mathexpr_without_comma(void) { return node_lor(); }
 
-Node *node_mathexpr() {
+Node *node_mathexpr(void) {
    Node *node = node_lor();
    while (1) {
       if (consume_token(',')) {
@@ -955,7 +955,7 @@ Node *node_mathexpr() {
    }
 }
 
-Node *node_land() {
+Node *node_land(void) {
    Node *node = node_or();
    while (1) {
       if (consume_token(TK_AND)) {
@@ -966,7 +966,7 @@ Node *node_land() {
    }
 }
 
-Node *node_lor() {
+Node *node_lor(void) {
    Node *node = node_land();
    while (1) {
       if (consume_token(TK_OR)) {
@@ -977,7 +977,7 @@ Node *node_lor() {
    }
 }
 
-Node *node_shift() {
+Node *node_shift(void) {
    Node *node = node_add();
    // TODO: Shift should be only char.
    while (1) {
@@ -990,7 +990,7 @@ Node *node_shift() {
       }
    }
 }
-Node *node_or() {
+Node *node_or(void) {
    Node *node = node_xor();
    while (1) {
       if (consume_token('|')) {
@@ -1000,7 +1000,7 @@ Node *node_or() {
       }
    }
 }
-Node *node_compare() {
+Node *node_compare(void) {
    Node *node = node_shift();
    while (1) {
       if (consume_token('<')) {
@@ -1017,7 +1017,7 @@ Node *node_compare() {
    }
 }
 
-Node *node_iseq() {
+Node *node_iseq(void) {
    Node *node = node_compare();
    while (1) {
       if (consume_token(TK_ISEQ)) {
@@ -1030,7 +1030,7 @@ Node *node_iseq() {
    }
 }
 
-Node *node_and() {
+Node *node_and(void) {
    Node *node = node_iseq();
    while (1) {
       if (consume_token('&')) {
@@ -1040,7 +1040,7 @@ Node *node_and() {
       }
    }
 }
-Node *node_xor() {
+Node *node_xor(void) {
    Node *node = node_and();
    while (1) {
       if (consume_token('^')) {
@@ -1050,7 +1050,7 @@ Node *node_xor() {
       }
    }
 }
-Node *node_add() {
+Node *node_add(void) {
    Node *node = node_mul();
    while (1) {
       if (consume_token('+')) {
@@ -1063,7 +1063,7 @@ Node *node_add() {
    }
 }
 
-Node *node_cast() {
+Node *node_cast(void) {
    // reading cast stmt. This does not support multiple cast.
    Node *node = NULL;
    if (consume_token('(')) {
@@ -1082,7 +1082,7 @@ Node *node_cast() {
    return node_increment();
 }
 
-Node *node_increment() {
+Node *node_increment(void) {
    Node *node;
    if (consume_token('-')) {
       node = new_node(ND_NEG, node_increment(), NULL);
@@ -1125,7 +1125,7 @@ Node *node_increment() {
    return node;
 }
 
-Node *node_mul() {
+Node *node_mul(void) {
    Node *node = node_cast();
    while (1) {
       if (consume_token('*')) {
@@ -1146,7 +1146,7 @@ Node *new_dot_node(Node *node) {
    return node;
 }
 
-Node *treat_va_start() {
+Node *treat_va_start(void) {
    Node *node = new_node(ND_VASTART, NULL, NULL);
    expect_token('(');
    node->lhs = node_term();
@@ -1157,7 +1157,7 @@ Node *treat_va_start() {
    return node;
 }
 
-Node *treat_va_arg() {
+Node *treat_va_arg(void) {
    Node *node = new_node(ND_VAARG, NULL, NULL);
    expect_token('(');
    node->lhs = node_term();
@@ -1168,7 +1168,7 @@ Node *treat_va_arg() {
    return node;
 }
 
-Node *treat_va_end() {
+Node *treat_va_end(void) {
    Node *node = new_node(ND_VAEND, NULL, NULL);
    expect_token('(');
    node->lhs = node_term();
@@ -1194,7 +1194,7 @@ Vector *read_template_argument_list(Map *local_typedb) {
    return template_types;
 }
 
-Node *node_term() {
+Node *node_term(void) {
    Node *node = NULL;
    Vector *template_types = NULL;
    int j;
@@ -1467,7 +1467,7 @@ char *float_registers[8];
 char *float_arg_registers[6];
 
 // These registers will be used to map into registers
-void init_reg_registers() {
+void init_reg_registers(void) {
    // This code is valid (and safe) because RHS is const ptr. lreg[7] -> on top
    // of "r10b"
    // "r15" will be used as rsp alignment register.
@@ -1513,7 +1513,7 @@ char *id2reg32(int id) { return registers32[id]; }
 
 char *id2reg64(int id) { return registers64[id]; }
 
-void init_reg_table() {
+void init_reg_table(void) {
    int j;
    for (j = 0; j < 6; j++) { // j = 6 means r15
       reg_table[j] = -1;     // NEVER_USED REGISTERS
@@ -1595,7 +1595,7 @@ char *node2reg(Node *node, Register *reg) {
    return size2reg(type2size(node->type), reg);
 }
 
-Register *float_retain_reg() {
+Register *float_retain_reg(void) {
    int j;
    for (j = 0; j < 8; j++) {
       if (float_reg_table[j] > 0)
@@ -1611,7 +1611,7 @@ Register *float_retain_reg() {
    error("No more float registers are avaliable\n");
 }
 
-Register *retain_reg() {
+Register *retain_reg(void) {
    int j;
    for (j = 0; j < 5; j++) {
       if (reg_table[j] > 0)
@@ -1642,7 +1642,7 @@ void release_reg(Register *reg) {
    free(reg);
 }
 
-void release_all_reg() {
+void release_all_reg(void) {
    int j;
    for (j = 0; j < 6; j++) {
       // j = 5 means r15
@@ -1739,7 +1739,7 @@ void extend_al_ifneeded(Node *node, Register *reg) {
    }
 }
 
-void restore_callee_reg() {
+void restore_callee_reg(void) {
    // stored in retain_reg() or
    // puts("mov r15, [rbp-24]");in ND_FUNC
    int j;
@@ -1756,7 +1756,7 @@ void restore_callee_reg() {
    }
 }
 
-int save_reg() {
+int save_reg(void) {
    int j;
    int stored_cnt = 0;
    // because only r10 and r11 are caller-saved
@@ -1769,7 +1769,7 @@ int save_reg() {
    return stored_cnt;
 }
 
-int restore_reg() {
+int restore_reg(void) {
    int j;
    int restored_cnt = 0;
    // 4 because only r10 and r11 are caller-saved
@@ -2543,7 +2543,7 @@ Register *gen_register_rightval(Node *node, int unused_eval) {
             printf("sub rsp, %d\n", *node->env->rsp_offset_max);
             puts("#test begin expansion");
             for (j = 0; j < node->argc; j++) {
-               //temp_reg = gen_register_rightval(node->args[j], 0);
+               // temp_reg = gen_register_rightval(node->args[j], 0);
                gen_register_rightval(node->args[j], 1);
                puts("#test end expansion of args");
             }
@@ -2857,7 +2857,7 @@ Register *gen_register_rightval(Node *node, int unused_eval) {
    return NO_REGISTER;
 }
 
-void gen_register_top() {
+void gen_register_top(void) {
    init_reg_table();
    init_reg_registers();
    int j;
@@ -2866,7 +2866,7 @@ void gen_register_top() {
    }
 }
 
-Node *assign() {
+Node *assign(void) {
    Node *node = node_mathexpr();
    if (consume_token('=')) {
       if (confirm_token(TK_OPAS)) {
@@ -2986,6 +2986,15 @@ Type *read_type(Type *type, char **input, Map *local_typedb) {
          // AFTER: TY_FUNC
          type = concrete_type;
 
+         // Special Case: int func(void)
+         if (tokens->data[pos]->ty == TK_IDENT &&
+             (strncmp(tokens->data[pos]->input, "void", 5) == 0) &&
+             tokens->data[pos + 1]->ty == ')') {
+            concrete_type->argc = 0;
+            pos += 2;
+            continue;
+         }
+
          // treat as function.
          for (concrete_type->argc = 0;
               concrete_type->argc <= 6 && !consume_token(')');) {
@@ -3016,7 +3025,7 @@ Type *read_type_all(char **input) {
    return type;
 }
 
-Node *stmt() {
+Node *stmt(void) {
    Node *node = NULL;
    int pline = tokens->data[pos]->pline;
    int j;
@@ -3089,7 +3098,7 @@ Node *stmt() {
    return node;
 }
 
-Node *node_if() {
+Node *node_if(void) {
    Node *node = new_node(ND_IF, NULL, NULL);
    node->argc = 1;
    node->pline = tokens->data[pos]->pline;
@@ -3462,7 +3471,7 @@ Type *read_fundamental_type(Map *local_typedb) {
    return type;
 }
 
-int split_type_caller() {
+int split_type_caller(void) {
    int tos = pos; // for skipping tk_static
    int j;
    // static may be ident or func
@@ -3499,20 +3508,20 @@ int split_type_caller() {
    return 2; // IDENT
 }
 
-int confirm_type() {
+int confirm_type(void) {
    if (split_type_caller() > 2) {
       return 1;
    }
    return 0;
 }
-int confirm_ident() {
+int confirm_ident(void) {
    if (split_type_caller() == 2) {
       return 1;
    }
    return 0;
 }
 
-int consume_ident() {
+int consume_ident(void) {
    if (split_type_caller() == 2) {
       pos++;
       return 1;
@@ -3520,7 +3529,7 @@ int consume_ident() {
    return 0;
 }
 
-char *expect_ident() {
+char *expect_ident(void) {
    if (tokens->data[pos]->ty != TK_IDENT) {
       error("Error: Expected Ident but actual %d\n", tokens->data[pos]->ty);
       return NULL;
@@ -3706,7 +3715,7 @@ Type *class_declaration(Map *local_typedb) {
    return structuretype;
 }
 
-void toplevel() {
+void toplevel(void) {
    strcpy(arg_registers[0], "rdi");
    strcpy(arg_registers[1], "rsi");
    strcpy(arg_registers[2], "rdx");
@@ -3995,7 +4004,7 @@ int is_recursive(Node *node, char *name) {
    return 0;
 }
 
-void test_map() {
+void test_map(void) {
    Vector *vec = new_vector();
    Token *hanando_fukui_compiled = malloc(sizeof(Token));
    hanando_fukui_compiled->ty = TK_NUM;
@@ -4025,7 +4034,7 @@ void test_map() {
    }
 }
 
-void globalvar_gen() {
+void globalvar_gen(void) {
    puts(".data");
    int j;
    for (j = 0; j < global_vars->keys->len; j++) {
@@ -4189,7 +4198,7 @@ void preprocess(Vector *pre_tokens, char *fname) {
    }
 }
 
-void init_typedb() {
+void init_typedb(void) {
    struct_typedb = new_map();
    typedb = new_map();
    current_local_typedb = NULL; // Initiazlied on function.
@@ -4621,10 +4630,11 @@ Node *optimizing(Node *node) {
 
          // inline expansion
          if ((node->funcdef->code->len > 0) && (node->funcdef->code->len < 2) &&
-         (node->funcdef->is_recursive == 0) && (node->type->ty == TY_VOID)) {
+             (node->funcdef->is_recursive == 0) &&
+             (node->type->ty == TY_VOID)) {
 
             node_new = new_block_node(NULL);
-            for (j = 0;j < node->argc;j++) {
+            for (j = 0; j < node->argc; j++) {
                // 掘り下げた後の offset にあるように Env を作りなおす
                Node *copied_node = duplicate_node(node->funcdef->args[j]);
                /*
@@ -4632,8 +4642,8 @@ Node *optimizing(Node *node) {
                lvar->offset += node->funcdef->env->rsp_offset_max;
                copied_node->lvar = lvar;
                */
-               node_new->args[j] = new_node(ND_ASSIGN, copied_node,
-         node->args[j]);
+               node_new->args[j] =
+                   new_node(ND_ASSIGN, copied_node, node->args[j]);
             }
             if (node_new) {
                // constant function
@@ -4664,7 +4674,7 @@ Node *optimizing(Node *node) {
    return node;
 }
 
-void analyzing_process() {
+void analyzing_process(void) {
    generate_structure(typedb);
    generate_structure(struct_typedb);
    int len = globalcode->len;
@@ -4674,7 +4684,7 @@ void analyzing_process() {
    }
 }
 
-void optimizing_process() {
+void optimizing_process(void) {
    int len = globalcode->len;
    int i;
    for (i = 0; i < len; i++) {

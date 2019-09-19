@@ -258,8 +258,8 @@ typedef struct Register {
 } Register;
 
 Map *new_map();
-int map_put(Map *map, char *key, void *val);
-void *map_get(Map *map, char *key);
+int map_put(Map *map, const char *key, const void *val);
+void *map_get(const Map *map, const char *key);
 Vector *new_vector();
 int vec_push(Vector *vec, Token *element);
 
