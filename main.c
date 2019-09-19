@@ -2538,23 +2538,23 @@ Register *gen_register_rightval(Node *node, int unused_eval) {
          return NO_REGISTER;
 
       case ND_EXPRESSION_BLOCK:
-         /*
-         puts("mov rbp, rsp");
-         printf("sub rsp, %d\n", *node->env->rsp_offset_max);
-         puts("#test begin expansion");
-         for (j = 0; j < node->argc; j++) {
-            temp_reg = gen_register_rightval(node->args[j], 0);
-            gen_register_rightval(node->args[j], 1);
-         puts("#test end expansion of args");
+         if (node->argc > 0) {
+            puts("mov rbp, rsp");
+            printf("sub rsp, %d\n", *node->env->rsp_offset_max);
+            puts("#test begin expansion");
+            for (j = 0; j < node->argc; j++) {
+               //temp_reg = gen_register_rightval(node->args[j], 0);
+               gen_register_rightval(node->args[j], 1);
+               puts("#test end expansion of args");
+            }
          }
-         */
          for (j = 0; j < node->code->len && node->code->data[j]; j++) {
             gen_register_rightval((Node *)node->code->data[j], 1);
          }
-         /*
-         puts("mov rsp, rbp");
-         puts("#test end expansion ");
-         */
+         if (node->argc > 0) {
+            puts("mov rsp, rbp");
+            puts("#test end expansion ");
+         }
          return NO_REGISTER;
 
       case ND_FUNC:
@@ -3955,7 +3955,6 @@ Node *generate_template(Node *node, Map *template_type_db) {
    return node;
 }
 
-/*
 int is_recursive(Node *node, char *name) {
    int j;
    if (!node) {
@@ -3995,7 +3994,6 @@ int is_recursive(Node *node, char *name) {
    }
    return 0;
 }
-*/
 
 void test_map() {
    Vector *vec = new_vector();
@@ -4616,7 +4614,6 @@ Node *optimizing(Node *node) {
          }
          break;
 
-         /*
       case ND_FUNC:
          if (!node->funcdef) {
             break;
@@ -4628,7 +4625,14 @@ Node *optimizing(Node *node) {
 
             node_new = new_block_node(NULL);
             for (j = 0;j < node->argc;j++) {
-               node_new->args[j] = new_node(ND_ASSIGN, node->funcdef->args[j],
+               // 掘り下げた後の offset にあるように Env を作りなおす
+               Node *copied_node = duplicate_node(node->funcdef->args[j]);
+               /*
+                * LocalVariable *lvar = duplicate_lvar(copied_node->lvar);
+               lvar->offset += node->funcdef->env->rsp_offset_max;
+               copied_node->lvar = lvar;
+               */
+               node_new->args[j] = new_node(ND_ASSIGN, copied_node,
          node->args[j]);
             }
             if (node_new) {
@@ -4641,7 +4645,6 @@ Node *optimizing(Node *node) {
             }
          }
          break;
-         */
       case ND_MULTIPLY_IMMUTABLE_VALUE:
          if (node->lhs->ty == ND_NUM) {
             /*
