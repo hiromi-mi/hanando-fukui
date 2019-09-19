@@ -104,6 +104,7 @@ test9:
 	sh testfdef.sh 'int main(){return 0>2;}' 0
 	sh testfdef.sh 'int main(){return 3<3;}' 0
 	sh testfdef.sh 'int main(){return 2>2;}' 0
+	sh testfdef.sh 'int main(void){return 2>2;}' 0
 	sh testfdef.sh 'int main(){return 2>(-1);}' 1
 	sh testfdef.sh 'int main(){return 2<(-1);}' 0
 

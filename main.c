@@ -3016,6 +3016,9 @@ Type *read_type(Type *type, char **input, Map *local_typedb) {
          break;
       }
    }
+   if (!type) {
+      error("Expected type, but no type found\n");
+   }
    return type;
 }
 
