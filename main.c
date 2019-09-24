@@ -3719,6 +3719,31 @@ Type *class_declaration(Map *local_typedb) {
 }
 
 void toplevel(void) {
+   /*
+    * C:
+    * translation-unit:
+         external-declaration
+         translation-unit external-declaration
+      external-declaration:
+         function-definition
+         declaration
+
+      C++:
+      toplevel (
+      declaration-seq:
+         declaration
+         declaration-seq declaration
+      declaration:
+         block-declaration
+         function-definition
+         template-declaration
+         explicit-instantiation
+         explicit-specialization
+         linkage-specification
+         namespace-definition
+         empty-declaration
+         attribute-declaration
+      */
    strcpy(arg_registers[0], "rdi");
    strcpy(arg_registers[1], "rsi");
    strcpy(arg_registers[2], "rdx");
@@ -3763,7 +3788,11 @@ void toplevel(void) {
             expect_token(';');
             continue;
          }
-         if (consume_token(TK_STRUCT)) {
+         // struct-or-union-specifier:
+         // (in this if) struct-or-union identifier opt { struct-declaration-list }
+         // (general typedef) struct-or-union identifier
+         if (confirm_token(TK_STRUCT) && (tokens->data[pos+1]->ty == '{' || tokens->data[pos+2]->ty == '{')) {
+            expect_token(TK_STRUCT);
             Type *structuretype = new_type();
             if (confirm_token(TK_IDENT)) {
                map_put(struct_typedb, expect_ident(), structuretype);
