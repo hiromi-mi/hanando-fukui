@@ -285,14 +285,12 @@ Node *new_char_node(long num_val) {
    Node *node = new_node(ND_NUM, NULL, NULL);
    node->num_val = num_val;
    node->type = find_typed_db("char", typedb);
-   node->pline = -1; // TODO for more advenced textj
    return node;
 }
 
 Node *new_num_node_from_token(Token *token) {
    Node *node = new_node(ND_NUM, NULL, NULL);
    node->num_val = token->num_val;
-   node->pline = -1; // TODO for more advenced textj
    switch (token->type_size) {
       case 1:
          node->type = find_typed_db("char", typedb);
@@ -310,7 +308,6 @@ Node *new_num_node_from_token(Token *token) {
 Node *new_num_node(long num_val) {
    Node *node = new_node(ND_NUM, NULL, NULL);
    node->num_val = num_val;
-   node->pline = -1; // TODO for more advenced textj
    node->type = find_typed_db("int", typedb);
    return node;
 }
@@ -318,7 +315,6 @@ Node *new_long_num_node(long num_val) {
    Node *node = new_node(ND_NUM, NULL, NULL);
    node->ty = ND_NUM;
    node->num_val = num_val;
-   node->pline = -1; // TODO for more advenced textj
    node->type = find_typed_db("long", typedb);
    return node;
 }
@@ -326,7 +322,6 @@ Node *new_float_node(double num_val, char *_buf, char *typename_float) {
    // typename: should be "float" or "double"
    Node *node = new_node(ND_FLOAT, NULL, NULL);
    node->ty = ND_FLOAT;
-   node->pline = -1; // TODO for more advenced textj
    node->num_val = num_val;
    node->name = _buf;
    node->type = find_typed_db(typename_float, typedb);
@@ -344,7 +339,6 @@ Node *new_ident_node_with_new_variable(char *name, Type *type) {
    Node *node = new_node(ND_IDENT, NULL, NULL);
    node->name = name;
    node->type = type;
-   node->pline = -1; // TODO for more advenced textj
    node->local_variable = new_local_variable(name, type);
    /*
    if ((lang & 1) && type->ty == TY_STRUCT) {
@@ -362,7 +356,6 @@ Node *new_ident_node_with_new_variable(char *name, Type *type) {
 Node *new_ident_node(char *name) {
    Node *node = new_node(ND_IDENT, NULL, NULL);
    node->name = name;
-   node->pline = -1; // TODO for more advenced textj
    if (strcmp(node->name, "stderr") == 0) {
       // TODO dirty
       node->ty = ND_EXTERN_SYMBOL;
@@ -437,7 +430,6 @@ Node *new_func_node(Node *ident, Vector *template_types) {
    Type *template_type = NULL;
    int j;
    char *name = malloc(sizeof(char) * 256);
-   node->pline = -1; // TODO for more advenced textj
    if (ident->ty == ND_SYMBOL || ident->ty == ND_DOT) {
       if (ident->ty == ND_SYMBOL) {
          name = ident->name;
@@ -534,14 +526,12 @@ Node *new_fdef_node(char *name, Type *type, int is_static) {
    node->is_omiited = NULL; // func(a, b, ...)
    node->is_static = is_static;
    node->gen_name = mangle_func_name(name);
-   node->pline = -1; // TODO for more advenced textj
    map_put(funcdefs, name, node);
    return node;
 }
 
 Node *new_block_node(Env *prev_env) {
    Node *node = new_node(ND_BLOCK, NULL, NULL);
-   node->pline = -1; // TODO for more advenced textj
    node->argc = 0;
    node->type = NULL;
    node->env = new_env(prev_env, NULL);
