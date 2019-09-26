@@ -3299,7 +3299,9 @@ Type *copy_type(Type *old_type, Type *type) {
    // type->is_omiited = old_type->is_omiited;
 
    // type->var_name = old_type->var_name;
-   type->type_name = old_type->type_name;
+   if (old_type->type_name) {
+      type->type_name = strdup(old_type->type_name);
+   }
    type->memaccess = old_type->memaccess;
    // type->context = old_type->context;
    type->local_typedb =
@@ -3485,6 +3487,12 @@ int split_type_caller(void) {
       tos++;
    }
    if (tokens->data[tos]->ty == TK_TEMPLATE) {
+      return 3;
+   }
+   if (tokens->data[tos]->ty == TK_STRUCT) {
+      return 3;
+   }
+   if (tokens->data[tos]->ty == TK_ENUM) {
       return 3;
    }
    if (tokens->data[tos]->ty == TK_DECLTYPE) {
@@ -3806,6 +3814,7 @@ void toplevel(void) {
                Type *type = read_type_all(&name);
                type->memaccess = PUBLIC;
                expect_token(';');
+               type->type_name = name;
                map_put(structuretype->structure, name, type);
             }
             // structuretype->offset = offset;

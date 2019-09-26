@@ -29,7 +29,7 @@ test:	test1 test2 test3 test4 \
    test15 test16 test17 test18 test20 test21\
    test22 test23 test24 test25 test26 test27\
    test28 test30 test29 test31 test34 test35\
-   test36 test32 test33 test37
+   test36 test32 test33 test37 test38
 	+ make -C samples/
 
 test1:
@@ -295,7 +295,8 @@ test37:
 	sh testfdef.sh 'auto func(int a, double b) { return a+b; } int main() { double c = func(3, 4.5); printf("It should be 7.5: %%f\n", c); return 0;}'
 	sh testfdef.sh 'auto func(double a, double b) { return a+b; } int main() { double c = func(3.3, 4.5); printf("It should be 7.8: %%f\n", c); return 0;}'
 
-
+test38:
+	sh testfdef.sh 'typedef struct A { int b; } C; int main() { struct A x; return 0; }' 0
 clean:
 	$(RM) -f $(target) $(objects) main.s main2.s main3.s main2 main3
 
