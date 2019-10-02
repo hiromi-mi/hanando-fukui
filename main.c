@@ -342,7 +342,7 @@ Node *new_ident_node_with_new_variable(char *name, Type *type) {
    node->local_variable = new_local_variable(name, type);
    if ((lang & 1) && type->ty == TY_STRUCT) {
       // Find Constructor
-      if (map_get(node->lhs->type->structure, type->type_name)) {
+      if (map_get(type->structure, type->type_name)) {
          Node *func_node = new_node(ND_DOT, node, NULL);
          func_node->name = type->type_name;
          return new_func_node(func_node, NULL);
