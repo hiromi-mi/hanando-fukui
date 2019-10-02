@@ -60,6 +60,7 @@ char arg_registers[6][4];
 
 int lang = 0;
 
+Node *new_func_node(Node *ident, Vector *template_types);
 Node *new_node(NodeType ty, Node *lhs, Node *rhs);
 int type2size(Type *type);
 Type *read_type_all(char **input);
@@ -162,7 +163,6 @@ Type *new_type(void) {
    type->context->is_previous_class = NULL;
    type->context->method_name = NULL;
    type->local_typedb = NULL;
-   type->type_name = NULL;
    return type;
 }
 
@@ -340,16 +340,14 @@ Node *new_ident_node_with_new_variable(char *name, Type *type) {
    node->name = name;
    node->type = type;
    node->local_variable = new_local_variable(name, type);
-   /*
    if ((lang & 1) && type->ty == TY_STRUCT) {
-      // On Class, Default Constructor Should Be Called
-      Type *typed = map_get(type->structure, name);
-      if (typed) {
-         // Call Constructor
-         return new_func_node(typed);
+      // Find Constructor
+      if (map_get(node->lhs->type->structure, type->type_name)) {
+         Node *func_node = new_node(ND_DOT, node, NULL);
+         func_node->name = type->type_name;
+         return new_func_node(func_node, NULL);
       }
    }
-   */
    return node;
 }
 
@@ -3837,6 +3835,21 @@ void toplevel(void) {
          Node *newblocknode = new_block_node(NULL);
          program(newblocknode);
          vec_push(globalcode, (Token *)newblocknode);
+         continue;
+      }
+
+      // Constructor
+      if ((lang & 1) && confirm_token(TK_IDENT) && strstr(tokens->data[pos]->input, "::")) {
+         // C :: C のかたち
+         Type *type = new_type();
+         type->ty = TY_VOID; // TODO 本来 Constructor はvoid型を返すのではない
+         char *name = NULL;
+         Map *local_typedb = new_map();
+         read_type(type, &name, local_typedb);
+
+         // 今のところ自動的に暗黙の引数this がつく
+         new_fdef(name, type, local_typedb);
+         // Class に Constructor をひもつける、必要あるのか？
          continue;
       }
 
