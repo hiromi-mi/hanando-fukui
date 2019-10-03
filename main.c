@@ -341,15 +341,6 @@ Node *new_ident_node_with_new_variable(char *name, Type *type) {
    node->name = name;
    node->type = type;
    node->local_variable = new_local_variable(name, type);
-   if ((lang & 1) && type->ty == TY_STRUCT) {
-      // Find Constructor
-      // TODO Constructor of base_classes will not be called
-      if (map_get(type->structure, type->type_name)) {
-         Node *func_node = new_node(ND_DOT, node, NULL);
-         func_node->name = type->type_name;
-         return new_func_node(func_node, NULL);
-      }
-   }
    return node;
 }
 
@@ -3047,7 +3038,30 @@ Node *stmt(void) {
          type = read_type(duplicate_type(fundamental_type), &input, NULL);
          node = new_ident_node_with_new_variable(input, type);
          // if there is int a =1;
+         // C++ initializer = | ( expression-list )
+         if ((lang & 1) && type->ty == TY_STRUCT) {
+            Node *func_node = NULL;
+            // Constructor with arguments
+            func_node = new_node(ND_DOT, node, NULL);
+            func_node->name = type->type_name;
+
+            // Find Constructor
+            // TODO Constructor of base_classes will not be called
+            if (map_get(type->structure, type->type_name)) {
+               node = new_func_node(func_node, NULL);
+            }
+            // add arguments
+            if (consume_token('(')) {
+               while (1) {
+                  if ((consume_token(',') == 0) && consume_token(')')) {
+                     break;
+                  }
+                  node->args[node->argc++] = node_mathexpr_without_comma();
+               }
+            }
+         }
          if (consume_token('=')) {
+            // on C++ brace-or-equal-initializer
             if (consume_token('{')) {
                Node *block_node;
                // initializer
