@@ -426,6 +426,9 @@ Node *new_func_node(Node *ident, Vector *template_types) {
          name = ident->name;
       } else if (ident->ty == ND_DOT) {
          sprintf(name, "%s::%s", ident->lhs->type->type_name, ident->name);
+         // TODO: Dirty: Add "this"
+         node->args[0] = new_node(ND_ADDRESS, ident->lhs, NULL);
+         node->argc = 1;
       }
       node->name = name;
       node->gen_name = mangle_func_name(node->name);
@@ -433,11 +436,6 @@ Node *new_func_node(Node *ident, Vector *template_types) {
       if (result) {
          node->funcdef = result;
          // use the function definition.
-         if (ident->ty == ND_DOT) {
-            // TODO: Dirty: Add "this"
-            node->args[0] = new_node(ND_ADDRESS, ident->lhs, NULL);
-            node->argc = 1;
-         }
          if (template_types && template_types->len > 0) {
             if (template_types->len != result->type->local_typedb->keys->len) {
                error("Error: The number of template arguments does not match: "
