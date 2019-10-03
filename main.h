@@ -207,6 +207,7 @@ typedef struct Type {
    MemberAccess memaccess;
    Context *context;
    Map *local_typedb;
+   struct Type *base_class;
 } Type;
 
 typedef struct Env {
