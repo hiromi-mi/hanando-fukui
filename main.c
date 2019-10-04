@@ -60,7 +60,7 @@ char arg_registers[6][4];
 
 int lang = 0;
 
-Node *new_func_node(Node *ident, Vector *template_types);
+Node *new_func_node(Node *ident, Vector *template_types, Vector *args);
 Node *new_node(NodeType ty, Node *lhs, Node *rhs);
 int type2size(Type *type);
 Type *read_type_all(char **input);
@@ -413,7 +413,7 @@ char *mangle_func_name(char *name) {
    }
 }
 
-Node *new_func_node(Node *ident, Vector *template_types) {
+Node *new_func_node(Node *ident, Vector *template_types, Vector *args) {
    Node *node = new_node(ND_FUNC, ident, NULL);
    Map *template_type_db = new_map();
    node->type = NULL;
@@ -421,14 +421,23 @@ Node *new_func_node(Node *ident, Vector *template_types) {
    Type *template_type = NULL;
    int j;
    char *name = malloc(sizeof(char) * 256);
+   if (ident->ty == ND_DOT) {
+      // TODO Dirty: Add "this"
+      node->args[0] = new_node(ND_ADDRESS, ident->lhs, NULL);
+      node->argc = 1;
+   }
+
+   // insert args
+   for (j = 0; j < args->len; j++) {
+      node->args[j + node->argc] = (Node *)args->data[j];
+   }
+   node->argc += j;
+
    if (ident->ty == ND_SYMBOL || ident->ty == ND_DOT) {
       if (ident->ty == ND_SYMBOL) {
          name = ident->name;
       } else if (ident->ty == ND_DOT) {
          sprintf(name, "%s::%s", ident->lhs->type->type_name, ident->name);
-         // TODO: Dirty: Add "this"
-         node->args[0] = new_node(ND_ADDRESS, ident->lhs, NULL);
-         node->argc = 1;
       }
       node->name = name;
       node->gen_name = mangle_func_name(node->name);
@@ -1255,15 +1264,16 @@ Node *node_term(void) {
             return treat_va_end();
          }
 
-         node = new_func_node(node, template_types);
          // skip func , (
          expect_token('(');
+         Vector *args = new_vector();
          while (1) {
             if ((consume_token(',') == 0) && consume_token(')')) {
-               return node;
+               break;
             }
-            node->args[node->argc++] = node_mathexpr_without_comma();
+            vec_push(args, (Token *)node_mathexpr_without_comma());
          }
+         node = new_func_node(node, template_types, args);
          // assert(node->argc <= 6);
          // pos++ because of consume_token(')')
          // return node;
@@ -3046,16 +3056,17 @@ Node *stmt(void) {
             // Find Constructor
             // TODO Constructor of base_classes will not be called
             if (map_get(type->structure, type->type_name)) {
-               node = new_func_node(func_node, NULL);
-            }
-            // add arguments
-            if (consume_token('(')) {
-               while (1) {
-                  if ((consume_token(',') == 0) && consume_token(')')) {
-                     break;
+               Vector *args = new_vector();
+               // add arguments
+               if (consume_token('(')) {
+                  while (1) {
+                     if ((consume_token(',') == 0) && consume_token(')')) {
+                        break;
+                     }
+                     vec_push(args, (Token *)node_mathexpr_without_comma());
                   }
-                  node->args[node->argc++] = node_mathexpr_without_comma();
                }
+               node = new_func_node(func_node, NULL, args);
             }
          }
          if (consume_token('=')) {
@@ -3672,21 +3683,23 @@ Type *class_declaration(Map *local_typedb) {
    structuretype->type_name = structurename;
    if (consume_token(':')) {
       // inheritance
-      char* base_class_name = expect_ident();
+      char *base_class_name = expect_ident();
       structuretype->base_class = find_typed_db(base_class_name, typedb);
-      if (!structuretype->base_class || structuretype->base_class->ty != TY_STRUCT) {
+      if (!structuretype->base_class ||
+          structuretype->base_class->ty != TY_STRUCT) {
          error("Error: Inherited Class Not Found %s\n", base_class_name);
       }
       for (j = 0; j < structuretype->base_class->structure->keys->len; j++) {
          // copy into new class
-         Type *type =
-             duplicate_type((Type *)structuretype->base_class->structure->vals->data[j]);
+         Type *type = duplicate_type(
+             (Type *)structuretype->base_class->structure->vals->data[j]);
          if (type->memaccess == PRIVATE) {
             // inherited from private cannot seen anymore
             type->memaccess = HIDED;
          }
          map_put(structuretype->structure,
-                 (char *)structuretype->base_class->structure->keys->data[j], (Node *)type);
+                 (char *)structuretype->base_class->structure->keys->data[j],
+                 (Node *)type);
          // On Function, We should renewal its declartion
       }
    }
@@ -3712,9 +3725,11 @@ Type *class_declaration(Map *local_typedb) {
 
       char *name = NULL;
       Type *type = NULL;
-      if (confirm_token(TK_IDENT) && strcmp(tokens->data[pos]->input, structurename) == 0) {
+      if (confirm_token(TK_IDENT) &&
+          strcmp(tokens->data[pos]->input, structurename) == 0) {
          // treat as constructor
-         type = find_typed_db("void", typedb); // TODO 本来 Constructor はvoid型を返すのではない
+         type = find_typed_db(
+             "void", typedb); // TODO 本来 Constructor はvoid型を返すのではない
       } else {
          type = read_fundamental_type(local_typedb);
       }
@@ -3807,9 +3822,11 @@ void toplevel(void) {
             continue;
          }
          // struct-or-union-specifier:
-         // (in this if) struct-or-union identifier opt { struct-declaration-list }
-         // (general typedef) struct-or-union identifier
-         if (confirm_token(TK_STRUCT) && (tokens->data[pos+1]->ty == '{' || tokens->data[pos+2]->ty == '{')) {
+         // (in this if) struct-or-union identifier opt {
+         // struct-declaration-list } (general typedef) struct-or-union
+         // identifier
+         if (confirm_token(TK_STRUCT) && (tokens->data[pos + 1]->ty == '{' ||
+                                          tokens->data[pos + 2]->ty == '{')) {
             expect_token(TK_STRUCT);
             Type *structuretype = new_type();
             if (confirm_token(TK_IDENT)) {
@@ -3861,9 +3878,11 @@ void toplevel(void) {
       }
 
       // Constructor
-      if ((lang & 1) && confirm_token(TK_IDENT) && strstr(tokens->data[pos]->input, "::")) {
+      if ((lang & 1) && confirm_token(TK_IDENT) &&
+          strstr(tokens->data[pos]->input, "::")) {
          // C :: C のかたち
-         Type *type = find_typed_db("void", typedb); // TODO 本来 Constructor はvoid型を返すのではない
+         Type *type = find_typed_db(
+             "void", typedb); // TODO 本来 Constructor はvoid型を返すのではない
          char *name = NULL;
          Map *local_typedb = new_map();
          type = read_type(type, &name, local_typedb);
