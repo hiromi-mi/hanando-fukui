@@ -3799,6 +3799,7 @@ void toplevel(void) {
    env = NULL;
 
    while (!consume_token(TK_EOF)) {
+      /*
       if (consume_token(TK_EXTERN)) {
          char *name = NULL;
          Type *type = read_type_all(&name);
@@ -3806,7 +3807,7 @@ void toplevel(void) {
          map_put(global_vars, name, type);
          expect_token(';');
          continue;
-      }
+      }*/
 
       // definition of class
       if ((lang & 1) && consume_token(TK_CLASS)) {
@@ -3982,13 +3983,6 @@ Node *generate_template(Node *node, Map *template_type_db) {
    LocalVariable *lvar;
    if (node->ty == ND_BLOCK || node->ty == ND_FDEF) {
       duplicated_env = new_env(node->env->env, NULL);
-      /*
-      if (node->env->env) {
-         fprintf(stderr, "# get from previous rsp are generated.\n");
-      } else {
-         // when rsp are top, create new env
-         fprintf(stderr, "# new rsp are generated.\n");
-      }*/
       env = duplicated_env;
       for (j = 0; j < node->env->idents->keys->len; j++) {
          lvar = (LocalVariable *)node->env->idents->vals->data[j];
