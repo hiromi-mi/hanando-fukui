@@ -202,6 +202,7 @@ typedef struct Type {
    int is_const;
    int is_static;
    int is_omiited;
+   int is_extern;
    char *var_name; // for args
    char *type_name;
    MemberAccess memaccess;

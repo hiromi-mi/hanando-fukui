@@ -164,6 +164,7 @@ Type *new_type(void) {
    type->context->method_name = NULL;
    type->local_typedb = NULL;
    type->base_class = NULL;
+   type->is_extern = 0;
    return type;
 }
 
@@ -3320,6 +3321,7 @@ Type *copy_type(Type *old_type, Type *type) {
    type->local_typedb =
        old_type->local_typedb; // TODO is duplicate of local_typedb required?
    type->base_class = old_type->base_class;
+   type->is_extern = old_type->is_extern;
    return type;
 }
 
@@ -3403,10 +3405,13 @@ Type *read_template_parameter_list(Map *local_typedb) {
 Type *read_fundamental_type(Map *local_typedb) {
    int is_const = 0;
    int is_static = 0;
+   int is_extern = 0;
    Type *type = NULL;
 
    while (1) {
-      if (tokens->data[pos]->ty == TK_STATIC) {
+      if (consume_token(TK_EXTERN)) {
+         is_extern = 1;
+      } else if (tokens->data[pos]->ty == TK_STATIC) {
          is_static = 1;
          expect_token(TK_STATIC);
       } else if (tokens->data[pos]->ty == TK_CONST) {
@@ -3486,6 +3491,7 @@ Type *read_fundamental_type(Map *local_typedb) {
    if (type) {
       type->is_const = is_const;
       type->is_static = is_static;
+      type->is_extern = is_extern;
    }
    return type;
 }
@@ -3498,6 +3504,9 @@ int split_type_caller(void) {
       tos++;
    }
    if (tokens->data[tos]->ty == TK_CONST) {
+      tos++;
+   }
+   if (tokens->data[tos]->ty == TK_EXTERN) {
       tos++;
    }
    if (tokens->data[tos]->ty == TK_TEMPLATE) {
@@ -4118,8 +4127,8 @@ void globalvar_gen(void) {
    for (j = 0; j < global_vars->keys->len; j++) {
       Type *valdataj = (Type *)global_vars->vals->data[j];
       char *keydataj = (char *)global_vars->keys->data[j];
-      if (valdataj->offset < 0) {
-         // There are no offset. externed.
+      if (valdataj->is_extern) {
+         // Do not write externed values.
          continue;
       }
       if (valdataj->initstr) {
