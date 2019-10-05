@@ -31,6 +31,7 @@ test:	test1 test2 test3 test4 \
    test28 test30 test29 test31 test34 test35\
    test36 test32 test33 test37 test38
 	+ make -C samples/
+	+ make -C cppsamples/
 
 test1:
 	sh testfdef.sh 'int main() {return 1;}' 1
