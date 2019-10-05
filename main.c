@@ -3907,7 +3907,11 @@ void toplevel(void) {
          continue; // TODO for class definition
       }
       type = read_type(type, &name, local_typedb);
-      if (type->ty == TY_FUNC) {
+      if (!name) {
+         // there are no names -> anomymous -> empty declaration
+         expect_token(';');
+         continue;
+      } if (type->ty == TY_FUNC) {
          new_fdef(name, type, local_typedb);
          continue;
       } else {
