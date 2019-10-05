@@ -3044,6 +3044,10 @@ Node *stmt(void) {
       Type *fundamental_type = read_fundamental_type(current_local_typedb);
       Type *type;
       do {
+         if (confirm_token(';')) {
+            // example: int;
+            break;
+         }
          type = read_type(duplicate_type(fundamental_type), &input, NULL);
          node = new_ident_node_with_new_variable(input, type);
          // if there is int a =1;
@@ -3111,7 +3115,10 @@ Node *stmt(void) {
       node = assign();
    }
    expect_token(';');
-   node->pline = pline;
+   if (node) {
+      // ex: empty declartion
+      node->pline = pline;
+   }
    return node;
 }
 

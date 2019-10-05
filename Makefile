@@ -40,6 +40,7 @@ test1:
 	sh testfdef.sh 'int main() {return 0x1F;}' 31
 	sh testfdef.sh 'int main() {return 0X04;}' 4
 	sh testfdef.sh 'int main() {return 0Xff;}' 255
+	sh testfdef.sh 'int main() {int; return 2;}' 2
 
 test2:
 	sh testfdef.sh 'int main() {return 1*9;}' 9
