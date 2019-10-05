@@ -3808,16 +3808,6 @@ void toplevel(void) {
    env = NULL;
 
    while (!consume_token(TK_EOF)) {
-      /*
-      if (consume_token(TK_EXTERN)) {
-         char *name = NULL;
-         Type *type = read_type_all(&name);
-         type->offset = -1; // TODO externed
-         map_put(global_vars, name, type);
-         expect_token(';');
-         continue;
-      }*/
-
       // definition of class
       if ((lang & 1) && consume_token(TK_CLASS)) {
          class_declaration(NULL);
@@ -3915,7 +3905,6 @@ void toplevel(void) {
          continue;
       } else {
          // Global Variables.
-         type->offset = 0; // TODO externed
          map_put(global_vars, name, type);
          type->initval = 0;
          if (consume_token('=')) {
