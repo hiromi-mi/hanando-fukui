@@ -65,6 +65,7 @@ Node *new_node(NodeType ty, Node *lhs, Node *rhs);
 int type2size(Type *type);
 Type *read_type_all(char **input);
 Type *read_type(Type *type, char **input, Map *local_typedb);
+Type *struct_declartion(char* struct_name);
 Type *read_fundamental_type(Map *local_typedb);
 int confirm_type();
 int confirm_token(TokenConst ty);
@@ -3439,7 +3440,15 @@ Type *read_fundamental_type(Map *local_typedb) {
       define_enum(0);
       type = find_typed_db("int", typedb);
    } else if (consume_token(TK_STRUCT)) {
-      type = find_typed_db(expect_ident(), struct_typedb);
+      char *struct_name = NULL;
+      if (confirm_token(TK_IDENT)) {
+         struct_name = expect_ident();
+      }
+      if (confirm_token('{')) {
+         type = struct_declartion(struct_name);
+      } else {
+         type = find_typed_db(struct_name, struct_typedb);
+      }
    } else if (consume_token(TK_CLASS)) {
       class_declaration(local_typedb);
       return NULL; // class definition
@@ -3767,6 +3776,34 @@ Type *class_declaration(Map *local_typedb) {
    return structuretype;
 }
 
+Type *struct_declartion(char* struct_name) {
+   // struct_name : on struct name
+   Type *structuretype = new_type();
+   if (struct_name) {
+      map_put(struct_typedb, struct_name, structuretype);
+   }
+   expect_token('{');
+   structuretype->structure = new_map();
+   structuretype->ty = TY_STRUCT;
+   structuretype->ptrof = NULL;
+   while (!consume_token('}')) {
+      char *name = NULL;
+      Type *type = read_type_all(&name);
+      type->memaccess = PUBLIC;
+      expect_token(';');
+      type->type_name = name;
+      map_put(structuretype->structure, name, type);
+   }
+   structuretype->type_name = struct_name;
+   // structuretype->offset = offset;
+   /*
+   char *name = expect_ident();
+   expect_token(';');
+   map_put(typedb, name, structuretype);
+   */
+   return structuretype;
+}
+
 void toplevel(void) {
    /*
     * C:
@@ -3832,36 +3869,18 @@ void toplevel(void) {
          // (in this if) struct-or-union identifier opt {
          // struct-declaration-list } (general typedef) struct-or-union
          // identifier
+         /*
          if (confirm_token(TK_STRUCT) && (tokens->data[pos + 1]->ty == '{' ||
                                           tokens->data[pos + 2]->ty == '{')) {
             expect_token(TK_STRUCT);
-            Type *structuretype = new_type();
-            if (confirm_token(TK_IDENT)) {
-               map_put(struct_typedb, expect_ident(), structuretype);
-            }
-            expect_token('{');
-            structuretype->structure = new_map();
-            structuretype->ty = TY_STRUCT;
-            structuretype->ptrof = NULL;
-            while (!consume_token('}')) {
-               char *name = NULL;
-               Type *type = read_type_all(&name);
-               type->memaccess = PUBLIC;
-               expect_token(';');
-               type->type_name = name;
-               map_put(structuretype->structure, name, type);
-            }
-            // structuretype->offset = offset;
-            char *name = expect_ident();
-            structuretype->type_name = name;
-            expect_token(';');
-            map_put(typedb, name, structuretype);
+            struct_declartion();
             continue;
-         }
+         }*/
 
          char *input = NULL;
          Type *type = read_fundamental_type(NULL);
          type = read_type(type, &input, NULL);
+         type->type_name = input;
          map_put(typedb, input, type);
          expect_token(';');
          continue;
@@ -3911,7 +3930,8 @@ void toplevel(void) {
          // there are no names -> anomymous -> empty declaration
          expect_token(';');
          continue;
-      } if (type->ty == TY_FUNC) {
+      }
+      if (type->ty == TY_FUNC) {
          new_fdef(name, type, local_typedb);
          continue;
       } else {
