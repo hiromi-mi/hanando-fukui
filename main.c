@@ -3449,9 +3449,8 @@ Type *read_fundamental_type(Map *local_typedb) {
       } else {
          type = find_typed_db(struct_name, struct_typedb);
       }
-   } else if (consume_token(TK_CLASS)) {
-      class_declaration(local_typedb);
-      return NULL; // class definition
+   } else if ((lang & 1) && consume_token(TK_CLASS)) {
+      return class_declaration(local_typedb);
    } else if (consume_token(TK_DECLTYPE)) {
       // find type and get the true value
       // 7.1.6.2(4)
@@ -3769,7 +3768,6 @@ Type *class_declaration(Map *local_typedb) {
       type->memaccess = memaccess;
       map_put(structuretype->structure, name, type);
    }
-   expect_token(';');
    // to set up local_typedb after instanciate
    structuretype->local_typedb = local_typedb;
    map_put(typedb, structurename, structuretype);
@@ -3922,9 +3920,6 @@ void toplevel(void) {
       char *name = NULL;
       Map *local_typedb = new_map();
       Type *type = read_fundamental_type(local_typedb);
-      if (!type) {
-         continue; // TODO for class definition
-      }
       type = read_type(type, &name, local_typedb);
       if (!name) {
          // there are no names -> anomymous -> empty declaration
