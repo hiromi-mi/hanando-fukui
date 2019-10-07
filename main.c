@@ -3851,10 +3851,10 @@ void toplevel(void) {
 
    while (!consume_token(TK_EOF)) {
       // definition of class
-      if ((lang & 1) && consume_token(TK_CLASS)) {
+      /*if ((lang & 1) && consume_token(TK_CLASS)) {
          class_declaration(NULL);
          continue;
-      }
+      }*/
 
       if (consume_token(TK_TYPEDEF)) {
          if (consume_token(TK_ENUM)) {
