@@ -77,6 +77,7 @@ typedef enum {
    TK_CATCH,
    TK_THROW,
    TK_DECLTYPE,
+   TK_NEW,
 } TokenConst;
 
 typedef enum {

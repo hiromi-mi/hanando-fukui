@@ -102,7 +102,7 @@ Node *node_xor();
 Node *node_shift();
 Node *node_add();
 Node *node_cast();
-Node *node_increment();
+Node *node_unary();
 Node *assign();
 _Noreturn void error(const char *str, ...);
 
@@ -918,6 +918,8 @@ Vector *tokenize(char *p) {
                token->ty = TK_THROW;
             } else if (strcmp(token->input, "decltype") == 0) {
                token->ty = TK_DECLTYPE;
+            } else if (strcmp(token->input, "new") == 0) {
+               token->ty = TK_NEW;
             }
          }
 
@@ -1060,7 +1062,7 @@ Node *node_cast(void) {
       if (confirm_type()) {
          Type *type = read_type_all(NULL);
          expect_token(')');
-         node = new_node(ND_CAST, node_increment(), NULL);
+         node = new_node(ND_CAST, node_unary(), NULL);
          node->type = type;
          return node;
       }
@@ -1069,19 +1071,19 @@ Node *node_cast(void) {
       pos--;
    }
 
-   return node_increment();
+   return node_unary();
 }
 
-Node *node_increment(void) {
+Node *node_unary(void) {
    Node *node;
    if (consume_token('-')) {
-      node = new_node(ND_NEG, node_increment(), NULL);
+      node = new_node(ND_NEG, node_unary(), NULL);
       return node;
    } else if (consume_token('!')) {
-      node = new_node('!', node_increment(), NULL);
+      node = new_node('!', node_unary(), NULL);
       return node;
    } else if (consume_token('+')) {
-      node = node_increment();
+      node = node_unary();
       return node;
    } else if (consume_token(TK_PLUSPLUS)) {
       node = new_ident_node(expect_ident());
@@ -1090,14 +1092,14 @@ Node *node_increment(void) {
       node = new_ident_node(expect_ident());
       node = new_assign_node(node, new_node('-', node, new_num_node(1)));
    } else if (consume_token('&')) {
-      node = node_increment();
+      node = node_unary();
       if (node->ty == ND_DEREF) {
          node = node->lhs;
       } else {
          node = new_node(ND_ADDRESS, node, NULL);
       }
    } else if (consume_token('*')) {
-      node = new_node(ND_DEREF, node_increment(), NULL);
+      node = new_node(ND_DEREF, node_unary(), NULL);
    } else if (consume_token(TK_SIZEOF)) {
       node = new_node(ND_SIZEOF, NULL, NULL);
       node->type = find_typed_db("long", typedb);
@@ -1109,6 +1111,26 @@ Node *node_increment(void) {
          // evaluate the result of ND_SIZEOF
          node->conds[0] = node_mathexpr();
       }
+   } else if ((lang & 1) && consume_token(TK_NEW)) {
+      // 5.3.4 New
+      // unary-expression | new_expression:
+      //    new  new-type-id new-initializer_opt
+      // new-type-id:
+      //    type-specifier
+      // new-iniitalizer:
+      //    ( expression-list)
+      Type *newtype = read_fundamental_type(NULL);
+      newtype = read_type(newtype, NULL, local_typedb); // not expected type
+      Vector *args = new_vector();
+      if (consume_token('(')) {
+         while (1) {
+            if ((consume_token(',') == 0) && consume_token(')')) {
+               break;
+            }
+            vec_push(args, (Token *)node_mathexpr_without_comma());
+         }
+      }
+      node = new_func_node(node, newtype, args);
    } else {
       return node_term();
    }
@@ -3850,12 +3872,6 @@ void toplevel(void) {
    env = NULL;
 
    while (!consume_token(TK_EOF)) {
-      // definition of class
-      /*if ((lang & 1) && consume_token(TK_CLASS)) {
-         class_declaration(NULL);
-         continue;
-      }*/
-
       if (consume_token(TK_TYPEDEF)) {
          if (consume_token(TK_ENUM)) {
             // not anonymous enum
