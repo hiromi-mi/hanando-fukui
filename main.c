@@ -59,6 +59,7 @@ int neg_double_generate = 0;
 char arg_registers[6][4];
 
 int lang = 0;
+int output = 0;
 
 Node *new_func_node(Node *ident, Vector *template_types, Vector *args);
 Node *new_node(NodeType ty, Node *lhs, Node *rhs);
@@ -1120,6 +1121,7 @@ Node *node_unary(void) {
       // new-iniitalizer:
       //    ( expression-list)
       Type *newtype = read_fundamental_type(NULL);
+      Map *local_typedb = new_map();
       newtype = read_type(newtype, NULL, local_typedb); // not expected type
       Vector *args = new_vector();
       if (consume_token('(')) {
@@ -4829,6 +4831,8 @@ int main(int argc, char **argv) {
          lang |= 1;
       } else if (strcmp(argv[i], "-objc") == 0) {
          lang |= 2;
+      } else if (strcmp(argv[i], "-h8300") == 0) {
+         output |= 1;
       }
    }
    if (is_from_file) {
@@ -4857,9 +4861,11 @@ int main(int argc, char **argv) {
    globalvar_gen();
 
    puts(".text");
-   if (is_register) {
+   if (is_register && !output) {
       gen_register_top();
    }
+   // for using h8300 output
+   //if (is_register && output) 
 
    return 0;
 }
