@@ -1378,6 +1378,7 @@ char *_rdx(Node *node) {
 }
 
 int cmp_regs(Node *node, Register *lhs_reg, Register *rhs_reg) {
+      secure_mutable_with_type(lhs_reg, node->lhs->type);
    if (node->lhs->type->ty == TY_FLOAT) {
       return printf("comiss %s, %s\n", node2reg(node->lhs, lhs_reg),
                     node2reg(node->rhs, rhs_reg));
