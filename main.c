@@ -436,6 +436,10 @@ Node *new_func_node(Node *ident, Vector *template_types, Vector *args) {
    }
    node->argc += j;
 
+   if (node->argc > 6) {
+      error("Error: Too many arguments: %d\n", node->argc);
+   }
+
    if (ident->ty == ND_SYMBOL || ident->ty == ND_DOT) {
       if (ident->ty == ND_SYMBOL) {
          name = ident->name;
