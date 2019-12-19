@@ -23,6 +23,9 @@ selfselftest: self
 	diff -u main2.s main3.s
 	diff -u main.s main2.s
 
+ctest:
+	clang -E test.c | sed -e "s/^#.*$///" > test.processed.c &&  ./hanando -f test.processed.c > test.s && gcc test.s -o test
+
 test:	test1 test2 test3 test4 \
    test5 test6 test7 test8 test9 \
    test10 test11 test19 test12 test13 test14\
