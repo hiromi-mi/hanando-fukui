@@ -101,9 +101,17 @@ int main(void) {
    EXPECT((int)-1 == (long)-1, 1);
    EXPECT((char)0xFFFFF == (int)0xFFFFF, 0);
    EXPECT((int)-1 == (long)4, 0);
+
+   // 空文でレジスタを使い切らないかのテスト
+   1;
+   2;
+   3;
+   4;
+   5;
+   6;
+   7;
+   8;
    /*
-      sh testfdef.sh 'int main() {int; return 2;}' 2
-      sh testfdef.sh 'int main() {1; 2; 3; 4; 5; 6; 7; 8; return 2;}' 2
       sh testfdef.sh "int main(){{return 3;}}" 3
       */
    fprintf(stderr, "The number of errors are: %d\n", retval);
