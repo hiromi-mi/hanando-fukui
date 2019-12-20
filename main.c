@@ -1820,6 +1820,10 @@ Register *gen_register_rightval(Node *node, int unused_eval) {
       // 1 means the file number
       printf(".loc 1 %d\n", node->pline);
    }
+   if (unused_eval && (node->ty == ND_NUM || node->ty == ND_FLOAT || node->ty == ND_STRING)) {
+      // 未使用な式なので0 を返す
+      return NO_REGISTER;
+   }
    switch (node->ty) {
       case ND_NUM:
          temp_reg = retain_reg();
