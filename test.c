@@ -20,8 +20,8 @@ int main(void) {
    EXPECT(1, 1);
    EXPECT(1+9, 10);
    EXPECT(13-9, 4);
-   //EXPECT(0x1f, 31);
-   //EXPECT(0X04, 4);
+   EXPECT(0x1f, 31);
+   EXPECT(0X04, 4);
    EXPECT(0Xff, 255);
    fprintf(stderr, "The number of errors are: %d\n", retval);
    return retval;
