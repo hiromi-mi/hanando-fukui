@@ -90,6 +90,11 @@ int main(void) {
    EXPECT(4 >= 1, 1);
    EXPECT(-4 >= 1, 0);
    EXPECT(-4 <= 1, 1);
+
+   // test31
+   EXPECT((int)-1 == (long)-1, 1);
+   EXPECT((char)0xFFFFF == (int)0xFFFFF, 0);
+   EXPECT((int)-1 == (long)4, 0);
    /*
       sh testfdef.sh 'int main() {int; return 2;}' 2
       sh testfdef.sh 'int main() {1; 2; 3; 4; 5; 6; 7; 8; return 2;}' 2
