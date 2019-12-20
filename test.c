@@ -15,6 +15,12 @@
    }\
 } 0
 
+int func1(void) {
+   int ce;
+   ce = -324;
+   return ce;
+}
+
 int main(void) {
    int retval = 0;
    /* test1 */
@@ -25,6 +31,15 @@ int main(void) {
    EXPECT(0X04, 4);
    EXPECT(0Xff, 255);
 
+   /* test2 */
+   EXPECT(1*9, 9);
+   EXPECT(-1*9, -9);
+   EXPECT(-2*-9, 18);
+   EXPECT((9-11)*34, -68);
+   EXPECT(255*2, 510);
+
+   EXPECT(func1(), -324);
+
    /* test3 */
    EXPECT(3==3, 1);
    EXPECT(3==4, 0);
@@ -33,6 +48,7 @@ int main(void) {
    EXPECT(!(2==2), 0);
    EXPECT(!(-5==2), 1);
 
+   //EXPECT((char)255+2, 1);-
    /*
 	sh testfdef.sh 'int main() {int; return 2;}' 2
 	sh testfdef.sh 'int main() {1; 2; 3; 4; 5; 6; 7; 8; return 2;}' 2
