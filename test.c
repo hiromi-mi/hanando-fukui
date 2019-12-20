@@ -66,7 +66,30 @@ int main(void) {
    EXPECT(1<<0, 1);
    EXPECT(2<<4, 32);
    EXPECT(9>>1, 4);
-   //EXPECT((char)255+2, 1);-
+
+   // test20
+   EXPECT((1==1) || (2==2), 1);
+   EXPECT((1==2) || (2==2), 1);
+   EXPECT((1==1) || (1==2), 1);
+   EXPECT((1==2) || (3==2), 0);
+   EXPECT((1==1) && (2==2), 1);
+   EXPECT((1==2) && (2==2), 0);
+   EXPECT((1==1) && (1==2), 0);
+   EXPECT((1==2) && (3==2), 0);
+   EXPECT(2 && 1, 1);
+
+   /* test22 */
+   EXPECT((char)255+2, 257);
+   EXPECT((char)255+(char)2, 1);
+
+   EXPECT(1 <= 2, 1);
+   EXPECT(1 <= 1, 1);
+   EXPECT(4 <= 1, 0);
+   EXPECT(1 >= 2, 0);
+   EXPECT(1 >= 1, 1);
+   EXPECT(4 >= 1, 1);
+   EXPECT(-4 >= 1, 0);
+   EXPECT(-4 <= 1, 1);
    /*
       sh testfdef.sh 'int main() {int; return 2;}' 2
       sh testfdef.sh 'int main() {1; 2; 3; 4; 5; 6; 7; 8; return 2;}' 2
