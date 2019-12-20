@@ -91,6 +91,12 @@ int main(void) {
    EXPECT(-4 >= 1, 0);
    EXPECT(-4 <= 1, 1);
 
+   /* test25*/
+   EXPECT(((int*)3)+1, 7);
+   EXPECT(((int**)3)+1, 11);
+   EXPECT(((char*)3)+1, 4);
+   EXPECT(((long)3)+1, 4);
+
    // test31
    EXPECT((int)-1 == (long)-1, 1);
    EXPECT((char)0xFFFFF == (int)0xFFFFF, 0);
