@@ -17,10 +17,29 @@ extern int *stdout;
    }\
 } 0
 
+#define EXPECTVAR(init, expr1, expr2)
+
 int func1(void) {
    int ce;
    ce = -324;
    return ce;
+}
+
+char func71(void) {
+   char a = -34;
+   a -= -45;
+   return a;
+}
+
+int func72(void) {
+   int a = 4;
+   a <<= 2;
+   a/=2; // 8
+   a >>= 2; // 2
+   a%=2; // 0
+   a-=23; // -23
+   a*=3; // -69
+   return a;
 }
 
 int main(void) {
@@ -66,6 +85,16 @@ int main(void) {
    EXPECT(1<<0, 1);
    EXPECT(2<<4, 32);
    EXPECT(9>>1, 4);
+
+   /* test7 */
+   EXPECT(func71(), 11);
+   EXPECT(func72(), -69);
+
+   /* test8 */
+   EXPECT(0>-2, 1);
+   EXPECT(-8>12, 0);
+   EXPECT(-234232<0, 1);
+   EXPECT(43<43, 0);
 
    // test20
    EXPECT((1==1) || (2==2), 1);
