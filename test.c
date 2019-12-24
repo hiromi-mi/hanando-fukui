@@ -156,6 +156,10 @@ int main(void) {
    EXPECT((1==2) && (3==2), 0);
    EXPECT(2 && 1, 1);
 
+   /* test20.5 */
+   EXPECT(3 ? 2 : 1, 2);
+   EXPECT(0 ? 2 : 1, 1);
+
    /* test22 */
    EXPECT((char)255+2, 257);
    EXPECT((char)255+(char)2, 1);

@@ -90,6 +90,7 @@ Type *generate_class_template(Type *type, Map *template_type_db);
 
 Register *gen_register_rightval(Node *node, int unused_eval);
 char *node2reg(Node *node, Register *reg);
+void secure_mutable_with_type(Register *reg, Type *type);
 
 Node *node_mul();
 Node *node_term();
@@ -1066,7 +1067,7 @@ Node *node_cast(void) {
 }
 
 Node *node_unary(void) {
-   Node *node;
+   Node *node = NULL;
    if (consume_token('-')) {
       node = new_node(ND_NEG, node_unary(), NULL);
       return node;
@@ -1237,7 +1238,9 @@ Node *node_term(void) {
    } else if (consume_token('(')) {
       node = node_expression();
       if (consume_token(')') == 0) {
-         error("Error: Incorrect Parensis.");
+         // TODO
+         // fprintf(stderr, "Error: Incorrect Parensis.\n");
+         return NULL;
       }
    } else if (confirm_token(TK_STRING)) {
       char *_str = malloc(sizeof(char) * 256);
@@ -1248,7 +1251,9 @@ Node *node_term(void) {
    }
 
    if (!node) {
-      error("Error: No Primary Expression.");
+      // TODO
+      //fprintf(stderr, "Error: No Primary Expression.\n");
+      return NULL;
    }
 
    while (1) {
@@ -2047,6 +2052,24 @@ Register *gen_register_rightval(Node *node, int unused_eval) {
                break;
          }
          return lhs_reg;
+
+      case ND_QUESTION:
+         // TODO Support double
+         temp_reg = gen_register_rightval(node->conds[0], 0);
+         printf("cmp %s, 0\n", node2reg(node->conds[0], temp_reg));
+         release_reg(temp_reg);
+
+         cur_if_cnt = if_cnt++;
+         printf("je .Lendif%d\n", cur_if_cnt);
+         temp_reg = gen_register_rightval(node->lhs, 0);
+         printf("jmp .Lelseend%d\n", cur_if_cnt);
+         printf(".Lendif%d:\n", cur_if_cnt);
+         // There are else
+         // TODO この挙動は, retain_reg() 直後に同一レジスタが確保されることに依存している
+         release_reg(temp_reg);
+         temp_reg = gen_register_rightval(node->rhs, 0);
+         printf(".Lelseend%d:\n", cur_if_cnt);
+         return temp_reg;
 
       case ND_COMMA:
          lhs_reg = gen_register_rightval(node->lhs, 0);
@@ -2888,23 +2911,42 @@ Node *node_expression(void) {
    return node;
 }
 
+Node *node_conditional_expression(void) {
+   Node *node = node_lor();
+   Node *conditional_node = NULL;
+   if (consume_token('?')) {
+      conditional_node = new_node('?', node_expression(), NULL);
+      conditional_node->conds[0] = node;
+      expect_token(':');
+      conditional_node->rhs = node_conditional_expression();
+      node = conditional_node;
+   }
+   return node;
+}
+
 Node *node_assignment_expression(void) {
    // TODO: Support Conditional Expression
-   Node *node = node_lor();
-   if (consume_token('=')) {
-      if (confirm_token(TK_OPAS)) {
-         NodeType tp = tokens->data[pos]->input[0];
-         expect_token(TK_OPAS);
-         if (tp == '<') {
-            tp = ND_LSHIFT;
-         }
-         if (tp == '>') {
-            tp = ND_RSHIFT;
-         }
-         node = new_assign_node(node, new_node_with_cast(tp, node, node_expression()));
-      } else {
-         node = new_assign_node(node, node_expression());
+   int old_pos = pos; // save old position
+   Node *node;
+   node = node_unary();
+   if (!consume_token('=')) {
+      pos = old_pos;
+      node = node_conditional_expression();
+      return node;
+   }
+
+   if (confirm_token(TK_OPAS)) {
+      NodeType tp = tokens->data[pos]->input[0];
+      expect_token(TK_OPAS);
+      if (tp == '<') {
+         tp = ND_LSHIFT;
       }
+      if (tp == '>') {
+         tp = ND_RSHIFT;
+      }
+      node = new_assign_node(node, new_node_with_cast(tp, node, node_expression()));
+   } else {
+      node = new_assign_node(node, node_expression());
    }
    return node;
 }
@@ -4670,6 +4712,21 @@ Node *analyzing(Node *node) {
       case ND_VASTART:
          node->num_val = env->current_func->argc;
          node->type = node->lhs->type;
+         break;
+      case '?':
+         /* arithmetic, arithmetic -> arithmetic
+          * structure, structure -> structure
+          * void, void -> void
+          * pointer, pointer/NULL -> pointer
+          * (differently qualified) compatible types
+          * null or not -> other
+          * coid -> pointer to qualified void
+          */
+         /* TODO: Support NULL pointer & void */
+         node->type = node->lhs->type;
+         if (node->type->ty != TY_STRUCT || node->type->ty != TY_PTR || node->type->ty != TY_ARRAY || node->type->ty != TY_VOID) {
+            node = implicit_althemic_type_conversion(node);
+         }
          break;
       default:
          if (node->type == NULL && node->lhs && node->lhs->type) {
