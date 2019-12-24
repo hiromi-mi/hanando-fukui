@@ -93,8 +93,7 @@ char *node2reg(Node *node, Register *reg);
 
 Node *node_mul();
 Node *node_term();
-Node *node_mathexpr();
-Node *node_mathexpr_without_comma();
+Node *node_assignment_expression();
 Node *node_land();
 Node *node_or();
 Node *node_lor();
@@ -104,7 +103,7 @@ Node *node_shift();
 Node *node_add();
 Node *node_cast();
 Node *node_unary();
-Node *assign();
+Node *node_expression();
 _Noreturn void error(const char *str, ...);
 
 Node *analyzing(Node *node);
@@ -939,19 +938,6 @@ Vector *tokenize(char *p) {
    return pre_tokens;
 }
 
-Node *node_mathexpr_without_comma(void) { return node_lor(); }
-
-Node *node_mathexpr(void) {
-   Node *node = node_lor();
-   while (1) {
-      if (consume_token(',')) {
-         node = new_node(',', node, node_lor());
-      } else {
-         return node;
-      }
-   }
-}
-
 Node *node_land(void) {
    Node *node = node_or();
    while (1) {
@@ -1114,7 +1100,7 @@ Node *node_unary(void) {
          expect_token(')');
       } else {
          // evaluate the result of ND_SIZEOF
-         node->conds[0] = node_mathexpr();
+         node->conds[0] = node_expression();
       }
    } else if ((lang & 1) && consume_token(TK_NEW)) {
       // 5.3.4 New
@@ -1133,7 +1119,7 @@ Node *node_unary(void) {
             if ((consume_token(',') == 0) && consume_token(')')) {
                break;
             }
-            vec_push(args, (Token *)node_mathexpr_without_comma());
+            vec_push(args, (Token *)node_assignment_expression());
          }
       }
       node = new_func_node(node, newtype, args);
@@ -1249,7 +1235,7 @@ Node *node_term(void) {
       }
       node = new_ident_node(input);
    } else if (consume_token('(')) {
-      node = assign();
+      node = node_expression();
       if (consume_token(')') == 0) {
          error("Error: Incorrect Parensis.");
       }
@@ -1301,7 +1287,7 @@ Node *node_term(void) {
             if ((consume_token(',') == 0) && consume_token(')')) {
                break;
             }
-            vec_push(args, (Token *)node_mathexpr_without_comma());
+            vec_push(args, (Token *)node_assignment_expression());
          }
          node = new_func_node(node, template_types, args);
          // assert(node->argc <= 6);
@@ -1318,7 +1304,7 @@ Node *node_term(void) {
          // if (node->lhs->type->ty == TY_PTR || node->lhs->type->ty ==
          // TY_ARRAY) { Moved to analyzing process.
       } else if (consume_token('[')) {
-         node = new_node(ND_DEREF, new_node('+', node, node_mathexpr()), NULL);
+         node = new_node(ND_DEREF, new_node('+', node, node_expression()), NULL);
          expect_token(']');
       } else if (consume_token('.')) {
          node = new_dot_node(node);
@@ -2890,8 +2876,21 @@ void gen_register_top(void) {
    }
 }
 
-Node *assign(void) {
-   Node *node = node_mathexpr();
+Node *node_expression(void) {
+   Node *node = node_assignment_expression();
+   while (1) {
+      if (consume_token(',')) {
+         node = new_node(',', node, node_assignment_expression());
+      } else {
+         return node;
+      }
+   }
+   return node;
+}
+
+Node *node_assignment_expression(void) {
+   // TODO: Support Conditional Expression
+   Node *node = node_lor();
    if (consume_token('=')) {
       if (confirm_token(TK_OPAS)) {
          NodeType tp = tokens->data[pos]->input[0];
@@ -2902,9 +2901,9 @@ Node *assign(void) {
          if (tp == '>') {
             tp = ND_RSHIFT;
          }
-         node = new_assign_node(node, new_node_with_cast(tp, node, assign()));
+         node = new_assign_node(node, new_node_with_cast(tp, node, node_expression()));
       } else {
-         node = new_assign_node(node, assign());
+         node = new_assign_node(node, node_expression());
       }
    }
    return node;
@@ -3061,7 +3060,7 @@ Node *stmt(void) {
          // to support return; with void type
          node = new_node(ND_RETURN, NULL, NULL);
       } else {
-         node = new_node(ND_RETURN, assign(), NULL);
+         node = new_node(ND_RETURN, node_expression(), NULL);
       }
       // FIXME GOTO is not statement, expr.
    } else if (consume_token(TK_GOTO)) {
@@ -3102,7 +3101,7 @@ Node *stmt(void) {
                      if ((consume_token(',') == 0) && consume_token(')')) {
                         break;
                      }
-                     vec_push(args, (Token *)node_mathexpr_without_comma());
+                     vec_push(args, (Token *)node_assignment_expression());
                   }
                }
                node = new_func_node(func_node, NULL, args);
@@ -3140,13 +3139,13 @@ Node *stmt(void) {
                node = block_node;
 
             } else {
-               node = new_node('=', node, node_mathexpr());
+               node = new_node('=', node, node_assignment_expression());
             }
          }
          input = NULL;
       } while (consume_token(','));
    } else {
-      node = assign();
+      node = node_expression();
    }
    expect_token(';');
    if (node) {
@@ -3160,7 +3159,7 @@ Node *node_if(void) {
    Node *node = new_node(ND_IF, NULL, NULL);
    node->argc = 1;
    node->pline = tokens->data[pos]->pline;
-   node->args[0] = assign();
+   node->args[0] = node_expression();
    node->args[1] = NULL;
    // Suppress COndition
 
@@ -3202,7 +3201,7 @@ void program(Node *block_node) {
          continue;
       }
       if (consume_token(TK_WHILE)) {
-         Node *while_node = new_node(ND_WHILE, node_mathexpr(), NULL);
+         Node *while_node = new_node(ND_WHILE, node_expression(), NULL);
          if (confirm_token(TK_BLOCKBEGIN)) {
             while_node->rhs = new_block_node(env);
             program(while_node->rhs);
@@ -3217,7 +3216,7 @@ void program(Node *block_node) {
          do_node->rhs = new_block_node(env);
          program(do_node->rhs);
          expect_token(TK_WHILE);
-         do_node->lhs = node_mathexpr();
+         do_node->lhs = node_expression();
          expect_token(';');
          vec_push(args, (Token *)do_node);
          continue;
@@ -3233,11 +3232,11 @@ void program(Node *block_node) {
          // expect_token(';');
          // TODO: to allow without lines
          if (!consume_token(';')) {
-            for_node->conds[1] = assign();
+            for_node->conds[1] = node_expression();
             expect_token(';');
          }
          if (!consume_token(')')) {
-            for_node->conds[2] = assign();
+            for_node->conds[2] = node_expression();
             expect_token(')');
          }
          env = for_previous_node;
@@ -3259,7 +3258,7 @@ void program(Node *block_node) {
 
       if (consume_token(TK_SWITCH)) {
          expect_token('(');
-         Node *switch_node = new_node(ND_SWITCH, node_mathexpr(), NULL);
+         Node *switch_node = new_node(ND_SWITCH, node_expression(), NULL);
          expect_token(')');
          switch_node->rhs = new_block_node(env);
          program(switch_node->rhs);
@@ -3488,7 +3487,7 @@ Type *read_fundamental_type(Map *local_typedb) {
       // find type and get the true value
       // 7.1.6.2(4)
       expect_token('(');
-      Node *node = assign();
+      Node *node = node_expression();
       expect_token(')');
       node = optimizing(analyzing(node));
       // support only when rvalue
@@ -3961,7 +3960,7 @@ void toplevel(void) {
          map_put(global_vars, name, type);
          type->initval = 0;
          if (consume_token('=')) {
-            Node *initval = assign();
+            Node *initval = node_expression();
             initval = optimizing(analyzing(initval));
             switch (initval->ty) {
                case ND_NUM:
