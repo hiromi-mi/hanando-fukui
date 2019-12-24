@@ -42,6 +42,16 @@ int func72(void) {
    return a;
 }
 
+int func10_1(int a) {
+   if (a) {
+      return 7;
+   } else {
+      return 42;
+   }
+   return 21;
+}
+
+
 int main(void) {
    int retval = 0;
    /* test1 */
@@ -91,10 +101,36 @@ int main(void) {
    EXPECT(func72(), -69);
 
    /* test8 */
+   int a = -34;
+   EXPECT(++a, -33);
+   EXPECT(a++, -33);
+   EXPECT(a++, -32);
+   EXPECT(a, -31);
+   EXPECT(a--, -31);
+   EXPECT(a, -32);
+   EXPECT(--a, -33);
+
+   /* test9 */
    EXPECT(0>-2, 1);
    EXPECT(-8>12, 0);
    EXPECT(-234232<0, 1);
    EXPECT(43<43, 0);
+
+   /* test10 */
+   EXPECT(func10_1(1), 7);
+   EXPECT(func10_1(0), 42);
+   {
+      int a = 0;
+      while(a<3) {
+         a++;
+      }
+      EXPECT(a, 3);
+
+      do {
+         a++;
+      }while(a<0);
+      EXPECT(a, 4);
+   }
 
    // test20
    EXPECT((1==1) || (2==2), 1);
