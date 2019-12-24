@@ -132,6 +132,18 @@ int main(void) {
       EXPECT(a, 4);
    }
 
+   /* test15 */
+   {
+      char a;
+      int b,c;
+      double f, g;
+      EXPECT(sizeof a, 1);
+      EXPECT(sizeof a+f, 8);
+      EXPECT(sizeof f+g, 8);
+      EXPECT(sizeof b+c, 4);
+      EXPECT(sizeof(int), 4);
+   }
+
    // test20
    EXPECT((1==1) || (2==2), 1);
    EXPECT((1==2) || (2==2), 1);
@@ -155,6 +167,9 @@ int main(void) {
    EXPECT(4 >= 1, 1);
    EXPECT(-4 >= 1, 0);
    EXPECT(-4 <= 1, 1);
+
+   /* test23,24 */
+   EXPECT(NULL, 0);
 
    /* test25*/
    EXPECT(((int*)3)+1, 7);
