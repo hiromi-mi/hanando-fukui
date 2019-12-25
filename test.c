@@ -182,6 +182,22 @@ int main(void) {
    EXPECT(((char*)3)+1, 4);
    EXPECT(((long)3)+1, 4);
 
+   {
+      int a = 4;
+      switch(a) {
+         case 4: a=7;
+         case 6: a=-8; break;
+      }
+      EXPECT(a, -8);
+      switch(a) {
+         case (-7):
+            a = 3; break;
+         default:
+            a = -3411; break;
+      }
+      EXPECT(a, -3411);
+   }
+
    // test31
    EXPECT((int)-1 == (long)-1, 1);
    EXPECT((char)0xFFFFF == (int)0xFFFFF, 0);

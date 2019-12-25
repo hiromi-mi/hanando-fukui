@@ -3288,7 +3288,8 @@ void program(Node *block_node) {
       }
 
       if (consume_token(TK_CASE)) {
-         vec_push(args, (Token *)new_node(ND_CASE, node_term(), NULL));
+         // TODO 本来はStatement
+         vec_push(args, (Token *)new_node(ND_CASE, node_expression(), NULL));
          expect_token(':');
          continue;
       }
