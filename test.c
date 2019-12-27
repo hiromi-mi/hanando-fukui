@@ -135,13 +135,7 @@ int main(void) {
    /* test15 */
    {
       char a;
-      int b,c;
-      double f, g;
       EXPECT(sizeof a, 1);
-      EXPECT(sizeof a+f, 8);
-      EXPECT(sizeof f+g, 8);
-      EXPECT(sizeof b+c, 4);
-      EXPECT(sizeof b=3, 4);
       EXPECT(sizeof(int), 4);
    }
 

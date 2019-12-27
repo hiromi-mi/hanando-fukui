@@ -1101,7 +1101,7 @@ Node *node_unary(void) {
          expect_token(')');
       } else {
          // evaluate the result of ND_SIZEOF
-         node->conds[0] = node_expression();
+         node->conds[0] = node_unary();
       }
    } else if ((lang & 1) && consume_token(TK_NEW)) {
       // 5.3.4 New
