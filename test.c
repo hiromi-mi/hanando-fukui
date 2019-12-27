@@ -3,6 +3,7 @@
 #include "main.h"
 extern int *stderr;
 extern int *stdout;
+#define NULL 0
 
 // See hoc_nyan/test/test.c
 #define EXPECT(expr1, expr2) { \
@@ -49,6 +50,20 @@ int func10_1(int a) {
       return 42;
    }
    return 21;
+}
+
+int func11(int a, int b, int c, int d, int e, int f) {
+   // six arguments
+   return a+b+c+d+e+f;
+}
+
+int func21(int a) {
+   // Recursion
+   if ( a <= 1) {
+      return 1;
+   } else {
+      return func21(a-1)*a;
+   }
 }
 
 
@@ -132,6 +147,26 @@ int main(void) {
       EXPECT(a, 4);
    }
 
+   /* test11 */
+   EXPECT(func11(1,-2,3,-4,5,-6), -3);
+
+   /* test12 */
+   {
+      int x, *y;
+      x = 5;
+      y=&x;
+      EXPECT(*y, 5);
+      EXPECT(*y=4, 4);
+      EXPECT(x, 4);
+   }
+
+   /* test13 */
+   {
+      int x[10];
+      *x=3;
+      EXPECT(x[0], 3);
+   }
+
    /* test15 */
    {
       char a;
@@ -154,8 +189,12 @@ int main(void) {
    EXPECT(3 ? 2 : 1, 2);
    EXPECT(0 ? 2 : 1, 1);
 
+   /* test19,21 */
+   EXPECT(func21(3), 6);
+
    /* test22 */
-   EXPECT((char)255+2, 257);
+   /* TODO ここの挙動がおかしい */
+   EXPECT((char)255+2, 257); // unsigned を仮定
    EXPECT((char)255+(char)2, 1);
 
    EXPECT(1 <= 2, 1);
@@ -176,6 +215,7 @@ int main(void) {
    EXPECT(((char*)3)+1, 4);
    EXPECT(((long)3)+1, 4);
 
+   /* test26 */
    {
       int a = 4;
       switch(a) {
