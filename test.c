@@ -174,7 +174,31 @@ int main(void) {
       EXPECT(sizeof(int), 4);
    }
 
+   /* test16 */
+   {
+      int i;
+      for (i=1;i<5;++i) {
+         EXPECT(i, 1);
+         break;
+      }
+      EXPECT(i, 1);
+      for (i=1;i<5;++i) {
+      }
+      EXPECT(i, 5);
+   }
+
+   EXPECT((3, -4), -4);
+
+   /* test17 */
+   /* test18 */
+   {
+      char a = '\n';
+      EXPECT(a, 10);
+      puts("TEST18");
+   }
+
    // test20
+   EXPECT(-1==-1, 1);
    EXPECT((1==1) || (2==2), 1);
    EXPECT((1==2) || (2==2), 1);
    EXPECT((1==1) || (1==2), 1);
