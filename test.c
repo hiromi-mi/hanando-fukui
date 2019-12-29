@@ -256,6 +256,16 @@ int main(void) {
       EXPECT(a, -3411);
    }
 
+   /* test28*/
+   {
+      Type a, *b;
+      a.argc = -4;
+      b=&a;
+      EXPECT(b->argc, -4);
+      b->argc = 5;
+      EXPECT(a.argc, 5);
+   }
+
    // test31
    EXPECT((int)-1 == (long)-1, 1);
    EXPECT((char)0xFFFFF == (int)0xFFFFF, 0);
