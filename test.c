@@ -5,6 +5,7 @@ extern int *stderr;
 extern int *stdout;
 #define NULL 0
 
+int retval = 0;
 // See hoc_nyan/test/test.c
 #define EXPECT(expr1, expr2) { \
    int e1, e2; \
@@ -66,9 +67,35 @@ int func21(int a) {
    }
 }
 
+int func32_1(...) {
+   int result;
+   va_list ap;
+
+   va_start(ap, NULL);
+   result = va_arg(ap, int);
+   EXPECT(result, 1);
+   result = va_arg(ap, int);
+   EXPECT(result, -2);
+   va_end(ap);
+   return 0;
+}
+
+int func32_2(char c, ...) {
+   int result;
+   char result2;
+   va_list ap;
+   EXPECT(c, 'a');
+   va_start(ap, c);
+   result = va_arg(ap, int);
+   EXPECT(result, -5);
+   result2 = va_arg(ap, char);
+   EXPECT(result2, 'b');
+   va_end(ap);
+   return 0;
+}
+
 
 int main(void) {
-   int retval = 0;
    /* test1 */
    EXPECT(1, 1);
    EXPECT(1+9, 10);
@@ -270,6 +297,10 @@ int main(void) {
    EXPECT((int)-1 == (long)-1, 1);
    EXPECT((char)0xFFFFF == (int)0xFFFFF, 0);
    EXPECT((int)-1 == (long)4, 0);
+
+   /* test32 */
+   func32_1(1, -2);
+   func32_2('a', -5, 'b');
 
    // 空文でレジスタを使い切らないかのテスト
    1;
