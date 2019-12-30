@@ -21,6 +21,12 @@ int retval = 0;
 
 #define EXPECTVAR(init, expr1, expr2)
 
+typedef struct STRUCTA {
+   int b;
+   char d;
+   int e;
+} ASTRUCT;
+
 int func1(void) {
    int ce;
    ce = -324;
@@ -218,10 +224,21 @@ int main(void) {
 
    /* test17 */
    /* test18 */
+   /* test29 */
+   /* test30 */
    {
-      char a = '\n';
-      EXPECT(a, 10);
-      puts("TEST18");
+      char a[5];
+      a[0] = 'a';
+      a[1] = 'b';
+      a[2] = '\n';
+      a[3] = '\0';
+      puts(a);
+      EXPECT(strncmp(a, "ab\n", 4), 0);
+      EXPECT(*a, 'a');
+      EXPECT(*(a+2), '\n');
+      char b = '\n';
+      EXPECT(b, 10);
+      EXPECT('a' <= 'h' && 'h' <= 'z', 1);
    }
 
    // test20
@@ -283,7 +300,7 @@ int main(void) {
       EXPECT(a, -3411);
    }
 
-   /* test28*/
+   /* test28, 38 */
    {
       Type a, *b;
       a.argc = -4;
@@ -291,6 +308,10 @@ int main(void) {
       EXPECT(b->argc, -4);
       b->argc = 5;
       EXPECT(a.argc, 5);
+      struct STRUCTA f;
+      f.e = -5;
+      EXPECT(f.e, -5);
+      EXPECT(TY_CHAR == TY_INT, 0);
    }
 
    // test31
