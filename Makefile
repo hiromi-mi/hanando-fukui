@@ -3,17 +3,26 @@ CFLAGS = -Wall -Wextra -Wpedantic  -std=c11 -g
 LDFLAGS = -lm
 
 #srcs = $(wildcard *.c)
-srcs = main.c
+srcs = main.c preprocess.c token.c analysis.c gen_x64.c
+# parse_c.c parse_cpp.c 
+asms = $(srcs:.c=.s)
+asmself = $(srcs:.c=2.s)
+asmsselfself = $(srcs:.c=3.s)
 objects = $(srcs:.c=.o)
+objectself = $(srcs:.c=2.o)
+objectselfself = $(srcs:.c=3.o)
 target=hanando
 
-$(target): $(objects)
-	$(CC) $(objects) -o $(target) $(LDFLAGS)
-$(objects): main.h
+$(target): $(srcs)
+	$(CC) $(CFLAGS) $(srcs) -o $(target) $(LDFLAGS)
+$(srcs): main.h
 
-self:
-	./hanando -f main.c > main.s
-	$(CC) -g main.s -o main
+%2.o:	%2.c $(target)
+	./hanando -f $< > $@
+
+self:	$(objectself)
+	#./hanando -f main.c > main.s
+	$(CC) -g $(objectself) -o ./hanando2
 
 selfselftest: self
 	./main -f main.c > main2.s

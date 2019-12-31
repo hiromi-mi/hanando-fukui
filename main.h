@@ -1,6 +1,6 @@
 // main.h
 /*
-Copyright 2019 hiromi-mi
+Copyright 2019, 2020 hiromi-mi
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -267,5 +267,11 @@ int map_put(Map *map, const char *key, const void *val);
 void *map_get(const Map *map, const char *key);
 Vector *new_vector();
 int vec_push(Vector *vec, Token *element);
+
+void preprocess(Vector *pre_tokens, char *fname);
+Vector *tokenize(char *p);
+Node *analyzing(Node *node);
+void gen_register_top(void);
+void init_reg_registers(void);
 
 #endif /* __HANANDO_FUKUI_MAIN__ */
