@@ -9,7 +9,7 @@ asms = $(srcs:.c=.s)
 asmself = $(srcs:.c=2.s)
 asmsselfself = $(srcs:.c=3.s)
 objects = $(srcs:.c=.o)
-objectself = $(srcs:.c=2.o)
+#objectself = $(srcs:.c=2.o)
 objectselfself = $(srcs:.c=3.o)
 target=hanando
 
@@ -17,12 +17,12 @@ $(target): $(srcs)
 	$(CC) $(CFLAGS) $(srcs) -o $(target) $(LDFLAGS)
 $(srcs): main.h
 
-%2.o:	%2.c $(target)
-	./hanando -f $< > $@
-
-self:	$(objectself)
+self:	$(asmself)
 	#./hanando -f main.c > main.s
-	$(CC) -g $(objectself) -o ./hanando2
+	$(CC) -g $(asmself) -o ./hanando2
+
+%2.s:	%.c $(target)
+	./hanando -f $< > $@
 
 selfselftest: self
 	./main -f main.c > main2.s

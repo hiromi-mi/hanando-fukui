@@ -19,6 +19,9 @@ limitations under the License.
 #include "selfhost.h"
 #include <stdlib.h>
 #include <stdio.h>
+#include <string.h>
+// dirname()
+#include <libgen.h>
 
 extern Vector* tokens;
 

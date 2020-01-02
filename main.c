@@ -48,8 +48,6 @@ int lang = 0;
 int output = 0;
 
 Node *new_func_node(Node *ident, Vector *template_types, Vector *args);
-Node *new_node(NodeType ty, Node *lhs, Node *rhs);
-int type2size(Type *type);
 Type *read_type_all(char **input);
 Type *read_type(Type *type, char **input, Map *local_typedb);
 Type *struct_declartion(char* struct_name);
@@ -62,19 +60,10 @@ int split_type_caller();
 void define_enum(int use);
 char *expect_ident();
 void program(Node *block_node);
-Type *duplicate_type(Type *old_type);
-Type *copy_type(Type *old_type, Type *type);
-Type *find_typed_db(char *input, Map *db);
-Type *find_typed_db_without_copy(char *input, Map *db);
-Type *class_declaration(Map *local_typedb);
-int cnt_size(Type *type);
 LocalVariable *get_type_local(Node *node);
 LocalVariable *new_local_variable(char *name, Type *type);
 Node *generate_template(Node *node, Map *template_type_db);
 Type *generate_class_template(Type *type, Map *template_type_db);
-
-char *node2reg(Node *node, Register *reg);
-void secure_mutable_with_type(Register *reg, Type *type);
 
 Node *node_mul();
 Node *node_term();
@@ -89,7 +78,6 @@ Node *node_add();
 Node *node_cast();
 Node *node_unary();
 Node *node_expression();
-_Noreturn void error(const char *str, ...);
 
 Node *optimizing(Node *node);
 
@@ -549,6 +537,17 @@ int expect_token(TokenConst ty) {
    return 1;
 }
 
+Node *node_land(void) {
+   Node *node = node_or();
+   while (1) {
+      if (consume_token(TK_AND)) {
+         node = new_node(ND_LAND, node, node_or());
+      } else {
+         return node;
+      }
+   }
+}
+
 Node *node_lor(void) {
    Node *node = node_land();
    while (1) {
@@ -932,57 +931,6 @@ LocalVariable *get_type_local(Node *node) {
       local_env = local_env->env;
    }
    return local_variable;
-}
-
-char *_rax(Node *node) {
-   switch (type2size(node->type)) {
-      case 1:
-         return "al";
-      case 4:
-         return "eax";
-      default:
-         return "rax";
-   }
-}
-
-char *_rdi(Node *node) {
-   switch (type2size(node->type)) {
-      case 1:
-         return "dil";
-      case 4:
-         return "edi";
-      default:
-         return "rdi";
-   }
-}
-
-char *_rdx(Node *node) {
-   switch (type2size(node->type)) {
-      case 1:
-         return "dl";
-      case 4:
-         return "edx";
-      default:
-         return "rdx";
-   }
-}
-
-int cmp_regs(Node *node, Register *lhs_reg, Register *rhs_reg) {
-      secure_mutable_with_type(lhs_reg, node->lhs->type);
-   if (node->lhs->type->ty == TY_FLOAT) {
-      return printf("comiss %s, %s\n", node2reg(node->lhs, lhs_reg),
-                    node2reg(node->rhs, rhs_reg));
-   } else if (node->lhs->type->ty == TY_DOUBLE) {
-      return printf("comisd %s, %s\n", node2reg(node->lhs, lhs_reg),
-                    node2reg(node->rhs, rhs_reg));
-   } else if (type2size(node->lhs->type) < type2size(node->rhs->type)) {
-      // rdi, rax
-      return printf("cmp %s, %s\n", node2reg(node->rhs, lhs_reg),
-                    node2reg(node->rhs, rhs_reg));
-   } else {
-      return printf("cmp %s, %s\n", node2reg(node->lhs, lhs_reg),
-                    node2reg(node->lhs, rhs_reg));
-   }
 }
 
 int type2size3(Type *type) {
@@ -2311,6 +2259,32 @@ int is_recursive(Node *node, char *name) {
    return 0;
 }
 
+Node *node_expression(void) {
+   Node *node = node_assignment_expression();
+   while (1) {
+      if (consume_token(',')) {
+         node = new_node(',', node, node_assignment_expression());
+      } else {
+         return node;
+      }
+   }
+   return node;
+}
+
+Node *node_conditional_expression(void) {
+   Node *node = node_lor();
+   Node *conditional_node = NULL;
+   if (consume_token('?')) {
+      conditional_node = new_node('?', node_expression(), NULL);
+      conditional_node->conds[0] = node;
+      expect_token(':');
+      conditional_node->rhs = node_conditional_expression();
+      node = conditional_node;
+   }
+   return node;
+}
+
+
 void test_map(void) {
    Vector *vec = new_vector();
    Token *hanando_fukui_compiled = malloc(sizeof(Token));
@@ -2436,44 +2410,6 @@ Vector *read_tokenize(char *fname) {
    fread(buf, length + 5, sizeof(char), fp);
    fclose(fp);
    return tokenize(buf);
-}
-
-Node *implicit_althemic_type_conversion(Node *node) {
-   // See Section 6.3.1.8
-   if (node->lhs->type->ty == node->rhs->type->ty) {
-      return node;
-   }
-   if (node->lhs->type->ty == TY_DOUBLE) {
-      node->rhs = new_node(ND_CAST, node->rhs, NULL);
-      node->rhs->type = node->lhs->type;
-      return node;
-   }
-   if (node->rhs->type->ty == TY_DOUBLE) {
-      node->lhs = new_node(ND_CAST, node->lhs, NULL);
-      node->lhs->type = node->rhs->type;
-      return node;
-   }
-   if (node->lhs->type->ty == TY_FLOAT) {
-      node->rhs = new_node(ND_CAST, node->rhs, NULL);
-      node->rhs->type = node->lhs->type;
-      return node;
-   }
-   if (node->rhs->type->ty == TY_FLOAT) {
-      node->lhs = new_node(ND_CAST, node->lhs, NULL);
-      node->lhs->type = node->rhs->type;
-      return node;
-   }
-   if (type2size(node->lhs->type) < type2size(node->rhs->type)) {
-      node->lhs = new_node(ND_CAST, node->lhs, NULL);
-      node->lhs->type = node->rhs->type;
-      return node;
-   }
-   if (type2size(node->lhs->type) > type2size(node->rhs->type)) {
-      node->rhs = new_node(ND_CAST, node->rhs, NULL);
-      node->rhs->type = node->lhs->type;
-      return node;
-   }
-   return node;
 }
 
 LocalVariable *new_local_variable(char *name, Type *type) {

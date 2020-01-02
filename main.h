@@ -267,11 +267,31 @@ int map_put(Map *map, const char *key, const void *val);
 void *map_get(const Map *map, const char *key);
 Vector *new_vector();
 int vec_push(Vector *vec, Token *element);
+_Noreturn void error(const char *str, ...);
 
 void preprocess(Vector *pre_tokens, char *fname);
+
+Vector *read_tokenize(char *fname);
 Vector *tokenize(char *p);
+
+Node *new_node(NodeType ty, Node *lhs, Node *rhs);
+Node *new_num_node(long num_val);
+int cnt_size(Type *type);
+
 Node *analyzing(Node *node);
+char *mangle_func_name(char *name);
+Type *duplicate_type(Type *old_type);
+Type *copy_type(Type *old_type, Type *type);
+Type *find_typed_db(char *input, Map *db);
+Type *find_typed_db_without_copy(char *input, Map *db);
+Type *class_declaration(Map *local_typedb);
+Type *new_type(void);
+int type2size(Type *type);
+
 void gen_register_top(void);
 void init_reg_registers(void);
+void globalvar_gen(void);
+
+char *strdup(const char *s);
 
 #endif /* __HANANDO_FUKUI_MAIN__ */

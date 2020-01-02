@@ -18,6 +18,9 @@ limitations under the License.
 #include "main.h"
 #include "selfhost.h"
 #include <stdlib.h>
+// isspace(), isdigit()
+#include <ctype.h>
+#include <string.h>
 
 extern int lang;
 
@@ -374,16 +377,5 @@ Vector *tokenize(char *p) {
 
    vec_push(pre_tokens, new_token(pline, TK_EOF, p));
    return pre_tokens;
-}
-
-Node *node_land(void) {
-   Node *node = node_or();
-   while (1) {
-      if (consume_token(TK_AND)) {
-         node = new_node(ND_LAND, node, node_or());
-      } else {
-         return node;
-      }
-   }
 }
 

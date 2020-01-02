@@ -27,6 +27,9 @@ extern Map *current_local_typedb;
 extern int neg_float_generate;
 extern int neg_double_generate;
 
+Node *new_long_num_node(long num_val);
+Node *implicit_althemic_type_conversion(Node *node);
+
 void update_rsp_offset(int size) {
    env->rsp_offset += size;
    if (*env->rsp_offset_max < env->rsp_offset) {
@@ -259,6 +262,44 @@ Node *analyzing(Node *node) {
    }
 
    env = prev_env;
+   return node;
+}
+
+Node *implicit_althemic_type_conversion(Node *node) {
+   // See Section 6.3.1.8
+   if (node->lhs->type->ty == node->rhs->type->ty) {
+      return node;
+   }
+   if (node->lhs->type->ty == TY_DOUBLE) {
+      node->rhs = new_node(ND_CAST, node->rhs, NULL);
+      node->rhs->type = node->lhs->type;
+      return node;
+   }
+   if (node->rhs->type->ty == TY_DOUBLE) {
+      node->lhs = new_node(ND_CAST, node->lhs, NULL);
+      node->lhs->type = node->rhs->type;
+      return node;
+   }
+   if (node->lhs->type->ty == TY_FLOAT) {
+      node->rhs = new_node(ND_CAST, node->rhs, NULL);
+      node->rhs->type = node->lhs->type;
+      return node;
+   }
+   if (node->rhs->type->ty == TY_FLOAT) {
+      node->lhs = new_node(ND_CAST, node->lhs, NULL);
+      node->lhs->type = node->rhs->type;
+      return node;
+   }
+   if (type2size(node->lhs->type) < type2size(node->rhs->type)) {
+      node->lhs = new_node(ND_CAST, node->lhs, NULL);
+      node->lhs->type = node->rhs->type;
+      return node;
+   }
+   if (type2size(node->lhs->type) > type2size(node->rhs->type)) {
+      node->rhs = new_node(ND_CAST, node->rhs, NULL);
+      node->rhs->type = node->lhs->type;
+      return node;
+   }
    return node;
 }
 

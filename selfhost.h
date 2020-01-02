@@ -11,7 +11,6 @@ char *basename(char *path);
 
 #define SEEK_END 2
 #define SEEK_SET 0
-char *strdup(const char *s);
 
 int isspace(int c);
 #endif

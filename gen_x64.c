@@ -19,6 +19,8 @@ limitations under the License.
 #include "selfhost.h"
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
+
 extern Vector *globalcode;
 extern Vector *strs;
 extern Vector *floats;
@@ -54,6 +56,10 @@ int env_for_while_switch = 0;
 #define NO_REGISTER NULL
 
 Register *gen_register_rightval(Node *node, int unused_eval);
+void init_reg_table(void);
+char *node2reg(Node *node, Register *reg);
+void secure_mutable_with_type(Register *reg, Type *type);
+
 
 void globalvar_gen(void) {
    puts(".data");
@@ -112,6 +118,58 @@ void globalvar_gen(void) {
       printf(".long 2147483648\n");
    }
 }
+
+char *_rax(Node *node) {
+   switch (type2size(node->type)) {
+      case 1:
+         return "al";
+      case 4:
+         return "eax";
+      default:
+         return "rax";
+   }
+}
+
+int cmp_regs(Node *node, Register *lhs_reg, Register *rhs_reg) {
+      secure_mutable_with_type(lhs_reg, node->lhs->type);
+   if (node->lhs->type->ty == TY_FLOAT) {
+      return printf("comiss %s, %s\n", node2reg(node->lhs, lhs_reg),
+                    node2reg(node->rhs, rhs_reg));
+   } else if (node->lhs->type->ty == TY_DOUBLE) {
+      return printf("comisd %s, %s\n", node2reg(node->lhs, lhs_reg),
+                    node2reg(node->rhs, rhs_reg));
+   } else if (type2size(node->lhs->type) < type2size(node->rhs->type)) {
+      // rdi, rax
+      return printf("cmp %s, %s\n", node2reg(node->rhs, lhs_reg),
+                    node2reg(node->rhs, rhs_reg));
+   } else {
+      return printf("cmp %s, %s\n", node2reg(node->lhs, lhs_reg),
+                    node2reg(node->lhs, rhs_reg));
+   }
+}
+
+char *_rdi(Node *node) {
+   switch (type2size(node->type)) {
+      case 1:
+         return "dil";
+      case 4:
+         return "edi";
+      default:
+         return "rdi";
+   }
+}
+
+char *_rdx(Node *node) {
+   switch (type2size(node->type)) {
+      case 1:
+         return "dl";
+      case 4:
+         return "edx";
+      default:
+         return "rdx";
+   }
+}
+
 
 void gen_register_top(void) {
    init_reg_table();
@@ -1541,29 +1599,3 @@ Register *gen_register_rightval(Node *node, int unused_eval) {
    }
    return NO_REGISTER;
 }
-
-Node *node_expression(void) {
-   Node *node = node_assignment_expression();
-   while (1) {
-      if (consume_token(',')) {
-         node = new_node(',', node, node_assignment_expression());
-      } else {
-         return node;
-      }
-   }
-   return node;
-}
-
-Node *node_conditional_expression(void) {
-   Node *node = node_lor();
-   Node *conditional_node = NULL;
-   if (consume_token('?')) {
-      conditional_node = new_node('?', node_expression(), NULL);
-      conditional_node->conds[0] = node;
-      expect_token(':');
-      conditional_node->rhs = node_conditional_expression();
-      node = conditional_node;
-   }
-   return node;
-}
-
