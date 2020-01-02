@@ -78,6 +78,7 @@ Node *node_add();
 Node *node_cast();
 Node *node_unary();
 Node *node_expression();
+Node *node_conditional_expression();
 
 Node *optimizing(Node *node);
 
@@ -1022,7 +1023,7 @@ Node *node_assignment_expression(void) {
    if (!consume_token('=')) {
       pos = old_pos;
       // TODO: Support Conditional Expression
-      //node = node_conditional_expression();
+      node = node_conditional_expression();
       return node;
    }
 
