@@ -102,6 +102,10 @@ void preprocess(Vector *pre_tokens, char *fname) {
                   buf = pre_tokens->data[j + 2]->input;
                }
                preprocess(read_tokenize(buf), buf);
+               // 最後のToken が EOF なので除く
+               if (tokens->data[tokens->len-1]->ty == TK_EOF) {
+                  tokens->len--;
+               }
             }
             while (pre_tokens->data[j]->ty != TK_NEWLINE &&
                    pre_tokens->data[j]->ty != TK_EOF) {

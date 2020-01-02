@@ -25,6 +25,5 @@ $ ./bar
 
 ## How to compile self-recursively
 ```
-$ make self
-$ make selfselftest
+$ make selftest
 ```

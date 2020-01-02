@@ -339,7 +339,7 @@ Node *new_ident_node(char *name) {
    node->type = map_get(global_vars, node->name);
 
    if (!node->type) {
-      error("Error: New Variable Definition.");
+      error("Error: New Variable Definition: ", name);
    }
    return node;
 }
@@ -2397,20 +2397,6 @@ void init_typedb(void) {
    typedou->ptrof = NULL;
    typedou->offset = 8;
    map_put(typedb, "double", typedou);
-}
-
-Vector *read_tokenize(char *fname) {
-   FILE *fp = fopen(fname, "r");
-   if (!fp) {
-      error("No file found: %s\n", fname);
-   }
-   fseek(fp, 0, SEEK_END);
-   long length = ftell(fp);
-   fseek(fp, 0, SEEK_SET);
-   char *buf = malloc(sizeof(char) * (length + 5));
-   fread(buf, length + 5, sizeof(char), fp);
-   fclose(fp);
-   return tokenize(buf);
 }
 
 LocalVariable *new_local_variable(char *name, Type *type) {

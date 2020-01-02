@@ -21,6 +21,10 @@ limitations under the License.
 // isspace(), isdigit()
 #include <ctype.h>
 #include <string.h>
+#include <stdio.h>
+
+#define SEEK_END 2
+#define SEEK_SET 0
 
 extern int lang;
 
@@ -377,5 +381,19 @@ Vector *tokenize(char *p) {
 
    vec_push(pre_tokens, new_token(pline, TK_EOF, p));
    return pre_tokens;
+}
+
+Vector *read_tokenize(char *fname) {
+   FILE *fp = fopen(fname, "r");
+   if (!fp) {
+      error("No file found: %s\n", fname);
+   }
+   fseek(fp, 0, SEEK_END);
+   long length = ftell(fp);
+   fseek(fp, 0, SEEK_SET);
+   char *buf = malloc(sizeof(char) * (length + 5));
+   fread(buf, length + 5, sizeof(char), fp);
+   fclose(fp);
+   return tokenize(buf);
 }
 

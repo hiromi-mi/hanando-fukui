@@ -9,9 +9,6 @@ double strtod(char *nptr, char **endptr);
 char *dirname(char *path);
 char *basename(char *path);
 
-#define SEEK_END 2
-#define SEEK_SET 0
-
 int isspace(int c);
 #endif
 

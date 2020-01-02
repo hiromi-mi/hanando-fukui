@@ -7,7 +7,7 @@ srcs = main.c preprocess.c token.c analysis.c gen_x64.c
 # parse_c.c parse_cpp.c 
 asms = $(srcs:.c=.s)
 asmself = $(srcs:.c=2.s)
-asmsselfself = $(srcs:.c=3.s)
+asmselfself = $(srcs:.c=3.s)
 objects = $(srcs:.c=.o)
 #objectself = $(srcs:.c=2.o)
 objectselfself = $(srcs:.c=3.o)
@@ -24,13 +24,14 @@ self:	$(asmself)
 %2.s:	%.c $(target)
 	./hanando -f $< > $@
 
-selfselftest: self
-	./main -f main.c > main2.s
-	$(CC) -g main2.s -o main2
-	./main2 -f main.c > main3.s
-	$(CC) -g main3.s -o main3
-	diff -u main2.s main3.s
-	diff -u main.s main2.s
+%3.s:	%.c self
+	./hanando2 -f $< > $@
+
+selfself:	$(asmselfself)
+	$(CC) -g $(asmselfself) -o ./hanando3
+
+selftest: self selfself
+	diff hanando2 hanando3
 
 ctest:
 	clang -E test.c | sed -e "s/^#.*$///" > test.processed.c &&  ./hanando -f test.processed.c > test.s && gcc test.s -o test && ./test

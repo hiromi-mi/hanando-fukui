@@ -21,8 +21,7 @@ Objective-C 用に `-objc` も存在するが未使用。
 
 第1世代コンパイラから第2世代コンパイラを生成し、その差分がないことを示す。
 ```
-$ make self
-$ make selfselftest
+$ make selftest
 ```
 
 ## template もどき (多重展開できない)
