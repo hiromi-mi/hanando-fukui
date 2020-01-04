@@ -1572,7 +1572,16 @@ Type *read_fundamental_type(Map *local_typedb) {
       if (confirm_token('{')) {
          type = struct_declartion(struct_name);
       } else {
-         type = find_typed_db(struct_name, struct_typedb);
+         type = find_typed_db_without_copy(struct_name, struct_typedb);
+         if (!type) {
+            // Create empty struct because of
+            // typedef A S;
+            // 先行型
+            type = new_type();
+            type->ty = TY_STRUCT;
+            type->type_name = struct_name;
+            map_put(struct_typedb, struct_name, type);
+         }
       }
    } else if ((lang & 1) && consume_token(TK_CLASS)) {
       return class_declaration(local_typedb);
@@ -1901,9 +1910,16 @@ Type *class_declaration(Map *local_typedb) {
 
 Type *struct_declartion(char* struct_name) {
    // struct_name : on struct name
-   Type *structuretype = new_type();
+   Type *structuretype = NULL;
    if (struct_name) {
+      structuretype = find_typed_db_without_copy(struct_name, struct_typedb);
+   }
+   if (struct_name && !structuretype) {
+      structuretype = new_type();
       map_put(struct_typedb, struct_name, structuretype);
+   }
+   if (!structuretype) {
+      structuretype = new_type();
    }
    expect_token('{');
    structuretype->structure = new_map();
