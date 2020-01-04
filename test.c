@@ -27,6 +27,8 @@ typedef struct STRUCTA {
    int e;
 } ASTRUCT;
 
+int globalvar[3] = {1,2,3};
+
 int func1(void) {
    int ce;
    ce = -324;

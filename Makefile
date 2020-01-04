@@ -18,7 +18,6 @@ $(target): $(srcs)
 $(srcs): main.h
 
 self:	$(asmself)
-	#./hanando -f main.c > main.s
 	$(CC) -g $(asmself) -o ./hanando2
 
 %2.s:	%.c $(target)

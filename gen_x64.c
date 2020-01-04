@@ -72,33 +72,21 @@ void globalvar_gen(void) {
          continue;
       }
       int typesize = cnt_size(valdataj->type);
+      printf(".type %s,@object\n", keydataj);
+      printf(".global %s\n", keydataj);
       if (valdataj->inits) {
+         printf(".size %s, %d\n", keydataj, typesize);
+         printf("%s:\n", keydataj);
          int k;
          for (k=0;k<valdataj->inits->len;k++) {
             Node* vark = (Node*)valdataj->inits->data[k];
             if (vark->name) {
-               printf(".type %s,@object\n", keydataj);
-               printf(".global %s\n", keydataj);
-               printf(".size %s, %d\n", keydataj, typesize);
-               printf("%s:\n", keydataj);
                printf(".quad %s\n", vark->name);
-               puts(".text");
-            } else if (vark->num_val != 0) {
-               printf(".type %s,@object\n", keydataj);
-               printf(".global %s\n", keydataj);
-               printf(".size %s, %d\n", keydataj, typesize);
-               printf("%s:\n", keydataj);
-               printf(".long %ld\n", vark->num_val);
-               puts(".text");
             } else {
-               printf(".type %s,@object\n", keydataj);
-               printf(".global %s\n", keydataj);
-               printf(".comm %s, %d\n", keydataj, typesize);
+               printf(".long %ld\n", vark->num_val);
             }
          }
       } else {
-         printf(".type %s,@object\n", keydataj);
-         printf(".global %s\n", keydataj);
          printf(".comm %s, %d\n", keydataj, typesize);
       }
    }
@@ -128,6 +116,7 @@ void globalvar_gen(void) {
       printf(".LCDNEGFLOAT:\n");
       printf(".long 2147483648\n");
    }
+   puts(".text");
 }
 
 char *_rax(Node *node) {

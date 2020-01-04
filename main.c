@@ -2070,9 +2070,21 @@ void toplevel(void) {
          map_put(global_vars, name, gvar);
          if (consume_token('=')) {
             gvar->inits = new_vector();
-            Node *initializer = node_expression();
-            initializer = optimizing(analyzing(initializer));
-            vec_push(gvar->inits, (Token*)initializer);
+            if (consume_token('{')) {
+               while (1) {
+                  Node *initializer = node_assignment_expression();
+                  initializer = optimizing(analyzing(initializer));
+                  vec_push(gvar->inits, (Token*)initializer);
+                  if (!consume_token(',')) {
+                     expect_token('}');
+                     break;
+                  }
+               }
+            } else {
+               Node *initializer = node_expression();
+               initializer = optimizing(analyzing(initializer));
+               vec_push(gvar->inits, (Token*)initializer);
+            }
          }
          expect_token(';');
       }
