@@ -123,8 +123,6 @@ Type *new_type(void) {
    type->ret = NULL;
    type->argc = 0;
    type->array_size = 0;
-   type->initval = 0;
-   type->initstr = NULL;
    type->offset = 0;
    type->is_const = 0;
    type->is_static = 0;
@@ -1448,7 +1446,6 @@ Type *copy_type(Type *old_type, Type *type) {
    // type->argc = old_type->argc;
    // type->args[j] = old_type->args[j];
    type->array_size = old_type->array_size;
-   // type->initval = old_type->initval;
    type->offset = old_type->offset;
    type->is_const = old_type->is_const;
    type->is_static = old_type->is_static;
@@ -2071,26 +2068,11 @@ void toplevel(void) {
          GlobalVariable *gvar = new_globalvariable();
          gvar->type = type;
          map_put(global_vars, name, gvar);
-         type->initval = 0;
          if (consume_token('=')) {
             gvar->inits = new_vector();
-            Node *initval = node_expression();
-            initval = optimizing(analyzing(initval));
-            vec_push(gvar->inits, (Token*)initval);
-            /*
-            switch (initval->ty) {
-               case ND_NUM:
-                  type->initval = initval->num_val;
-                  break;
-               case ND_STRING:
-                  // TODO: only supported pointer-based type.
-                  type->initstr = initval->name;
-                  break;
-               default:
-                  error("Error: invalid initializer on global variable\n");
-                  break;
-            }
-            */
+            Node *initializer = node_expression();
+            initializer = optimizing(analyzing(initializer));
+            vec_push(gvar->inits, (Token*)initializer);
          }
          expect_token(';');
       }

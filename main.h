@@ -199,8 +199,6 @@ typedef struct Type {
    int argc;
    struct Type *args[6];
    int array_size;
-   int initval;
-   char *initstr;
    int offset;
    int is_const;
    int is_static;
