@@ -65,30 +65,41 @@ void globalvar_gen(void) {
    puts(".data");
    int j;
    for (j = 0; j < global_vars->keys->len; j++) {
-      Type *valdataj = (Type *)global_vars->vals->data[j];
+      GlobalVariable *valdataj = (GlobalVariable *)global_vars->vals->data[j];
       char *keydataj = (char *)global_vars->keys->data[j];
-      if (valdataj->is_extern) {
+      if (valdataj->type->is_extern) {
          // Do not write externed values.
          continue;
       }
-      if (valdataj->initstr) {
-         printf(".type %s,@object\n", keydataj);
-         printf(".global %s\n", keydataj);
-         printf(".size %s, %d\n", keydataj, cnt_size(valdataj));
-         printf("%s:\n", keydataj);
-         printf(".quad %s\n", valdataj->initstr);
-         puts(".text");
-      } else if (valdataj->initval == 0) {
-         printf(".type %s,@object\n", keydataj);
-         printf(".global %s\n", keydataj);
-         printf(".comm %s, %d\n", keydataj, cnt_size(valdataj));
+      int typesize = cnt_size(valdataj->type);
+      if (valdataj->inits) {
+         int k;
+         for (k=0;k<valdataj->inits->len;k++) {
+            Node* vark = (Node*)valdataj->inits->data[k];
+            if (vark->name) {
+               printf(".type %s,@object\n", keydataj);
+               printf(".global %s\n", keydataj);
+               printf(".size %s, %d\n", keydataj, typesize);
+               printf("%s:\n", keydataj);
+               printf(".quad %s\n", vark->name);
+               puts(".text");
+            } else if (vark->num_val != 0) {
+               printf(".type %s,@object\n", keydataj);
+               printf(".global %s\n", keydataj);
+               printf(".size %s, %d\n", keydataj, typesize);
+               printf("%s:\n", keydataj);
+               printf(".long %ld\n", vark->num_val);
+               puts(".text");
+            } else {
+               printf(".type %s,@object\n", keydataj);
+               printf(".global %s\n", keydataj);
+               printf(".comm %s, %d\n", keydataj, typesize);
+            }
+         }
       } else {
          printf(".type %s,@object\n", keydataj);
          printf(".global %s\n", keydataj);
-         printf(".size %s, %d\n", keydataj, cnt_size(valdataj));
-         printf("%s:\n", keydataj);
-         printf(".long %d\n", valdataj->initval);
-         puts(".text");
+         printf(".comm %s, %d\n", keydataj, typesize);
       }
    }
    for (j = 0; j < strs->len; j++) {

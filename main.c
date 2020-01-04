@@ -109,6 +109,14 @@ char *type2name(Type *type) {
    }
 }
 
+GlobalVariable* new_globalvariable(void) {
+   GlobalVariable *gvar = malloc(sizeof(GlobalVariable));
+   gvar->inits = NULL;
+   gvar->type = NULL;
+   gvar->name = NULL;
+   return gvar;
+}
+
 Type *new_type(void) {
    Type *type = malloc(sizeof(Type));
    type->ptrof = NULL;
@@ -294,11 +302,12 @@ Node *new_ident_node(char *name) {
 
    // Try global variable.
    node->ty = ND_GLOBAL_IDENT;
-   node->type = map_get(global_vars, node->name);
-
-   if (!node->type) {
+   GlobalVariable *gvar = map_get(global_vars, node->name);
+   if (!gvar) {
       error("Error: New Variable Definition: ", name);
    }
+   node->type = gvar->type;
+
    return node;
 }
 
@@ -2059,11 +2068,16 @@ void toplevel(void) {
          continue;
       } else {
          // Global Variables.
-         map_put(global_vars, name, type);
+         GlobalVariable *gvar = new_globalvariable();
+         gvar->type = type;
+         map_put(global_vars, name, gvar);
          type->initval = 0;
          if (consume_token('=')) {
+            gvar->inits = new_vector();
             Node *initval = node_expression();
             initval = optimizing(analyzing(initval));
+            vec_push(gvar->inits, (Token*)initval);
+            /*
             switch (initval->ty) {
                case ND_NUM:
                   type->initval = initval->num_val;
@@ -2076,6 +2090,7 @@ void toplevel(void) {
                   error("Error: invalid initializer on global variable\n");
                   break;
             }
+            */
          }
          expect_token(';');
       }

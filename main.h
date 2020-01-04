@@ -230,6 +230,12 @@ typedef struct LocalVariable {
    char *name;
 } LocalVariable;
 
+typedef struct GlobalVariable {
+   Vector *inits; // Node*
+   Type *type;
+   char *name;
+} GlobalVariable;
+
 typedef struct Node {
    NodeType ty;
    struct Node *lhs;
