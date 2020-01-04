@@ -1,5 +1,5 @@
 # hanando-fukui
-Self-hostable C(+something) Compiler Prototype: Version 3.1.4 (2019/12/24)
+Self-hostable C(+something) Compiler Prototype: Version 3.1.5 (2020/01/04)
 
 *Japanese README is avaliable on README.ja.md*
 
