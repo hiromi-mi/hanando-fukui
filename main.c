@@ -687,7 +687,7 @@ Node *node_unary(void) {
             vec_push(args, (Token *)node_assignment_expression());
          }
       }
-      node = new_func_node(node, newtype, args);
+      node = new_func_node(node, NULL, args);
    } else {
       return node_term();
    }
