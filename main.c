@@ -763,12 +763,8 @@ Vector *read_template_argument_list(Map *local_typedb) {
    return template_types;
 }
 
-Node *node_term(void) {
+Node *node_primary_expression(void) {
    Node *node = NULL;
-   Vector *template_types = NULL;
-   int j;
-
-   // Primary Expression
    if (confirm_token(TK_FLOAT)) {
       char *_str = malloc(sizeof(char) * 256);
       float *float_repr = malloc(sizeof(float));
@@ -791,6 +787,7 @@ Node *node_term(void) {
    } else if (confirm_ident()) {
       // treat constant or variable
       char *input = expect_ident();
+      int j;
       for (j = 0; j < consts->keys->len; j++) {
          // support for constant
          if (strcmp((char *)consts->keys->data[j], input) == 0) {
@@ -800,11 +797,12 @@ Node *node_term(void) {
       }
       node = new_ident_node(input);
    } else if (consume_token('(')) {
+      int old_pos = pos; // save old position
       node = node_expression();
       if (consume_token(')') == 0) {
-         // TODO
-         // fprintf(stderr, "Error: Incorrect Parensis.\n");
-         return NULL;
+         // TODO エラーをつぶしている
+         pos = old_pos;
+         node = NULL;
       }
    } else if (confirm_token(TK_STRING)) {
       char *_str = malloc(sizeof(char) * 256);
@@ -814,11 +812,12 @@ Node *node_term(void) {
       expect_token(TK_STRING);
    }
 
-   if (!node) {
-      // TODO
-      //fprintf(stderr, "Error: No Primary Expression.\n");
-      return NULL;
-   }
+   return node;
+}
+
+Node *node_term(void) {
+   Node *node = node_primary_expression();
+   Vector *template_types = NULL;
 
    while (1) {
       // Postfix Expression
@@ -982,13 +981,18 @@ int cnt_size(Type *type) {
 }
 
 Node *node_assignment_expression(void) {
-   int old_pos = pos; // save old position
+   //int old_pos = pos; // save old position
+   // Assignment Expression を node_unary() ではなく node_conditional_expression() で実装しているのは
+   // 何故に？
    Node *node;
-   node = node_unary();
-   if (!consume_token('=')) {
-      pos = old_pos;
+   //node = node_unary();
+   //if (!consume_token('=')) {
+      //pos = old_pos;
       // TODO: Support Conditional Expression
       node = node_conditional_expression();
+      //return node;
+   //}
+   if (!consume_token('=')) {
       return node;
    }
 
