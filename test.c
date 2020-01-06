@@ -102,6 +102,15 @@ int func32_2(char c, ...) {
    return 0;
 }
 
+int func32_3(char* str, ...) {
+   // gcc との互換性を確認
+   va_list ap;
+   va_start(ap, str);
+   vprintf(str, ap);
+   va_end(ap);
+   return 0;
+}
+
 
 int main(void) {
    /* test1 */
@@ -324,6 +333,7 @@ int main(void) {
    /* test32 */
    func32_1(1, -2);
    func32_2('a', -5, 'b');
+   func32_3("%d %s\n", 3, "test");
 
    // 空文でレジスタを使い切らないかのテスト
    1;
