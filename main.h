@@ -271,7 +271,6 @@ int map_put(Map *map, const char *key, const void *val);
 void *map_get(const Map *map, const char *key);
 Vector *new_vector();
 int vec_push(Vector *vec, Token *element);
-_Noreturn void error(const char *str, ...);
 
 void preprocess(Vector *pre_tokens, char *fname);
 
@@ -297,5 +296,9 @@ void init_reg_registers(void);
 void globalvar_gen(void);
 
 char *strdup(const char *s);
+
+// util.c
+void test_map(void);
+_Noreturn void error(const char *str, ...);
 
 #endif /* __HANANDO_FUKUI_MAIN__ */

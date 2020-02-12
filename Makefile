@@ -3,7 +3,7 @@ CFLAGS = -Wall -Wextra -Wpedantic  -std=c11 -g
 LDFLAGS = -lm
 
 #srcs = $(wildcard *.c)
-srcs = main.c preprocess.c token.c analysis.c gen_x64.c containers.c
+srcs = main.c preprocess.c token.c analysis.c gen_x64.c containers.c util.c
 # parse_c.c parse_cpp.c 
 asms = $(srcs:.c=.s)
 asmself = $(srcs:.c=2.s)

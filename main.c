@@ -19,7 +19,6 @@ limitations under the License.
 #include "selfhost.h"
 #include <ctype.h>
 #include <libgen.h>
-#include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -142,21 +141,6 @@ Type *type_pointer(Type *base_type) {
    type->ty = TY_PTR;
    type->ptrof = base_type;
    return type;
-}
-
-_Noreturn void error(const char *str, ...) {
-   va_list ap;
-   va_start(ap, str);
-   if (tokens && tokens->len > pos) {
-      char *buf = malloc(sizeof(char) * 256);
-      vsnprintf(buf, 255, str, ap);
-      fprintf(stderr, "%s on line %d pos %d: %s\n", buf,
-              tokens->data[pos]->pline, pos, tokens->data[pos]->input);
-   } else {
-      vfprintf(stderr, str, ap);
-   }
-   va_end(ap);
-   exit(1);
 }
 
 Node *new_string_node(char *_id) {
@@ -2270,37 +2254,6 @@ Node *node_conditional_expression(void) {
       node = conditional_node;
    }
    return node;
-}
-
-
-void test_map(void) {
-   Vector *vec = new_vector();
-   Token *hanando_fukui_compiled = malloc(sizeof(Token));
-   hanando_fukui_compiled->ty = TK_NUM;
-   hanando_fukui_compiled->pos = 0;
-   hanando_fukui_compiled->num_val = 1;
-   hanando_fukui_compiled->input = "HANANDO_FUKUI";
-   vec_push(vec, hanando_fukui_compiled);
-   vec_push(vec, (Token *)9);
-   if (vec->len != 2) {
-      error("Vector does not work yet!");
-   }
-   if (strcmp(vec->data[0]->input, "HANANDO_FUKUI") != 0) {
-      error("Vector does not work yet!");
-   }
-
-   Map *map = new_map();
-   map_put(map, "foo", hanando_fukui_compiled);
-   if (map->keys->len != 1 || map->vals->len != 1) {
-      error("Error: Map does not work yet!");
-   }
-   if ((long)map_get(map, "bar") != 0) {
-      error("Error: Map does not work yet! on 3");
-   }
-   Token *te = map_get(map, "foo");
-   if (strcmp(te->input, "HANANDO_FUKUI") != 0) {
-      error("Error: Map does not work yet! on 3a");
-   }
 }
 
 void init_typedb(void) {
