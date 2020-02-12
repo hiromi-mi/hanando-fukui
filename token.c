@@ -20,8 +20,8 @@ limitations under the License.
 #include <stdlib.h>
 // isspace(), isdigit()
 #include <ctype.h>
-#include <string.h>
 #include <stdio.h>
+#include <string.h>
 
 #define SEEK_END 2
 #define SEEK_SET 0
@@ -396,4 +396,3 @@ Vector *read_tokenize(char *fname) {
    fclose(fp);
    return tokenize(buf);
 }
-

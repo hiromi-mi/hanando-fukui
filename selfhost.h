@@ -11,4 +11,3 @@ char *basename(char *path);
 
 int isspace(int c);
 #endif
-

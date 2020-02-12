@@ -49,7 +49,7 @@ int output = 0;
 Node *new_func_node(Node *ident, Vector *template_types, Vector *args);
 Type *read_type_all(char **input);
 Type *read_type(Type *type, char **input, Map *local_typedb);
-Type *struct_declartion(char* struct_name);
+Type *struct_declartion(char *struct_name);
 Type *read_fundamental_type(Map *local_typedb);
 int confirm_type();
 int confirm_token(TokenConst ty);
@@ -108,7 +108,7 @@ char *type2name(Type *type) {
    }
 }
 
-GlobalVariable* new_globalvariable(void) {
+GlobalVariable *new_globalvariable(void) {
    GlobalVariable *gvar = malloc(sizeof(GlobalVariable));
    gvar->inits = NULL;
    gvar->type = NULL;
@@ -856,7 +856,8 @@ Node *node_term(void) {
          // if (node->lhs->type->ty == TY_PTR || node->lhs->type->ty ==
          // TY_ARRAY) { Moved to analyzing process.
       } else if (consume_token('[')) {
-         node = new_node(ND_DEREF, new_node('+', node, node_expression()), NULL);
+         node =
+             new_node(ND_DEREF, new_node('+', node, node_expression()), NULL);
          expect_token(']');
       } else if (consume_token('.')) {
          node = new_dot_node(node);
@@ -965,16 +966,16 @@ int cnt_size(Type *type) {
 }
 
 Node *node_assignment_expression(void) {
-   //int old_pos = pos; // save old position
-   // Assignment Expression を node_unary() ではなく node_conditional_expression() で実装しているのは
-   // 何故に？
+   // int old_pos = pos; // save old position
+   // Assignment Expression を node_unary() ではなく
+   // node_conditional_expression() で実装しているのは 何故に？
    Node *node;
-   //node = node_unary();
-   //if (!consume_token('=')) {
-      //pos = old_pos;
-      // TODO: Support Conditional Expression
-      node = node_conditional_expression();
-      //return node;
+   // node = node_unary();
+   // if (!consume_token('=')) {
+   // pos = old_pos;
+   // TODO: Support Conditional Expression
+   node = node_conditional_expression();
+   // return node;
    //}
    if (!consume_token('=')) {
       return node;
@@ -989,7 +990,8 @@ Node *node_assignment_expression(void) {
       if (tp == '>') {
          tp = ND_RSHIFT;
       }
-      node = new_assign_node(node, new_node_with_cast(tp, node, node_expression()));
+      node = new_assign_node(node,
+                             new_node_with_cast(tp, node, node_expression()));
    } else {
       node = new_assign_node(node, node_expression());
    }
@@ -1902,7 +1904,7 @@ Type *class_declaration(Map *local_typedb) {
    return structuretype;
 }
 
-Type *struct_declartion(char* struct_name) {
+Type *struct_declartion(char *struct_name) {
    // struct_name : on struct name
    Type *structuretype = NULL;
    if (struct_name) {
@@ -2062,7 +2064,7 @@ void toplevel(void) {
                while (1) {
                   Node *initializer = node_assignment_expression();
                   initializer = optimizing(analyzing(initializer));
-                  vec_push(gvar->inits, (Token*)initializer);
+                  vec_push(gvar->inits, (Token *)initializer);
                   if (!consume_token(',')) {
                      expect_token('}');
                      break;
@@ -2071,7 +2073,7 @@ void toplevel(void) {
             } else {
                Node *initializer = node_expression();
                initializer = optimizing(analyzing(initializer));
-               vec_push(gvar->inits, (Token*)initializer);
+               vec_push(gvar->inits, (Token *)initializer);
             }
          }
          expect_token(';');
@@ -2539,7 +2541,7 @@ int main(int argc, char **argv) {
       gen_register_top();
    }
    // for using h8300 output
-   //if (is_register && output) 
+   // if (is_register && output)
 
    return 0;
 }

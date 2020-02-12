@@ -51,15 +51,12 @@ int neg_double_generate = 0;
 int env_for_while = 0;
 int env_for_while_switch = 0;
 
-
-
 #define NO_REGISTER NULL
 
 Register *gen_register_rightval(Node *node, int unused_eval);
 void init_reg_table(void);
 char *node2reg(Node *node, Register *reg);
 void secure_mutable_with_type(Register *reg, Type *type);
-
 
 void globalvar_gen(void) {
    puts(".data");
@@ -78,8 +75,8 @@ void globalvar_gen(void) {
          printf(".size %s, %d\n", keydataj, typesize);
          printf("%s:\n", keydataj);
          int k;
-         for (k=0;k<valdataj->inits->len;k++) {
-            Node* vark = (Node*)valdataj->inits->data[k];
+         for (k = 0; k < valdataj->inits->len; k++) {
+            Node *vark = (Node *)valdataj->inits->data[k];
             if (vark->name) {
                printf(".quad %s\n", vark->name);
             } else {
@@ -131,7 +128,7 @@ char *_rax(Node *node) {
 }
 
 int cmp_regs(Node *node, Register *lhs_reg, Register *rhs_reg) {
-      secure_mutable_with_type(lhs_reg, node->lhs->type);
+   secure_mutable_with_type(lhs_reg, node->lhs->type);
    if (node->lhs->type->ty == TY_FLOAT) {
       return printf("comiss %s, %s\n", node2reg(node->lhs, lhs_reg),
                     node2reg(node->rhs, rhs_reg));
@@ -169,7 +166,6 @@ char *_rdx(Node *node) {
          return "rdx";
    }
 }
-
 
 void gen_register_top(void) {
    init_reg_table();
@@ -521,7 +517,8 @@ Register *gen_register_rightval(Node *node, int unused_eval) {
       // 1 means the file number
       printf(".loc 1 %d\n", node->pline);
    }
-   if (unused_eval && (node->ty == ND_NUM || node->ty == ND_FLOAT || node->ty == ND_STRING)) {
+   if (unused_eval &&
+       (node->ty == ND_NUM || node->ty == ND_FLOAT || node->ty == ND_STRING)) {
       // 未使用な式なので0 を返す
       return NO_REGISTER;
    }
@@ -775,7 +772,8 @@ Register *gen_register_rightval(Node *node, int unused_eval) {
          printf("jmp .Lelseend%d\n", cur_if_cnt);
          printf(".Lendif%d:\n", cur_if_cnt);
          // There are else
-         // TODO この挙動は, retain_reg() 直後に同一レジスタが確保されることに依存している
+         // TODO この挙動は, retain_reg()
+         // 直後に同一レジスタが確保されることに依存している
          release_reg(temp_reg);
          temp_reg = gen_register_rightval(node->rhs, 0);
          printf(".Lelseend%d:\n", cur_if_cnt);

@@ -37,7 +37,6 @@ void update_rsp_offset(int size) {
    }
 }
 
-
 Node *analyzing(Node *node) {
    int j;
    Env *prev_env = env;
@@ -250,7 +249,8 @@ Node *analyzing(Node *node) {
           */
          /* TODO: Support NULL pointer & void */
          node->type = node->lhs->type;
-         if (node->type->ty != TY_STRUCT || node->type->ty != TY_PTR || node->type->ty != TY_ARRAY || node->type->ty != TY_VOID) {
+         if (node->type->ty != TY_STRUCT || node->type->ty != TY_PTR ||
+             node->type->ty != TY_ARRAY || node->type->ty != TY_VOID) {
             node = implicit_althemic_type_conversion(node);
          }
          break;
@@ -302,4 +302,3 @@ Node *implicit_althemic_type_conversion(Node *node) {
    }
    return node;
 }
-

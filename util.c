@@ -18,9 +18,9 @@ limitations under the License.
 #include "main.h"
 #include "selfhost.h"
 #include <stdarg.h>
-#include <string.h>
-#include <stdlib.h>
 #include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 
 extern Vector *tokens;
 extern int pos;
@@ -68,4 +68,3 @@ void test_map(void) {
       error("Error: Map does not work yet! on 3a");
    }
 }
-

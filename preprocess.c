@@ -17,13 +17,13 @@ limitations under the License.
 
 #include "main.h"
 #include "selfhost.h"
-#include <stdlib.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 // dirname()
 #include <libgen.h>
 
-extern Vector* tokens;
+extern Vector *tokens;
 
 void preprocess(Vector *pre_tokens, char *fname) {
    Map *defined = new_map();
@@ -103,7 +103,7 @@ void preprocess(Vector *pre_tokens, char *fname) {
                }
                preprocess(read_tokenize(buf), buf);
                // 最後のToken が EOF なので除く
-               if (tokens->data[tokens->len-1]->ty == TK_EOF) {
+               if (tokens->data[tokens->len - 1]->ty == TK_EOF) {
                   tokens->len--;
                }
             }
@@ -134,4 +134,3 @@ void preprocess(Vector *pre_tokens, char *fname) {
       }
    }
 }
-
