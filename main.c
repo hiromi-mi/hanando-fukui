@@ -2309,6 +2309,7 @@ void init_typedb(void) {
    type = find_typed_db("int", typedb);
    type->offset = 0;
    map_put(va_listtype->structure, "gp_offset", type);
+
    type = find_typed_db("int", typedb);
    type->offset = 4;
    map_put(va_listtype->structure, "fp_offset", type);
@@ -2323,17 +2324,19 @@ void init_typedb(void) {
    map_put(va_listtype->structure, "overflow_arg_area", type);
    type = duplicate_type(type);
    type->offset = 16;
+
    map_put(va_listtype->structure, "reg_save_area", type);
    va_listtype->offset = 4 + 4 + 8 + 8;
    va_listarray->ptrof = va_listtype;
    map_put(typedb, "va_list", va_listarray);
 
-   Type *typedou = new_type();
-   typedou->ty = TY_FLOAT;
-   typedou->ptrof = NULL;
-   typedou->offset = 4;
-   map_put(typedb, "float", typedou);
+   Type *typefloat = new_type();
+   typefloat->ty = TY_FLOAT;
+   typefloat->ptrof = NULL;
+   typefloat->offset = 4;
+   map_put(typedb, "float", typefloat);
 
+   Type *typedou = new_type();
    typedou = new_type();
    typedou->ty = TY_DOUBLE;
    typedou->ptrof = NULL;
