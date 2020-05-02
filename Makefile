@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: Apache-2.0 OR CC0-1.0
+
 CC = gcc
 CFLAGS = -Wall -Wextra -Wpedantic  -std=c11 -g
 LDFLAGS = -lm
