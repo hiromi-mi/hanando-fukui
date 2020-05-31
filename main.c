@@ -1517,7 +1517,7 @@ Type *read_template_parameter_list(Map *local_typedb) {
    expect_token(TK_TEMPLATE);
    expect_token('<');
    while (1) {
-      expect_token_or_token(TK_TYPENAME, TY_CLASS);
+      expect_token_or_token(TK_TYPENAME, TK_CLASS);
       template_typename = expect_ident();
       type = new_type();
       type->ty = TY_TEMPLATE;
