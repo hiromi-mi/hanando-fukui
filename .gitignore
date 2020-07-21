@@ -125,3 +125,7 @@ test.processed.c
 
 hanando2
 hanando3
+
+diff.diff
+hanandoold
+hanandonew
